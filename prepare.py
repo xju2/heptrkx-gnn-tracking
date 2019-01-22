@@ -97,6 +97,7 @@ def construct_graph(hits, layer_pairs,
     Ri = np.zeros((n_hits, n_edges), dtype=np.uint8)
     Ro = np.zeros((n_hits, n_edges), dtype=np.uint8)
     y = np.zeros(n_edges, dtype=np.float32)
+    I = hits['hit_id']
 
     # We have the segments' hits given by dataframe label,
     # so we need to translate into positional indices.
@@ -115,7 +116,7 @@ def construct_graph(hits, layer_pairs,
     pid2 = hits.particle_id.loc[segments.index_2].values
     y[:] = (pid1 == pid2)
     # Return a tuple of the results
-    return Graph(X, Ri, Ro, y)
+    return Graph(X, Ri, Ro, y), I
 
 def select_hits(hits, truth, particles, pt_min=0):
     # Barrel volume and layer ids
@@ -195,21 +196,27 @@ def process_event(prefix, output_dir, pt_min, n_eta_sections, n_phi_sections,
 
     # Construct the graph
     logging.info('Event %i, constructing graphs' % evtid)
-    graphs = [construct_graph(section_hits, layer_pairs=layer_pairs,
+    graphs_all = [construct_graph(section_hits, layer_pairs=layer_pairs,
                               phi_slope_max=phi_slope_max, z0_max=z0_max,
                               feature_names=feature_names,
                               feature_scale=feature_scale)
               for section_hits in hits_sections]
+    graphs = [x[0] for x in graphs_all]
+    IDs    = [x[1] for x in graphs_all]
 
     # Write these graphs to the output directory
     try:
         base_prefix = os.path.basename(prefix)
         filenames = [os.path.join(output_dir, '%s_g%03i' % (base_prefix, i))
                      for i in range(len(graphs))]
+        filenames_ID = [os.path.join(output_dir, '%s_g%03i_ID' % (base_prefix, i))
+                     for i in range(len(graphs))]
     except Exception as e:
         logging.info(e)
     logging.info('Event %i, writing graphs', evtid)
     save_graphs(graphs, filenames)
+    for ID, file_name in zip(IDs, filenames_ID):
+        np.savez(file_name, dict(ID=ID))
 
 def main():
     """Main function"""

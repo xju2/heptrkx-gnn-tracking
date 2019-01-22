@@ -1,0 +1,22 @@
+data:
+    name: hitgraphs
+    n_train: 1000
+    n_valid: 500
+    batch_size: 2
+    input_dir: /global/cscratch1/sd/xju/heptrkx/data/hitgraphs_001
+
+experiment:
+    name: gnn
+    output_dir: ../../heptrkx-gnn-tracking/test_run_001
+
+train:
+    n_epochs: 20
+
+model:
+    model_type: 'gnn_segment_classifier'
+    input_dim: 3
+    n_iters: 6
+    hidden_dim: 128
+    loss_func: 'binary_cross_entropy'
+    optimizer: 'Adam'
+    learning_rate: 0.001
