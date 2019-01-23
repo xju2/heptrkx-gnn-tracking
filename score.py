@@ -99,11 +99,15 @@ class TrackingScore(object):
         # this part takes most of time
         # need improvement
         df_sub = hits[['hit_id']]
-        df_sub = df_sub.assign(track_id=999999)
-        print("total tracks: ", len(all_tracks))
+        total_tracks = len(all_tracks)
+        print("total tracks: ", total_tracks)
+
+        results = []
         for itrk, track in enumerate(all_tracks):
-            cuts = df_sub['hit_id'].map(lambda x: x in track)
-            df_sub.loc[cuts, 'track_id'] = itrk
+            results += [(x, itrk) for x in track]
+
+        new_df = pd.DataFrame(results, columns=['hit_id', 'track_id'])
+        df_sub = df_sub.merge(new_df, on='hit_id', how='outer').fillna(total_tracks+1)
 
         return score_event(truth, df_sub)
 
