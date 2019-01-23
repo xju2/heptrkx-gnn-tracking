@@ -216,7 +216,7 @@ def process_event(prefix, output_dir, pt_min, n_eta_sections, n_phi_sections,
     logging.info('Event %i, writing graphs', evtid)
     save_graphs(graphs, filenames)
     for ID, file_name in zip(IDs, filenames_ID):
-        np.savez(file_name, dict(ID=ID))
+        np.savez(file_name, ID=ID)
 
 def main():
     """Main function"""

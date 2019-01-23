@@ -7,7 +7,7 @@ data:
 
 experiment:
     name: gnn
-    output_dir: ../../heptrkx-gnn-tracking/test_run_001
+    output_dir: /global/homes/x/xju/track/gnn/code/heptrkx-gnn-tracking/test_run_001
 
 train:
     n_epochs: 20
