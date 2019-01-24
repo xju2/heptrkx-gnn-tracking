@@ -3,6 +3,7 @@ output_dir: ${SCRATCH}/heptrkx/results/gnn_hitgraphs001_test_distributed
 data:
     name: hitgraphs
     input_dir: ${SCRATCH}/heptrkx/data/hitgraphs_001
+    :wa
     n_train: 1000
     n_valid: 500
     batch_size: 2

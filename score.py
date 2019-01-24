@@ -47,7 +47,8 @@ class TrackingScore(object):
     def __init__(self, config_data_file,
                  config_train_file,
                  n_events=1,
-                 reload_epoch=18
+                 reload_epoch=18,
+                 weight_cut=0.5
                 ):
         config = load_config(config_data_file)
         self.hitgraph_dir = config['output_dir']
@@ -61,7 +62,12 @@ class TrackingScore(object):
         self.reload_epoch = reload_epoch
         self.model = None
         self.update_model = False
+        self.weight_cutoff = weight_cut
 
+    def print_info(self):
+        out =  "# of events: {}\n".format(self.n_events)
+        out += "weight cut:  {:.2f}\n".format(self.weight_cutoff)
+        print(out)
 
     def set_train_config(self, config_file):
         self.config_train_file = config_file
@@ -74,14 +80,15 @@ class TrackingScore(object):
         self.reload_epoch = reload_epoch
 
     def get_score(self):
+        self.print_info()
         if self.update_model or self.model is None:
             self.model = load_model(load_config(self.config_train_file),
                                     reload_epoch=self.reload_epoch).eval()
-        all_scores= [
+        all_scores= np.array([
             self.get_score_of_one_event(ievt)
             for ievt in range(self.n_events)
-        ]
-        return np.mean(all_scores)
+        ])
+        return np.mean(all_scores[:, 0]), np.mean(all_scores[:, 1])
 
 
     def get_score_of_one_event(self, ievt):
@@ -108,8 +115,17 @@ class TrackingScore(object):
 
         new_df = pd.DataFrame(results, columns=['hit_id', 'track_id'])
         df_sub = df_sub.merge(new_df, on='hit_id', how='outer').fillna(total_tracks+1)
+        matched = truth.merge(new_df, on='hit_id', how='inner')
+        tot_truth_weight = np.sum(matched['weight'])
+        ## remove the hits that belong to the same particle 
+        # but of that the total number is less than 50% of the hits of the particle
+        particle_ids = np.unique(matched['particle_id'])
+        for p_id in particle_ids:
+            pID_match = matched[matched['particle_id'] == p_id]
+            if pID_match.shape[0] < truth[truth['particle_id'] == p_id].shape[0]*0.5:
+                tot_truth_weight -= np.sum(pID_match['weight'])
 
-        return score_event(truth, df_sub)
+        return [score_event(truth, df_sub), tot_truth_weight]
 
 
     def get_tracks_of_one_sector(self, event_str, iSec):
@@ -131,7 +147,7 @@ class TrackingScore(object):
         all_tracks = []
         weights = test_outputs.numpy()
         for idx in range(n_hits):
-            # Loop over all hits 
+            # Loop over all hits
             # and save hits that are used in a track
             hit_id = hit_ids[idx]
             if hit_id not in hits_in_tracks:
@@ -148,6 +164,8 @@ class TrackingScore(object):
                 if hit_out.nonzero()[0].shape[0] < 1:
                     break
                 weighted_outgoing = np.argsort((hit_out * weights))
+                if weights[weighted_outgoing[-1]] < self.weight_cutoff:
+                    break
                 ii = -1
                 has_next_hit = False
                 while abs(ii) < 15:
@@ -174,9 +192,20 @@ class TrackingScore(object):
 
 
 if __name__ == "__main__":
+    import sys
+    if len(sys.argv) < 5:
+        print(sys.argv[0], "data_config train_config n_events reload_epoch")
+        exit(1)
+
+    weight_cut = float(sys.argv[5]) if len(sys.argv) > 5 else 0.5
     tracking_score = TrackingScore(
-        'configs/xy_pre_small.yaml',
-        'configs/hello_graph.yaml',
-        n_events=1,
-        reload_epoch=18)
-    print("mean score:", tracking_score.get_score())
+        sys.argv[1], # 'configs/xy_pre_small.yaml'
+        sys.argv[2], # 'configs/hello_graph.yaml'
+        n_events=int(sys.argv[3]),  # 1
+        reload_epoch=int(sys.argv[4]), # 18
+        weight_cut=weight_cut
+    )
+    scores = tracking_score.get_score()
+    print("score of gnn:   {:.4f}".format(scores[0]))
+    print("score of truth: {:.4f}".format(scores[1]))
+    print("ratio:          {:.4f}".format(scores[0]/scores[1]))
