@@ -13,6 +13,9 @@ from trackml.score import score_event
 from datasets.graph import load_graph
 from models import get_model
 
+## the glue method
+import glue
+
 def get_output_dir(config):
     return os.path.expandvars(config['experiment']['output_dir'])
 

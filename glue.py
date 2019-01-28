@@ -151,6 +151,44 @@ def create_glue(graph, weights, hit_ids, hits, truth):
     return glue
 
 
+def get_tracks(pairs, hit_ids):
+    """
+    pairs are a list of pairs for each pair of consective layers
+    """
+    list_pairs = []
+    for ilay, pair in enumerate(pairs):
+        pair_dict = {}
+        for edges in pair:
+            pair_dict[edges[0]] = edges[1]
+        list_pairs.append(pair_dict)
+
+    used_hits = []
+    all_tracks = []
+    for ilayer in range(n_det_layers-1):
+        for hit,next_hit in list_pairs[ilayer].items():
+            if hit in used_hits:
+                continue
+            if next_hit == -1:
+                all_tracks.append([hit_ids[hit]])
+                used_hits.append(hit)
+                continue
+
+            a_track = [hit_ids[hit], hit_ids[next_hit]]
+            used_hits += [hit, next_hit]
+            for ii in range(ilayer+1, n_det_layers-1, 1):
+                try:
+                    nn_hit = list_pairs[ii][next_hit]
+                    if nn_hit == -1 or nn_hit in used_hits:
+                        break
+                except KeyError:
+                    break
+                a_track.append(hit_ids[nn_hit])
+                used_hits.append(nn_hit)
+                next_hit = nn_hit
+            all_tracks.append(a_track)
+
+    return all_tracks
+
 if __name__ == "__main__":
     from datasets.graph import load_graph
     file_name = '/global/cscratch1/sd/xju/heptrkx/data/hitgraphs_001/event000001000_g000.npz'
