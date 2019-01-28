@@ -14,7 +14,8 @@ from datasets.graph import load_graph
 from models import get_model
 
 ## the glue method
-import glue
+from postprocess import pathfinder
+from postprocess import glue
 
 def get_output_dir(config):
     return os.path.expandvars(config['experiment']['output_dir'])
@@ -49,9 +50,10 @@ def load_model(config, reload_epoch):
 class TrackingScore(object):
     def __init__(self, config_data_file,
                  config_train_file,
+                 method,
                  n_events=1,
                  reload_epoch=18,
-                 weight_cut=0.5
+                 weight_cut=0.5,
                 ):
         config = load_config(config_data_file)
         self.hitgraph_dir = config['output_dir']
@@ -66,15 +68,16 @@ class TrackingScore(object):
         self.model = None
         self.update_model = False
         self.weight_cutoff = weight_cut
+        self.method = method
 
     def print_info(self):
         out =  "# of events: {}\n".format(self.n_events)
+        out =  "method:      {}\n".format(self.method)
         out += "weight cut:  {:.2f}\n".format(self.weight_cutoff)
         print(out)
 
     def set_train_config(self, config_file):
         self.config_train_file = config_file
-
 
     def set_n_events(self, nevents):
         self.n_events = nevents
@@ -97,14 +100,15 @@ class TrackingScore(object):
     def get_score_of_one_event(self, ievt):
         event_str = "event00000{0}".format(1000+ievt)
 
-        all_tracks = []
-        for i in range(self.n_sections):
-            all_tracks += self.get_tracks_of_one_sector(event_str, i)
-
         # get score of the track candidates
         # load the event info from tracking ml
         event_input_name = os.path.join(self.trackdata_dir, event_str)
         hits, cells, particles, truth = load_event(event_input_name)
+
+        all_tracks = []
+        for i in range(self.n_sections):
+            all_tracks += self.get_tracks_of_one_sector(event_str, i, hits, truth)
+
 
         # this part takes most of time
         # need improvement
@@ -131,7 +135,7 @@ class TrackingScore(object):
         return [score_event(truth, df_sub), tot_truth_weight]
 
 
-    def get_tracks_of_one_sector(self, event_str, iSec):
+    def get_tracks_of_one_sector(self, event_str, iSec, hits, truth):
         file_name = os.path.join(self.hitgraph_dir,
                               event_str+"_g00{0}.npz".format(iSec))
         id_name = file_name.replace('.npz', '_ID.npz')
@@ -143,71 +147,36 @@ class TrackingScore(object):
         n_hits = G.X.shape[0]
         batch_input = [torch.from_numpy(m[None]).float() for m in [G.X, G.Ri, G.Ro]]
         with torch.no_grad():
-            test_outputs = self.model(batch_input).flatten()
+            weights = self.model(batch_input).flatten().numpy()
 
-        hits_in_tracks = []
-        hits_idx_in_tracks = []
-        all_tracks = []
-        weights = test_outputs.numpy()
-        for idx in range(n_hits):
-            # Loop over all hits
-            # and save hits that are used in a track
-            hit_id = hit_ids[idx]
-            if hit_id not in hits_in_tracks:
-                hits_in_tracks.append(hit_id)
-                hits_idx_in_tracks.append(idx)
-            else:
-                continue
-
-            a_track = [hit_id]
-            while(True):
-                # for this hit index (idx),
-                # find its outgoing hits that could form a track
-                hit_out = G.Ro[idx]
-                if hit_out.nonzero()[0].shape[0] < 1:
-                    break
-                weighted_outgoing = np.argsort((hit_out * weights))
-                if weights[weighted_outgoing[-1]] < self.weight_cutoff:
-                    break
-                ii = -1
-                has_next_hit = False
-                while abs(ii) < 15:
-                    weight_idx = weighted_outgoing[ii]
-                    next_hit = G.Ri[:, weight_idx].nonzero()
-                    if next_hit[0].shape[0] > 0:
-                        next_hit_id = next_hit[0][0]
-                        if next_hit_id != idx and next_hit_id not in hits_idx_in_tracks:
-                            hits_in_tracks.append(hit_ids[next_hit_id])
-                            hits_idx_in_tracks.append(next_hit_id)
-                            a_track       .append(hit_ids[next_hit_id])
-                            idx = next_hit_id
-                            has_next_hit = True
-                            break
-                    ii -= 1
-
-                if not has_next_hit:
-                    # no more out-going tracks
-                    break
-            all_tracks    .append(a_track)
-        return all_tracks
-
-
+        return postprocess.glue.get_tracks(G, weights, hit_ids, hits, truth) \
+                if self.method=='glue' else \
+                postprocess.pathfinder.get_tracks(G, weights, hit_ids, self.weight_cutoff)
 
 
 if __name__ == "__main__":
     import sys
-    if len(sys.argv) < 5:
-        print(sys.argv[0], "data_config train_config n_events reload_epoch")
-        exit(1)
+    import argparse
+    parser = argparse.ArgumentParser(description='Get a score from postprocess')
+    add_arg = parser.add_argument
+    add_arg('data_config',  nargs='?', default='configs/xy_pre_small.yaml')
+    add_arg('train_config', nargs='?', default='configs/hello_graph.yaml')
+    add_arg('--nEvents', default=1, type=int, help='number of events for scoring')
+    add_arg('--nEpoch',  default=18, type=int, help='reload model from an epoch')
+    add_arg('-m', '--method', default='glue', help='postprocess method, [glue, pathfinder]')
+    add_arg('--weightCut', default=0.5, type=float, help='weight cut for pathfinder')
 
-    weight_cut = float(sys.argv[5]) if len(sys.argv) > 5 else 0.5
+    args = parser.parse_args()
+
     tracking_score = TrackingScore(
-        sys.argv[1], # 'configs/xy_pre_small.yaml'
-        sys.argv[2], # 'configs/hello_graph.yaml'
-        n_events=int(sys.argv[3]),  # 1
-        reload_epoch=int(sys.argv[4]), # 18
-        weight_cut=weight_cut
+        args.data_config,
+        args.train_config,
+        method=args.method,
+        n_events=args.nEvents,
+        reload_epoch=args.nEpoch,
+        weight_cut=args.weight_cut
     )
+
     scores = tracking_score.get_score()
     print("score of gnn:   {:.4f}".format(scores[0]))
     print("score of truth: {:.4f}".format(scores[1]))
