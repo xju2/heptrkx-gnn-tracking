@@ -52,7 +52,7 @@ def create_glue(graph, weights, hit_ids, hits, truth):
         outer_hits_idx = df_hit_ids.merge(outer_hits, on='hit_id', how='inner')['idx']
         inner_hits_idx = df_hit_ids.merge(inner_hits, on='hit_id', how='inner')['idx']
 
-        def extrapolate(hit_indexs, weight, g_start, g_end):
+        def extrapolate(hit_indexs, weight, g_start, g_end, reverse=False):
             """
             Find its pair in inner/outer layer for each hit in hit_indexs
             return the pairs and indexs of corresponding edges
@@ -72,15 +72,19 @@ def create_glue(graph, weights, hit_ids, hits, truth):
                     if next_hit[0].shape[0] > 0:
                         next_hit_id = next_hit[0][0]
                         edge_idx = weight_idx
-                        cand_edge_idx.append(edge_idx)
-                        cand_idx.append(next_hit_id)
 
-            res_expolate = [(x,y) for x,y in zip(hit_indexs, cand_idx)]
+                cand_edge_idx.append(edge_idx)
+                cand_idx.append(next_hit_id)
+
+            if reverse:
+                res_expolate = [(y,x) for x,y in zip(hit_indexs, cand_idx)]
+            else:
+                res_expolate = [(x,y) for x,y in zip(hit_indexs, cand_idx)]
             return res_expolate, cand_edge_idx
 
         # step 1: best choice of each other
         res_inner_expolate, sel_inner_edge_idx = extrapolate(outer_hits_idx, weights, graph.Ri, graph.Ro)
-        res_outer_expolate, sel_outer_edge_idx = extrapolate(inner_hits_idx, weights, graph.Ro, graph.Ri)
+        res_outer_expolate, sel_outer_edge_idx = extrapolate(inner_hits_idx, weights, graph.Ro, graph.Ri, True)
 
         good_match = {}
         to_be_det_idx = OrderedDict()
@@ -129,6 +133,8 @@ def create_glue(graph, weights, hit_ids, hits, truth):
 
         # step 3: get truth edges, calculate precision
         res_truth_exp, truth_edge_idx = extrapolate(outer_hits_idx, graph.y, graph.Ri, graph.Ro)
+        ## remove the ones with -1
+        truth_edge_idx = [x for x in truth_edge_idx if x != -1]
         n_true_edges = int(np.sum(graph.y[truth_edge_idx]))
         all_edges    = selected_edge_idx + sel_edges_tbd
         vals, counts = np.unique(all_edges, return_counts=True)
