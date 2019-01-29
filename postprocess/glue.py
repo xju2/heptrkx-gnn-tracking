@@ -137,8 +137,9 @@ def create_glue(graph, weights, hit_ids, hits, truth):
         truth_edge_idx = [x for x in truth_edge_idx if x != -1]
         n_true_edges = int(np.sum(graph.y[truth_edge_idx]))
         all_edges    = selected_edge_idx + sel_edges_tbd
+        all_edges = [x for x in all_edges if x != -1]
         vals, counts = np.unique(all_edges, return_counts=True)
-        n_true_pos_edge = int(np.sum(graph.y[np.unique(all_edges)]))
+        n_true_pos_edge = int(np.sum(graph.y[vals]))
         n_true_edge = int(np.sum(graph.y[truth_edge_idx]))
         precision = n_true_pos_edge*1.0/n_true_edges
         logger.debug("# of unique edges: {}".format( vals.shape[0]) )
