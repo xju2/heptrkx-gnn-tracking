@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-from glue import  create_glue
-from glue import  n_det_layers
+from postprocess.glue import  create_glue
+from postprocess.glue import  n_det_layers
 
 import numpy as np
 import pandas as pd
@@ -18,9 +18,9 @@ if __name__ == "__main__":
 
     from score import load_model
     from score import load_config
-    model_config_file = 'configs/hello_graph.yaml'
+    model_config_file = 'configs/segclf_small_new.yaml'
 
-    model = load_model(load_config(model_config_file), reload_epoch=18).eval()
+    model = load_model(load_config(model_config_file), reload_epoch=30).eval()
     batch_input = [torch.from_numpy(m[None]).float() for m in [G.X, G.Ri, G.Ro]]
     with torch.no_grad():
         weights = model(batch_input).flatten().numpy()

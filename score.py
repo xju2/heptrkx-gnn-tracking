@@ -56,11 +56,39 @@ def load_model(config, reload_epoch):
     model.load_state_dict(torch.load(checkpoint_file, map_location='cpu')['model'])
     return model
 
+def score_tracks(all_tracks, hits, truth):
+    # this part takes most of time
+    # need improvement
+    total_tracks = len(all_tracks)
+    logging.info("total tracks: {}".format(total_tracks))
+
+    results = []
+    for itrk, track in enumerate(all_tracks):
+        results += [(x, itrk) for x in track]
+
+    new_df = pd.DataFrame(results, columns=['hit_id', 'track_id'])
+    new_df = new_df.drop_duplicates(subset='hit_id')
+
+    df_sub = hits[['hit_id']]
+    df_sub = df_sub.merge(new_df, on='hit_id', how='outer').fillna(total_tracks+1)
+    matched = truth.merge(new_df, on='hit_id', how='inner')
+    tot_truth_weight = np.sum(matched['weight'])
+
+    ## remove the hits that belong to the same particle
+    # but of that the total number is less than 50% of the hits of the particle
+    particle_ids = np.unique(matched['particle_id'])
+    for p_id in particle_ids:
+        pID_match = matched[matched['particle_id'] == p_id]
+        if pID_match.shape[0] <= truth[truth['particle_id'] == p_id].shape[0]*0.5:
+            tot_truth_weight -= np.sum(pID_match['weight'])
+
+    return [score_event(truth, df_sub), tot_truth_weight]
+
+
 class TrackingScore(object):
     def __init__(self, config_data_file,
                  config_train_file,
                  method,
-                 n_events=1,
                  reload_epoch=18,
                  weight_cut=0.5,
                 ):
@@ -75,7 +103,6 @@ class TrackingScore(object):
 
         # load model from the trained epoch
         self.config_train_file = config_train_file
-        self.n_events = n_events
         self.reload_epoch = reload_epoch
         self.model = None
         self.update_model = False
@@ -83,7 +110,6 @@ class TrackingScore(object):
         self.method = method
 
     def print_info(self):
-        out =  "# of events: {}\n".format(self.n_events)
         out =  "method:      {}\n".format(self.method)
         out += "weight cut:  {:.2f}\n".format(self.weight_cutoff)
         logging.info(out)
@@ -91,20 +117,17 @@ class TrackingScore(object):
     def set_train_config(self, config_file):
         self.config_train_file = config_file
 
-    def set_n_events(self, nevents):
-        self.n_events = nevents
-
     def load_epoch(self, reload_epoch):
         self.reload_epoch = reload_epoch
 
-    def get_score(self):
+    def get_score(self, n_events):
         self.print_info()
         if self.update_model or self.model is None:
             self.model = load_model(load_config(self.config_train_file),
                                     reload_epoch=self.reload_epoch).eval()
         all_scores= np.array([
             self.get_score_of_one_event(ievt)
-            for ievt in range(self.n_events)
+            for ievt in range(n_events)
         ])
         return np.mean(all_scores[:, 0]), np.mean(all_scores[:, 1])
 
@@ -118,44 +141,23 @@ class TrackingScore(object):
         event_input_name = os.path.join(self.trackdata_dir, event_str)
         hits, truth = load_event(event_input_name, parts=['hits', 'truth'])
 
-        all_tracks = []
+        all_gnn_tracks = []
+        all_true_tracks = []
         for i in range(self.n_sections):
-            all_tracks += self.get_tracks_of_one_sector(event_str, i, hits, truth)
+            res_tracks = self.get_tracks_of_one_sector(event_str, i, hits, truth)
+            all_gnn_tracks += res_tracks[0]
+            all_true_tracks += res_tracks[1]
 
-
-        # this part takes most of time
-        # need improvement
-        total_tracks = len(all_tracks)
-        logging.info("total tracks: {}".format(total_tracks))
-
-        results = []
-        for itrk, track in enumerate(all_tracks):
-            results += [(x, itrk) for x in track]
-
-        new_df = pd.DataFrame(results, columns=['hit_id', 'track_id'])
-        new_df = new_df.drop_duplicates(subset='hit_id')
-
-        df_sub = hits[['hit_id']]
-        df_sub = df_sub.merge(new_df, on='hit_id', how='outer').fillna(total_tracks+1)
-        matched = truth.merge(new_df, on='hit_id', how='inner')
-        tot_truth_weight = np.sum(matched['weight'])
-
-        ## remove the hits that belong to the same particle
-        # but of that the total number is less than 50% of the hits of the particle
-        particle_ids = np.unique(matched['particle_id'])
-        for p_id in particle_ids:
-            pID_match = matched[matched['particle_id'] == p_id]
-            if pID_match.shape[0] < truth[truth['particle_id'] == p_id].shape[0]*0.5:
-                tot_truth_weight -= np.sum(pID_match['weight'])
-
-        event_res = [score_event(truth, df_sub), tot_truth_weight]
-        logging.debug("SCORE of {} event: {:.4f} {:.4f} {:.4f}\n".format(
-                      ievt, event_res[0], event_res[1], event_res[0]/event_res[1])
+        event_gnn   = score_tracks(all_gnn_tracks,  hits, truth)
+        event_truth = score_tracks(all_true_tracks, hits, truth)
+        logging.debug("SCORE of {} event: {:.4f} {:.4f} {:.4f}, {:.4f}\n".format(
+                      ievt, event_gnn[0], event_truth[0], event_gnn[0]/event_truth[0], event_truth[1])
         )
-        return event_res
+        return [event_gnn[0], event_truth[0]]
 
 
     def get_tracks_of_one_sector(self, event_str, iSec, hits, truth):
+        logging.debug("processing {} section".format(iSec))
         file_name = os.path.join(self.hitgraph_dir,
                                  event_str+"_g{:03d}.npz".format(iSec))
         id_name = file_name.replace('.npz', '_ID.npz')
@@ -169,9 +171,15 @@ class TrackingScore(object):
         with torch.no_grad():
             weights = self.model(batch_input).flatten().numpy()
 
-        return glue.get_tracks(G, weights, hit_ids, hits, truth) \
+        gnn_tracks = glue.get_tracks(G, weights, hit_ids, hits, truth) \
                 if self.method=='glue' else \
                 pathfinder.get_tracks(G, weights, hit_ids, self.weight_cutoff)
+
+        true_tracks = glue.get_tracks(G, G.y, hit_ids, hits, truth) \
+                if self.method=='glue' else \
+                pathfinder.get_tracks(G, G.y, hit_ids, self.weight_cutoff)
+
+        return gnn_tracks, true_tracks
 
 
 if __name__ == "__main__":
@@ -182,8 +190,8 @@ if __name__ == "__main__":
     add_arg = parser.add_argument
     add_arg('data_config',  nargs='?', default='configs/xy_pre_small.yaml')
     add_arg('train_config', nargs='?', default='configs/hello_graph.yaml')
-    add_arg('--nEvents', default=1, type=int, help='number of events for scoring')
-    add_arg('--nEpoch',  default=18, type=int, help='reload model from an epoch')
+    add_arg('--nEvents',    default=1, type=int, help='number of events for scoring')
+    add_arg('--nEpoch',     default=18, type=int, help='reload model from an epoch')
     add_arg('-m', '--method', default='glue', help='postprocess method, [glue, pathfinder]')
     add_arg('--weightCut', default=0.5, type=float, help='weight cut for pathfinder')
     add_arg('--log', default='info', help='logging level')
@@ -198,12 +206,11 @@ if __name__ == "__main__":
         args.data_config,
         args.train_config,
         method=args.method,
-        n_events=args.nEvents,
         reload_epoch=args.nEpoch,
         weight_cut=args.weightCut
     )
 
-    scores = tracking_score.get_score()
+    scores = tracking_score.get_score(args.nEvents)
     logging.info("score of gnn:   {:.4f}".format(scores[0]))
     logging.info("score of truth: {:.4f}".format(scores[1]))
     logging.info("ratio:          {:.4f}".format(scores[0]/scores[1]))

@@ -2,6 +2,7 @@
 Loop over all hits;
 for each hit, find next hit that has maximum weight among all available edge candidates
 """
+import numpy as np
 
 def get_tracks(graph, weights, hit_ids, weight_cutoff):
     hits_in_tracks = []

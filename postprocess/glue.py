@@ -51,6 +51,8 @@ def create_glue(graph, weights, hit_ids, hits, truth):
         # hit index in Graph
         outer_hits_idx = df_hit_ids.merge(outer_hits, on='hit_id', how='inner')['idx']
         inner_hits_idx = df_hit_ids.merge(inner_hits, on='hit_id', how='inner')['idx']
+        logger.debug("# outer hits: {}".format(outer_hits_idx.shape[0]))
+        logger.debug("# inner hits: {}".format(inner_hits_idx.shape[0]))
 
         def extrapolate(hit_indexs, weight, g_start, g_end, reverse=False):
             """
@@ -65,7 +67,6 @@ def create_glue(graph, weights, hit_ids, hits, truth):
                 next_hit_id = -1
                 edge_idx = -1
                 if w_edges.nonzero()[0].shape[0] > 0:
-
                     weighted_outgoing = np.argsort(w_edges)
                     weight_idx = weighted_outgoing[-1]
                     next_hit = g_end[:, weight_idx].nonzero()
@@ -113,20 +114,23 @@ def create_glue(graph, weights, hit_ids, hits, truth):
         sel_edges_tbd = []
         for idx in to_be_det_idx.keys():
             hit_out = graph.Ri[idx]
-            weighted_outgoing = np.argsort(hit_out * weights)
-            ii = -1
+            w_edges = hit_out * weights
             next_hit_id = -1
             edge_idx = -1
-            while True:
-                weight_idx = weighted_outgoing[ii]
-                next_hit = graph.Ro[:, weight_idx].nonzero()
-                if next_hit[0].shape[0] > 0:
-                    next_hit_id1 = next_hit[0][0]
-                    if next_hit_id1 not in used_hits:
-                        next_hit_id = next_hit_id1
-                        edge_idx = weight_idx
-                        break
-                ii -= 1
+            if w_edges.nonzero()[0].shape[0] > 0:
+                weighted_outgoing = np.argsort(w_edges)
+                ii = -1
+                while True:
+                    weight_idx = weighted_outgoing[ii]
+                    next_hit = graph.Ro[:, weight_idx].nonzero()
+                    if next_hit[0].shape[0] > 0:
+                        next_hit_id1 = next_hit[0][0]
+                        if next_hit_id1 not in used_hits:
+                            used_hits.append(next_hit_id1)
+                            next_hit_id = next_hit_id1
+                            edge_idx = weight_idx
+                            break
+                    ii -= 1
 
             inner_can_tbd.append(next_hit_id)
             sel_edges_tbd.append(edge_idx)
@@ -147,7 +151,15 @@ def create_glue(graph, weights, hit_ids, hits, truth):
         logger.debug("# of total edges:  {}".format( len(all_edges)) )
         logger.debug("# of positive:     {}".format( n_true_pos_edge) )
         logger.debug("# of true edges:   {}".format( n_true_edge) )
-        logger.debug("precision:         {}".format( n_true_pos_edge/n_true_edge) )
+        logger.debug("precision:         {}".format( precision ))
+        if False:
+            print("Edge info", precision)
+            print(list(to_be_det_idx.keys()))
+            print(inner_can_tbd)
+            print(sel_edges_tbd)
+            print(vals)
+            print(truth_edge_idx)
+
 
 
         # setup 4: get final pairs
@@ -225,9 +237,9 @@ if __name__ == "__main__":
 
     from score import load_model
     from score import load_config
-    model_config_file = 'configs/hello_graph.yaml'
+    model_config_file = 'configs/segclf_small_new.yaml'
 
-    model = load_model(load_config(model_config_file), reload_epoch=18).eval()
+    model = load_model(load_config(model_config_file), reload_epoch=30).eval()
     batch_input = [torch.from_numpy(m[None]).float() for m in [G.X, G.Ri, G.Ro]]
     with torch.no_grad():
         weights = model(batch_input).flatten().numpy()
@@ -254,13 +266,3 @@ if __name__ == "__main__":
             outer_layer, inner_layer, (end_time - start_time)*1000, precision)
         )
 
-
-    # save these pairs and precision
-    logger.info("total pairs: {}".format( sum([len(x) for x in all_pairs])) )
-    ff = open('pairs.pkl','wb')
-    pickle.dump(all_pairs, ff)
-    ff.close()
-
-    ff = open('precisions.pkl', 'wb')
-    pickle.dump(all_precisions, ff)
-    ff.close()
