@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import yaml
 import os
+import logging
 
 
 import torch
@@ -13,7 +14,7 @@ from trackml.score import score_event
 from datasets.graph import load_graph
 from models import get_model
 
-## the glue method
+## the tracking methods
 from postprocess import pathfinder
 from postprocess import glue
 
@@ -27,12 +28,20 @@ def load_config(config_file):
     with open(config_file) as f:
         return yaml.load(f)
 
+def print_config(config_file):
+    out = "------{}------\n".format(config_file)
+    with open(config_file) as f:
+        for line in f:
+            out += line
+    out += "--------------\n"
+    return out
+
+
 def load_summaries(config):
     summary_file = os.path.join(get_output_dir(config), 'summaries.npz')
     return np.load(summary_file)
 
 def load_model(config, reload_epoch):
-    print('loading model')
     model_config = config['model']
     model_type = model_config.pop('model_type')
     model_config.pop('optimizer', None)
@@ -55,6 +64,9 @@ class TrackingScore(object):
                  reload_epoch=18,
                  weight_cut=0.5,
                 ):
+        #logging.debug(print_config(config_data_file ))
+        #logging.debug(print_config(config_train_file))
+
         config = load_config(config_data_file)
         self.hitgraph_dir = config['output_dir']
         self.trackdata_dir = config['input_dir']
@@ -74,7 +86,7 @@ class TrackingScore(object):
         out =  "# of events: {}\n".format(self.n_events)
         out =  "method:      {}\n".format(self.method)
         out += "weight cut:  {:.2f}\n".format(self.weight_cutoff)
-        print(out)
+        logging.info(out)
 
     def set_train_config(self, config_file):
         self.config_train_file = config_file
@@ -99,11 +111,12 @@ class TrackingScore(object):
 
     def get_score_of_one_event(self, ievt):
         event_str = "event00000{0}".format(1000+ievt)
+        logging.debug("processing {} event:".format(event_str))
 
         # get score of the track candidates
         # load the event info from tracking ml
         event_input_name = os.path.join(self.trackdata_dir, event_str)
-        hits, cells, particles, truth = load_event(event_input_name)
+        hits, truth = load_event(event_input_name, parts=['hits', 'truth'])
 
         all_tracks = []
         for i in range(self.n_sections):
@@ -112,19 +125,22 @@ class TrackingScore(object):
 
         # this part takes most of time
         # need improvement
-        df_sub = hits[['hit_id']]
         total_tracks = len(all_tracks)
-        print("total tracks: ", total_tracks)
+        logging.info("total tracks: {}".format(total_tracks))
 
         results = []
         for itrk, track in enumerate(all_tracks):
             results += [(x, itrk) for x in track]
 
         new_df = pd.DataFrame(results, columns=['hit_id', 'track_id'])
+        new_df = new_df.drop_duplicates(subset='hit_id')
+
+        df_sub = hits[['hit_id']]
         df_sub = df_sub.merge(new_df, on='hit_id', how='outer').fillna(total_tracks+1)
         matched = truth.merge(new_df, on='hit_id', how='inner')
         tot_truth_weight = np.sum(matched['weight'])
-        ## remove the hits that belong to the same particle 
+
+        ## remove the hits that belong to the same particle
         # but of that the total number is less than 50% of the hits of the particle
         particle_ids = np.unique(matched['particle_id'])
         for p_id in particle_ids:
@@ -132,12 +148,16 @@ class TrackingScore(object):
             if pID_match.shape[0] < truth[truth['particle_id'] == p_id].shape[0]*0.5:
                 tot_truth_weight -= np.sum(pID_match['weight'])
 
-        return [score_event(truth, df_sub), tot_truth_weight]
+        event_res = [score_event(truth, df_sub), tot_truth_weight]
+        logging.debug("SCORE of {} event: {:.4f} {:.4f} {:.4f}\n".format(
+                      ievt, event_res[0], event_res[1], event_res[0]/event_res[1])
+        )
+        return event_res
 
 
     def get_tracks_of_one_sector(self, event_str, iSec, hits, truth):
         file_name = os.path.join(self.hitgraph_dir,
-                              event_str+"_g00{0}.npz".format(iSec))
+                                 event_str+"_g{:03d}.npz".format(iSec))
         id_name = file_name.replace('.npz', '_ID.npz')
 
         G = load_graph(file_name)
@@ -149,14 +169,15 @@ class TrackingScore(object):
         with torch.no_grad():
             weights = self.model(batch_input).flatten().numpy()
 
-        return postprocess.glue.get_tracks(G, weights, hit_ids, hits, truth) \
+        return glue.get_tracks(G, weights, hit_ids, hits, truth) \
                 if self.method=='glue' else \
-                postprocess.pathfinder.get_tracks(G, weights, hit_ids, self.weight_cutoff)
+                pathfinder.get_tracks(G, weights, hit_ids, self.weight_cutoff)
 
 
 if __name__ == "__main__":
     import sys
     import argparse
+
     parser = argparse.ArgumentParser(description='Get a score from postprocess')
     add_arg = parser.add_argument
     add_arg('data_config',  nargs='?', default='configs/xy_pre_small.yaml')
@@ -165,8 +186,13 @@ if __name__ == "__main__":
     add_arg('--nEpoch',  default=18, type=int, help='reload model from an epoch')
     add_arg('-m', '--method', default='glue', help='postprocess method, [glue, pathfinder]')
     add_arg('--weightCut', default=0.5, type=float, help='weight cut for pathfinder')
+    add_arg('--log', default='info', help='logging level')
 
     args = parser.parse_args()
+    numeric_level = getattr(logging, args.log.upper(), None)
+    logging.basicConfig(filename='score.log',
+                        level=numeric_level,
+                        format='%(asctime)s - %(name)s - %(levelname)s: %(message)s')
 
     tracking_score = TrackingScore(
         args.data_config,
@@ -174,10 +200,10 @@ if __name__ == "__main__":
         method=args.method,
         n_events=args.nEvents,
         reload_epoch=args.nEpoch,
-        weight_cut=args.weight_cut
+        weight_cut=args.weightCut
     )
 
     scores = tracking_score.get_score()
-    print("score of gnn:   {:.4f}".format(scores[0]))
-    print("score of truth: {:.4f}".format(scores[1]))
-    print("ratio:          {:.4f}".format(scores[0]/scores[1]))
+    logging.info("score of gnn:   {:.4f}".format(scores[0]))
+    logging.info("score of truth: {:.4f}".format(scores[1]))
+    logging.info("ratio:          {:.4f}".format(scores[0]/scores[1]))
