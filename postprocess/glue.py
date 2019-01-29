@@ -186,7 +186,7 @@ def get_tracks(graph, weights, hit_ids, hits, truth):
         all_pairs.append(layer_pairs)
         all_precisions.append(precision)
         end_time = time.time()
-        logger.info("{} to {} takes: {:.1f} ms with precision {:.4f}".format(
+        logger.debug("{} to {} takes: {:.1f} ms with precision {:.4f}".format(
             outer_layer, inner_layer, (end_time - start_time)*1000, precision)
         )
 

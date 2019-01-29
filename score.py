@@ -60,7 +60,7 @@ def score_tracks(all_tracks, hits, truth):
     # this part takes most of time
     # need improvement
     total_tracks = len(all_tracks)
-    logging.info("total tracks: {}".format(total_tracks))
+    # logging.info("total tracks: {}".format(total_tracks))
 
     results = []
     for itrk, track in enumerate(all_tracks):
