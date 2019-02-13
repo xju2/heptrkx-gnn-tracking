@@ -60,6 +60,8 @@ if __name__ == "__main__":
     isec = 0
     generate_input_target = inputs_generator(base_dir, isec)
 
+    log_name = 'run_nx_graph.log'
+
     tf.reset_default_graph()
 
     model = SegmentClassifier()
@@ -105,12 +107,17 @@ if __name__ == "__main__":
     solveds_tr = []
 
     # How much time between logging and printing the current results.
-    log_every_seconds = 20
+    log_every_seconds = 60
 
-    print("# (iteration number), T (elapsed seconds), "
-          "Ltr (training loss), "
-          "Precision, "
-          "Recall")
+    out_str  = time.strftime('%d %b %Y %H:%M:%S', time.localtime())
+    out_str += '\n'
+    out_str += "# (iteration number), T (elapsed seconds), "
+    "Ltr (training loss), "
+    "Precision, "
+    "Recall\n"
+    with open(log_name, 'a') as f:
+        f.write(out_str)
+
     start_time = time.time()
     last_log_time = start_time
     for iteration in range(last_iteration, num_training_iterations):
@@ -140,7 +147,9 @@ if __name__ == "__main__":
         corrects_tr.append(correct_tr)
         solveds_tr.append(solved_tr)
         logged_iterations.append(iteration)
-        print("# {:05d}, T {:.1f}, Ltr {:.4f}, Lge {:.4f}, Precision {:.4f}, Recall"
-              " {:.4f}".format(
-                  iteration, elapsed, train_values["loss"], test_values["loss"],
-                  correct_tr, solved_tr))
+        out_str = "# {:05d}, T {:.1f}, Ltr {:.4f}, Lge {:.4f}, Precision {:.4f}, Recall"
+        " {:.4f}\n".format(
+            iteration, elapsed, train_values["loss"], test_values["loss"],
+            correct_tr, solved_tr)
+        with open(log_name, 'a') as f:
+            f.write(out_str)

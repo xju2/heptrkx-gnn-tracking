@@ -4,6 +4,8 @@ convert hitgraphs to network-x and prepare graphs for graph-nets
 import numpy as np
 from datasets.graph import load_graph
 import networkx as nx
+import os
+import glob
 
 def get_edge_features(in_node, out_node):
     # input are the features of incoming and outgoing nodes
@@ -79,6 +81,11 @@ def graph_to_input_target(graph):
 
 
 def inputs_generator(base_dir_, isec_=0):
+    file_patten = base_dir.format(1000, 0).replace('1000', '*')
+    max_evt_id = max([
+        int(re.search('event00000([0-9]*)_g000.npz', os.path.basename(x)).group(1))
+        for x in glob.glob(file_patten)
+    ])
     base_dir = base_dir_
     isec     = isec_
     global _evt_id_
@@ -87,15 +94,21 @@ def inputs_generator(base_dir_, isec_=0):
         global _evt_id_
         input_graphs = []
         target_graphs = []
-        for i in range(n_graphs):
-            _evt_id_ += i
-
+        igraphs = 0
+        while igraphs < n_graphs:
             file_name = base_dir.format(_evt_id_, isec)
+            while not os.path.exits(file_name):
+                _evt_id_ += 1
+                if _evt_id_ > max_evt_id:
+                    _evt_id_ = 1000
+                file_name = base_dir.format(_evt_id_, isec)
+
             graph = hitsgraph_to_networkx_graph(load_graph(file_name))
             input_graph, output_graph = graph_to_input_target(graph)
-
             input_graphs.append(input_graph)
             target_graphs.append(output_graph)
+            _evt_id_ += i
+
         return input_graphs, target_graphs
 
     return generate_input_target
