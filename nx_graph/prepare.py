@@ -81,13 +81,14 @@ def graph_to_input_target(graph):
 
 
 def inputs_generator(base_dir_, isec_=0):
+    base_dir = base_dir_
+    isec     = isec_
+
     file_patten = base_dir.format(1000, 0).replace('1000', '*')
     max_evt_id = max([
         int(re.search('event00000([0-9]*)_g000.npz', os.path.basename(x)).group(1))
         for x in glob.glob(file_patten)
     ])
-    base_dir = base_dir_
-    isec     = isec_
     global _evt_id_
     _evt_id_ = 1000
     def generate_input_target(n_graphs):
