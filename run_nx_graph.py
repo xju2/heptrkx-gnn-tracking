@@ -111,10 +111,7 @@ if __name__ == "__main__":
 
     out_str  = time.strftime('%d %b %Y %H:%M:%S', time.localtime())
     out_str += '\n'
-    out_str += "# (iteration number), T (elapsed seconds), "
-    "Ltr (training loss), "
-    "Precision, "
-    "Recall\n"
+    out_str += "# (iteration number), T (elapsed seconds), Ltr (training loss), Precision, Recall\n"
     with open(log_name, 'a') as f:
         f.write(out_str)
 
@@ -147,8 +144,7 @@ if __name__ == "__main__":
         corrects_tr.append(correct_tr)
         solveds_tr.append(solved_tr)
         logged_iterations.append(iteration)
-        out_str = "# {:05d}, T {:.1f}, Ltr {:.4f}, Lge {:.4f}, Precision {:.4f}, Recall"
-        " {:.4f}\n".format(
+        out_str = "# {:05d}, T {:.1f}, Ltr {:.4f}, Lge {:.4f}, Precision {:.4f}, Recall {:.4f}\n".format(
             iteration, elapsed, train_values["loss"], test_values["loss"],
             correct_tr, solved_tr)
         with open(log_name, 'a') as f:
