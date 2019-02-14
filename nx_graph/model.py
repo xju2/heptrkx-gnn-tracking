@@ -49,7 +49,7 @@ class SegmentClassifier(snt.AbstractModule):
     self._core = modules.InteractionNetwork(
         edge_model_fn=make_mlp_model,
         node_model_fn=make_mlp_model,
-        reducer=tf.unsorted_segment_prod
+        reducer=tf.unsorted_segment_sum
     )
 
     # Transforms the outputs into the appropriate shapes.
