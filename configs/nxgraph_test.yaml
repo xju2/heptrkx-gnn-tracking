@@ -1,4 +1,4 @@
-prod_name: nxgraph_small_sigmoid_001
+prod_name: nxgraph_small_mlp_tanh_001
 output_dir: trained_results
 data:
     name: hitgraphs
@@ -6,13 +6,12 @@ data:
     section: 0
 
 model:
-    name: SegmentClassifier
+    name: model_mlp_tanh
 
 train:
-    log_name: run_nx_graph.log
-    time_lapse:  600  # how often save checkpoint in seconds
+    log_name: train_nx_graph.log
+    time_lapse:  60  # how often save checkpoint in seconds
     batch_size: 2
     iterations: 10000
     n_iters: 4
     learning_rate: 0.001
-

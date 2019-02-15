@@ -28,7 +28,6 @@ if __name__ == "__main__":
 
     config = load_config(args.config)
 
-    from nx_graph.model_mlp import SegmentClassifier
     import time
     import os
 
@@ -58,7 +57,11 @@ if __name__ == "__main__":
 
     ## start to build tensorflow sessions
     tf.reset_default_graph()
-    model = SegmentClassifier()
+
+    #from nx_graph.model_mlp import SegmentClassifier
+    #model = SegmentClassifier()
+    from nx_graph import get_model
+    model = get_model(config['model']['name'])
 
     input_graphs, target_graphs = generate_input_target(n_graphs)
     input_ph  = utils_tf.placeholders_from_networkxs(input_graphs, force_dynamic_num_graphs=True)
