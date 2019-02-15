@@ -68,7 +68,7 @@ if __name__ == "__main__":
 
     # How much time between logging and printing the current results.
     # save checkpoint very 10 mins
-    log_every_seconds = 600
+    log_every_seconds = 60
     batch_size = n_graphs = 2    # need optimization
     num_training_iterations = 10000
     num_processing_steps_tr = 4  ## level of message-passing
