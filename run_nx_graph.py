@@ -75,10 +75,11 @@ if __name__ == "__main__":
     prod_name = 'nxgraph_small_sigmoid_001'
 
     # add ops to save and restore all the variables
-    out_put_dir = '/global/cscratch1/sd/xju/heptrkx/results/{}'.format(prod_name)
-    print("trained model will be save at:", out_put_dir)
-    if not os.path.exists(out_put_dir):
-        os.makedirs(out_put_dir)
+    #output_dir = '/global/cscratch1/sd/xju/heptrkx/results/{}'.format(prod_name)
+    output_dir = 'trained_results/{}'.format(prod_name)
+    print("trained model will be save at:", output_dir)
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
 
 
     ## start to build tensorflow sessions
@@ -169,5 +170,5 @@ if __name__ == "__main__":
 
             save_path = saver.save(
                 sess,
-                os.path.join(out_put_dir, 'checkpoint_{:05d}.ckpt'.format(iteration)))
+                os.path.join(output_dir, 'checkpoint_{:05d}.ckpt'.format(iteration)))
     sess.close()
