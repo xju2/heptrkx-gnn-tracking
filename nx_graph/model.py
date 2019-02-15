@@ -55,7 +55,11 @@ class SegmentClassifier(snt.AbstractModule):
     # Transforms the outputs into the appropriate shapes.
     edge_output_size = 1
 #     edge_fn = lambda: snt.Linear(edge_output_size, name="edge_output")
-    edge_fn =lambda: snt.nets.MLP([edge_output_size], activation=tf.nn.tanh, name='edge_output')
+#    edge_fn =lambda: snt.nets.MLP([edge_output_size], activation=tf.nn.tanh, name='edge_output')
+    edge_fn =lambda: snt.Sequential([
+        snt.Linear(edge_output_size, name='edge_output'),
+        tf.sigmoid
+    ])
 
     with self._enter_variable_scope():
       self._output_transform = modules.GraphIndependent(edge_fn, None, None)

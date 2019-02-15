@@ -10,8 +10,9 @@ from graph_nets import utils_tf
 from graph_nets import utils_np
 
 
-def create_feed_dict(batch_size, input_ph, target_ph):
-    inputs, targets = generate_input_target(batch_size)
+
+def create_feed_dict(generator, batch_size, input_ph, target_ph):
+    inputs, targets = generator(batch_size)
     input_graphs = utils_np.networkxs_to_graphs_tuple(inputs)
     target_graphs = utils_np.networkxs_to_graphs_tuple(targets)
     feed_dict = {input_ph: input_graphs, target_ph: target_graphs}
@@ -54,6 +55,7 @@ def computer_matrics(target, output):
 if __name__ == "__main__":
     from nx_graph.model import SegmentClassifier
     import time
+    import os
 
     from nx_graph.prepare import inputs_generator
     base_dir = '/global/cscratch1/sd/xju/heptrkx/data/hitgraphs_001/event00000{}_g{:03d}.npz'
@@ -65,8 +67,8 @@ if __name__ == "__main__":
     tf.reset_default_graph()
 
     model = SegmentClassifier()
-    batch_size = n_graphs = 2
-    num_training_iterations = 10000
+    batch_size = n_graphs = 1
+    num_training_iterations = 1
     num_processing_steps_tr = 4  ## level of message-passing
 
     input_graphs, target_graphs = generate_input_target(n_graphs)
@@ -98,7 +100,16 @@ if __name__ == "__main__":
     except NameError:
       pass
     sess = tf.Session()
-    sess.run(tf.global_variables_initializer())
+
+    # add ops to save and restore all the variables
+    out_put_dir = '/global/cscratch1/sd/xju/heptrkx/results/nxgraph_small_001'
+    print("trained model will be save at:", out_put_dir)
+    if not os.path.exists(out_put_dir):
+        os.makedirs(out_put_dir)
+
+    init_ops = tf.global_variables_initializer()
+    saver = tf.train.Saver()
+    sess.run(init_ops)
 
     last_iteration = 0
     logged_iterations = []
@@ -107,7 +118,8 @@ if __name__ == "__main__":
     solveds_tr = []
 
     # How much time between logging and printing the current results.
-    log_every_seconds = 60
+    # save checkpoint very 10 mins
+    log_every_seconds = 1
 
     out_str  = time.strftime('%d %b %Y %H:%M:%S', time.localtime())
     out_str += '\n'
@@ -119,7 +131,7 @@ if __name__ == "__main__":
     last_log_time = start_time
     for iteration in range(last_iteration, num_training_iterations):
       last_iteration = iteration
-      feed_dict = create_feed_dict(batch_size, input_ph, target_ph)
+      feed_dict = create_feed_dict(generate_input_target, batch_size, input_ph, target_ph)
       train_values = sess.run({
           "step": step_op,
           "target": target_ph,
@@ -131,7 +143,7 @@ if __name__ == "__main__":
 
       if elapsed_since_last_log > log_every_seconds:
         last_log_time = the_time
-        feed_dict = create_feed_dict(batch_size, input_ph, target_ph)
+        feed_dict = create_feed_dict(generate_input_target, batch_size, input_ph, target_ph)
         test_values = sess.run({
             "target": target_ph,
             "loss": loss_op_tr,
@@ -149,3 +161,8 @@ if __name__ == "__main__":
             correct_tr, solved_tr)
         with open(log_name, 'a') as f:
             f.write(out_str)
+
+        save_path = saver.save(
+            sess,
+            os.path.join(out_put_dir, 'sess_{:05d}.ckpt'.format(iteration)))
+    sess.close()
