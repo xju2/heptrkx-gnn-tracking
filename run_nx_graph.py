@@ -9,7 +9,8 @@ from graph_nets import modules
 from graph_nets import utils_tf
 from graph_nets import utils_np
 
-
+import glob
+import re
 
 def create_feed_dict(generator, batch_size, input_ph, target_ph):
     inputs, targets = generator(batch_size)
@@ -64,12 +65,25 @@ if __name__ == "__main__":
 
     log_name = 'run_nx_graph.log'
 
-    tf.reset_default_graph()
 
-    model = SegmentClassifier()
-    batch_size = n_graphs = 1
-    num_training_iterations = 1
+    # How much time between logging and printing the current results.
+    # save checkpoint very 10 mins
+    log_every_seconds = 600
+    batch_size = n_graphs = 2    # need optimization
+    num_training_iterations = 10000
     num_processing_steps_tr = 4  ## level of message-passing
+    prod_name = 'nxgraph_small_sigmoid_001'
+
+    # add ops to save and restore all the variables
+    out_put_dir = '/global/cscratch1/sd/xju/heptrkx/results/{}'.format(prod_name)
+    print("trained model will be save at:", out_put_dir)
+    if not os.path.exists(out_put_dir):
+        os.makedirs(out_put_dir)
+
+
+    ## start to build tensorflow sessions
+    tf.reset_default_graph()
+    model = SegmentClassifier()
 
     input_graphs, target_graphs = generate_input_target(n_graphs)
     input_ph  = utils_tf.placeholders_from_networkxs(input_graphs, force_dynamic_num_graphs=True)
@@ -88,38 +102,26 @@ if __name__ == "__main__":
     step_op = optimizer.minimize(loss_op_tr)
 
     # Lets an iterable of TF graphs be output from a session as NP graphs.
+    # copyed from deepmind's example, not sure needed...
     input_ph, target_ph = make_all_runnable_in_session(input_ph, target_ph)
 
-    #@title Reset session  { form-width: "30%" }
-
-    # This cell resets the Tensorflow session, but keeps the same computational
-    # graph.
-
-    try:
-      sess.close()
-    except NameError:
-      pass
     sess = tf.Session()
-
-    # add ops to save and restore all the variables
-    out_put_dir = '/global/cscratch1/sd/xju/heptrkx/results/nxgraph_small_001'
-    print("trained model will be save at:", out_put_dir)
-    if not os.path.exists(out_put_dir):
-        os.makedirs(out_put_dir)
-
     init_ops = tf.global_variables_initializer()
+    # saver must be created before init_ops is run!
     saver = tf.train.Saver()
     sess.run(init_ops)
 
-    last_iteration = 0
+    files = glob.glob(output_dir+"/*.ckpt.meta")
+    last_iteration = 0 if len(files) < 1 else max([
+        int(re.search('checkpoint_([0-9]*).ckpt.meta', os.path.basename(x)).group(1))
+        for x in files
+    ])
+    print("last iteration:", last_iteration)
     logged_iterations = []
     losses_tr = []
     corrects_tr = []
     solveds_tr = []
 
-    # How much time between logging and printing the current results.
-    # save checkpoint very 10 mins
-    log_every_seconds = 1
 
     out_str  = time.strftime('%d %b %Y %H:%M:%S', time.localtime())
     out_str += '\n'
@@ -129,40 +131,43 @@ if __name__ == "__main__":
 
     start_time = time.time()
     last_log_time = start_time
-    for iteration in range(last_iteration, num_training_iterations):
-      last_iteration = iteration
-      feed_dict = create_feed_dict(generate_input_target, batch_size, input_ph, target_ph)
-      train_values = sess.run({
-          "step": step_op,
-          "target": target_ph,
-          "loss": loss_op_tr,
-          "outputs": output_ops_tr
-      }, feed_dict=feed_dict)
-      the_time = time.time()
-      elapsed_since_last_log = the_time - last_log_time
 
-      if elapsed_since_last_log > log_every_seconds:
-        last_log_time = the_time
+    ## loop over iterations, each iteration generating a batch of data for training
+    for iteration in range(last_iteration, num_training_iterations):
+        last_iteration = iteration
         feed_dict = create_feed_dict(generate_input_target, batch_size, input_ph, target_ph)
-        test_values = sess.run({
+        train_values = sess.run({
+            "step": step_op,
             "target": target_ph,
             "loss": loss_op_tr,
             "outputs": output_ops_tr
         }, feed_dict=feed_dict)
-        correct_tr, solved_tr = computer_matrics(
-            test_values["target"], test_values["outputs"][-1])
-        elapsed = time.time() - start_time
-        losses_tr.append(train_values["loss"])
-        corrects_tr.append(correct_tr)
-        solveds_tr.append(solved_tr)
-        logged_iterations.append(iteration)
-        out_str = "# {:05d}, T {:.1f}, Ltr {:.4f}, Lge {:.4f}, Precision {:.4f}, Recall {:.4f}\n".format(
-            iteration, elapsed, train_values["loss"], test_values["loss"],
-            correct_tr, solved_tr)
-        with open(log_name, 'a') as f:
-            f.write(out_str)
+        the_time = time.time()
+        elapsed_since_last_log = the_time - last_log_time
 
-        save_path = saver.save(
-            sess,
-            os.path.join(out_put_dir, 'sess_{:05d}.ckpt'.format(iteration)))
+        if elapsed_since_last_log > log_every_seconds:
+            # save a checkpoint
+            last_log_time = the_time
+            feed_dict = create_feed_dict(generate_input_target, batch_size, input_ph, target_ph)
+            test_values = sess.run({
+                "target": target_ph,
+                "loss": loss_op_tr,
+                "outputs": output_ops_tr
+            }, feed_dict=feed_dict)
+            correct_tr, solved_tr = computer_matrics(
+                test_values["target"], test_values["outputs"][-1])
+            elapsed = time.time() - start_time
+            losses_tr.append(train_values["loss"])
+            corrects_tr.append(correct_tr)
+            solveds_tr.append(solved_tr)
+            logged_iterations.append(iteration)
+            out_str = "# {:05d}, T {:.1f}, Ltr {:.4f}, Lge {:.4f}, Precision {:.4f}, Recall {:.4f}\n".format(
+                iteration, elapsed, train_values["loss"], test_values["loss"],
+                correct_tr, solved_tr)
+            with open(log_name, 'a') as f:
+                f.write(out_str)
+
+            save_path = saver.save(
+                sess,
+                os.path.join(out_put_dir, 'checkpoint_{:05d}.ckpt'.format(iteration)))
     sess.close()
