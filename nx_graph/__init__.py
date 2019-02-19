@@ -15,7 +15,7 @@ def get_model(model_name):
         return mlp()
     elif model_name == 'model_mlp_tanh':
         return mlp_tanh()
-    elif model_name == 'model_sequetial':
+    elif model_name == 'model_sequential':
         return seq()
     else:
         return mm()
