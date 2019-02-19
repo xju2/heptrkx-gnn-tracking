@@ -1,0 +1,17 @@
+prod_name: nxgraph_small_sigmoid_001
+output_dir: trained_results
+data:
+    name: hitgraphs
+    input_dir: /global/cscratch1/sd/xju/heptrkx/data/hitgraphs_001
+    section: 0
+
+model:
+    name: default
+
+train:
+    log_name: run_nx_graph.log
+    time_lapse:  600  # how often save checkpoint in seconds
+    batch_size: 2
+    iterations: 10000
+    n_iters: 4
+    learning_rate: 0.001
