@@ -19,6 +19,8 @@ from . import get_model
 
 import matplotlib.pyplot as plt
 
+ckpt_name = 'checkpoint_{:05d}.ckpt'
+
 
 def create_trained_model(config_name, input_ckpt=None):
     """
@@ -35,7 +37,6 @@ def create_trained_model(config_name, input_ckpt=None):
     if input_ckpt is None:
         input_ckpt = os.path.join(config['output_dir'], prod_name)
 
-    ckpt_name = 'checkpoint_{:05d}.ckpt'
 
     # generate inputs
     base_dir = os.path.join(config['data']['input_dir'],'event00000{}_g{:03d}.npz')

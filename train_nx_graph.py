@@ -14,6 +14,7 @@ from nx_graph.utils_train import make_all_runnable_in_session
 from nx_graph.utils_train import compute_matrics
 from nx_graph.utils_train import load_config
 
+
 if __name__ == "__main__":
     import sys
     import argparse
@@ -84,10 +85,6 @@ if __name__ == "__main__":
     input_ph, target_ph = make_all_runnable_in_session(input_ph, target_ph)
 
     sess = tf.Session()
-    init_ops = tf.global_variables_initializer()
-    # saver must be created before init_ops is run!
-    saver = tf.train.Saver()
-    sess.run(init_ops)
 
     files = glob.glob(output_dir+"/*.ckpt.meta")
     last_iteration = 0 if len(files) < 1 else max([
@@ -95,6 +92,17 @@ if __name__ == "__main__":
         for x in files
     ])
     print("last iteration:", last_iteration)
+
+    saver = tf.train.Saver()
+    ckpt_name = 'checkpoint_{:05d}.ckpt'
+    if last_iteration > 0:
+        print("load checkpoint...")
+        saver.restore(sess, os.path.join(output_dir, ckpt_name.format(last_iteration)))
+    else:
+        init_ops = tf.global_variables_initializer()
+        # saver must be created before init_ops is run!
+        sess.run(init_ops)
+
     logged_iterations = []
     losses_tr = []
     corrects_tr = []
@@ -147,5 +155,5 @@ if __name__ == "__main__":
 
             save_path = saver.save(
                 sess,
-                os.path.join(output_dir, 'checkpoint_{:05d}.ckpt'.format(iteration)))
+                os.path.join(output_dir, ckpt_name.format(iteration)))
     sess.close()
