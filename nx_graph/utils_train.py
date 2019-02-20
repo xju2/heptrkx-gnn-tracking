@@ -40,8 +40,8 @@ def eval_output(target, output):
     test_target = []
     test_pred = []
     for td, od in zip(tdds, odds):
-        test_target.append(td['edges'], axis=-1)
-        test_pred.append(od['edges'], axis=-1)
+        test_target.append(td['edges'])
+        test_pred.append(od['edges'])
 
     test_target = np.concatenate(test_target, axis=0)
     test_pred   = np.concatenate(test_pred,   axis=0)
