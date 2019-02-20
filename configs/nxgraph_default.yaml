@@ -12,7 +12,7 @@ train:
     log_name: train_nx_graph_decoder.log
     time_lapse:  240  # how often save checkpoint in seconds
     batch_size: 2
-    iterations: 20000
+    iterations: 30000
     n_iters: 4
     learning_rate: 0.001
 
