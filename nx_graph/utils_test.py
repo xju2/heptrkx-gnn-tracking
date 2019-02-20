@@ -11,6 +11,8 @@ import os
 
 from .utils_train import load_config
 from .utils_train import create_feed_dict
+from .utils_train import eval_output
+
 from .prepare import inputs_generator
 
 from . import get_model
@@ -62,9 +64,9 @@ def create_trained_model(config_name, input_ckpt):
                 "outputs": output_ops_tr,
                 'target': target_ph
         }, feed_dict=feed_dict)
-        odd = predictions['outputs'][-1].edges
-        tdd = predictions['target'].edges
-        return odd, tdd
+        output = predictions['outputs'][-1]
+        target = predictions['target']
+        return eval_output(target, output)
 
     return evaluator
 
