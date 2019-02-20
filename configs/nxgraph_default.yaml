@@ -1,4 +1,4 @@
-prod_name: nxgraph_small_001
+prod_name: nxgraph_small_decoder_001
 output_dir: /global/homes/x/xju/track/gnn/code/gnn_networkx/trained_results
 data:
     name: hitgraphs
@@ -9,10 +9,10 @@ model:
     name: default
 
 train:
-    log_name: train_nx_graph.log
-    time_lapse:  60  # how often save checkpoint in seconds
+    log_name: train_nx_graph_decoder.log
+    time_lapse:  240  # how often save checkpoint in seconds
     batch_size: 2
-    iterations: 10000
+    iterations: 20000
     n_iters: 4
     learning_rate: 0.001
 

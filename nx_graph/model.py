@@ -4,6 +4,7 @@ from __future__ import print_function
 
 import tensorflow as tf
 from graph_nets import modules
+from graph_nets import utils_tf 
 import sonnet as snt
 
 NUM_LAYERS = 2  # Hard-code number of layers in the edge/node/global models.
@@ -51,6 +52,7 @@ class SegmentClassifier(snt.AbstractModule):
         node_model_fn=make_mlp_model,
         reducer=tf.unsorted_segment_sum
     )
+    self._decoder = MLPGraphIndependent()
 
     # Transforms the outputs into the appropriate shapes.
     edge_output_size = 1
@@ -63,10 +65,12 @@ class SegmentClassifier(snt.AbstractModule):
 
   def _build(self, input_op, num_processing_steps):
     latent = self._encoder(input_op)
+    latent0 = latent
 
     output_ops = []
     for _ in range(num_processing_steps):
-        core_input = latent
+        core_input = utils_tf.concat([latent0, latent], axis=1)
         latent = self._core(core_input)
-        output_ops.append(self._output_transform(latent))
+        decoded_op = self._decoder(latent)
+        output_ops.append(self._output_transform(decoded_op))
     return output_ops
