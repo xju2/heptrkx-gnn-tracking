@@ -46,6 +46,7 @@ if __name__ == "__main__":
     log_every_seconds       = config_tr['time_lapse']
     batch_size = n_graphs   = config_tr['batch_size']   # need optimization
     num_training_iterations = config_tr['iterations']
+    iter_per_job            = config_tr['iter_per_job']
     num_processing_steps_tr = config_tr['n_iters']      ## level of message-passing
     prod_name = config['prod_name']
 
@@ -119,7 +120,10 @@ if __name__ == "__main__":
     last_log_time = start_time
 
     ## loop over iterations, each iteration generating a batch of data for training
+    iruns = 0
     for iteration in range(last_iteration, num_training_iterations):
+        if iruns > iter_per_job: break
+        else: iruns += 1
         last_iteration = iteration
         feed_dict = create_feed_dict(generate_input_target, batch_size, input_ph, target_ph)
         train_values = sess.run({

@@ -7,4 +7,4 @@
 
 which python
 cd /global/homes/x/xju/track/gnn/code/gnn_networkx
-srun python run_nx_graph.py
+srun python train_nx_graph.py configs/nxgraph_default_big.yaml
