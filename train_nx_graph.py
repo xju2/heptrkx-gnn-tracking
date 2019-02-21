@@ -38,7 +38,6 @@ if __name__ == "__main__":
     generate_input_target = inputs_generator(base_dir, isec)
 
     config_tr = config['train']
-    log_name = config_tr['log_name']
 
 
     # How much time between logging and printing the current results.
@@ -46,9 +45,10 @@ if __name__ == "__main__":
     log_every_seconds       = config_tr['time_lapse']
     batch_size = n_graphs   = config_tr['batch_size']   # need optimization
     num_training_iterations = config_tr['iterations']
-    iter_per_job            = config_tr['iter_per_job']
+    iter_per_job            = 2500 if 'iter_per_job' not in config_tr else config_tr['iter_per_job']
     num_processing_steps_tr = config_tr['n_iters']      ## level of message-passing
     prod_name = config['prod_name']
+    print("Maximum iterations per job: {}".format(iter_per_job))
 
     # add ops to save and restore all the variables
     output_dir = os.path.join(config['output_dir'], prod_name)
@@ -113,6 +113,7 @@ if __name__ == "__main__":
     out_str  = time.strftime('%d %b %Y %H:%M:%S', time.localtime())
     out_str += '\n'
     out_str += "# (iteration number), T (elapsed seconds), Ltr (training loss), Precision, Recall\n"
+    log_name = os.path.join(output_dir, config_tr['log_name'])
     with open(log_name, 'a') as f:
         f.write(out_str)
 

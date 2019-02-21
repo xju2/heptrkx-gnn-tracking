@@ -12,8 +12,10 @@ import re
 def calc_dphi(phi1, phi2):
     """Computes phi2-phi1 given in range [-pi,pi]"""
     dphi = phi2 - phi1
-    dphi[dphi > np.pi] -= 2*np.pi
-    dphi[dphi < -np.pi] += 2*np.pi
+    if dphi > np.pi:
+        dphi -= 2*np.pi
+    if dphi < -np.pi:
+        dphi += 2*np.pi
     return dphi
 
 def get_edge_features(in_node, out_node):
