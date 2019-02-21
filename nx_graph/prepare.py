@@ -9,16 +9,31 @@ import os
 import glob
 import re
 
+def calc_dphi(phi1, phi2):
+    """Computes phi2-phi1 given in range [-pi,pi]"""
+    dphi = phi2 - phi1
+    dphi[dphi > np.pi] -= 2*np.pi
+    dphi[dphi < -np.pi] += 2*np.pi
+    return dphi
+
 def get_edge_features(in_node, out_node):
     # input are the features of incoming and outgoing nodes
     # they are ordered as [r, phi, z]
-    in_r, in_phi, _   = in_node
-    out_r, out_phi, _ = out_node
-    in_x = in_r * np.cos(in_phi)
-    in_y = in_r * np.sin(in_phi)
-    out_x = out_r * np.cos(out_phi)
-    out_y = out_r * np.sin(out_phi)
-    return np.sqrt((in_x - out_x)**2 + (in_y - out_y)**2)
+    in_r, in_phi, in_z    = in_node
+    out_r, out_phi, out_z = out_node
+
+    in_r3 = np.sqrt(in_r**2 + in_z**2)
+    out_r3 = np.sqrt(out_r**2 + out_z**2)
+
+    in_theta = np.arccos(in_z/in_r3)
+    in_eta = -np.log(np.tan(in_theta/2.0))
+    out_theta = np.arccos(out_z/out_r3)
+    out_eta = -np.log(np.tan(out_theta/2.0))
+    deta = out_eta - in_eta
+    dphi = calc_dphi(out_phi, in_phi)
+    dR = np.sqrt(deta**2 + dphi**2)
+    dZ = in_z - out_z
+    return np.array([deta, dphi, dR, dZ])
 
 
 def hitsgraph_to_networkx_graph(G):

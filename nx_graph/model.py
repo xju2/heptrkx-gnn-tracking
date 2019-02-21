@@ -4,7 +4,7 @@ from __future__ import print_function
 
 import tensorflow as tf
 from graph_nets import modules
-from graph_nets import utils_tf 
+from graph_nets import utils_tf
 import sonnet as snt
 
 NUM_LAYERS = 2  # Hard-code number of layers in the edge/node/global models.
@@ -57,7 +57,9 @@ class SegmentClassifier(snt.AbstractModule):
     # Transforms the outputs into the appropriate shapes.
     edge_output_size = 1
     edge_fn =lambda: snt.Sequential([
-        snt.nets.MLP([LATENT_SIZE/2, edge_output_size], activation=tf.nn.tanh, name='edge_output'),
+        snt.nets.MLP([LATENT_SIZE/2, edge_output_size],
+                     activation=tf.nn.relu, # default activation function
+                     name='edge_output'),
         tf.sigmoid])
 
     with self._enter_variable_scope():

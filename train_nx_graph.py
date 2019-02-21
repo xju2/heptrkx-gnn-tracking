@@ -97,7 +97,7 @@ if __name__ == "__main__":
     saver = tf.train.Saver()
     ckpt_name = 'checkpoint_{:05d}.ckpt'
     if last_iteration > 0:
-        print("load checkpoint...")
+        print("loading checkpoint")
         saver.restore(sess, os.path.join(output_dir, ckpt_name.format(last_iteration)))
     else:
         init_ops = tf.global_variables_initializer()
@@ -122,7 +122,9 @@ if __name__ == "__main__":
     ## loop over iterations, each iteration generating a batch of data for training
     iruns = 0
     for iteration in range(last_iteration, num_training_iterations):
-        if iruns > iter_per_job: break
+        if iruns > iter_per_job:
+            print("runs larger than {} iterations per job, stop".format(iter_per_job))
+            break
         else: iruns += 1
         last_iteration = iteration
         feed_dict = create_feed_dict(generate_input_target, batch_size, input_ph, target_ph)
