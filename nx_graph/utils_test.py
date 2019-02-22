@@ -8,6 +8,7 @@ from graph_nets import utils_tf
 import yaml
 import sklearn.metrics
 import os
+import numpy as np
 
 from .utils_train import load_config
 from .utils_train import create_feed_dict
@@ -52,7 +53,7 @@ def create_trained_model(config_name, input_ckpt=None):
 
     output_ops_tr = model(input_ph, num_processing_steps_tr)
 
-    def evaluator(iteration):
+    def evaluator(iteration, n_test_graphs=10):
         try:
             sess.close()
         except NameError:
@@ -61,14 +62,20 @@ def create_trained_model(config_name, input_ckpt=None):
         sess = tf.Session()
         saver = tf.train.Saver()
         saver.restore(sess, os.path.join(input_ckpt, ckpt_name.format(iteration)))
-        feed_dict = create_feed_dict(generate_input_target, batch_size, input_ph, target_ph, is_trained=False)
-        predictions = sess.run({
+        odds = []
+        tdds = []
+        for _ in range(n_test_graphs):
+            feed_dict = create_feed_dict(generate_input_target, batch_size, input_ph, target_ph, is_trained=False)
+            predictions = sess.run({
                 "outputs": output_ops_tr,
                 'target': target_ph
-        }, feed_dict=feed_dict)
-        output = predictions['outputs'][-1]
-        target = predictions['target']
-        return eval_output(target, output)
+            }, feed_dict=feed_dict)
+            output = predictions['outputs'][-1]
+            target = predictions['target']
+            odd, tdd = eval_output(target, output)
+            odds.append(odd)
+            tdds.append(tdd)
+        return np.concatenate(odds), np.concatenate(tdds)
 
     return evaluator
 
