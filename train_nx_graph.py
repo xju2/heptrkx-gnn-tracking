@@ -34,8 +34,9 @@ if __name__ == "__main__":
 
     from nx_graph.prepare import inputs_generator
     base_dir = os.path.join(config['data']['input_dir'],'event00000{}_g{:03d}.npz')
-    isec = config['data']['section']
-    generate_input_target = inputs_generator(base_dir, isec)
+
+    # default 2/3 for training and 1/3 for testing
+    generate_input_target = inputs_generator(base_dir)
 
     config_tr = config['train']
 
@@ -141,7 +142,8 @@ if __name__ == "__main__":
         if elapsed_since_last_log > log_every_seconds:
             # save a checkpoint
             last_log_time = the_time
-            feed_dict = create_feed_dict(generate_input_target, batch_size, input_ph, target_ph)
+            feed_dict = create_feed_dict(generate_input_target,
+                                         batch_size, input_ph, target_ph, is_trained=False)
             test_values = sess.run({
                 "target": target_ph,
                 "loss": loss_op_tr,
