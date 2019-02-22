@@ -40,8 +40,7 @@ def create_trained_model(config_name, input_ckpt=None):
 
     # generate inputs
     base_dir = os.path.join(config['data']['input_dir'],'event00000{}_g{:03d}.npz')
-    isec = config['data']['section']
-    generate_input_target = inputs_generator(base_dir, isec)
+    generate_input_target = inputs_generator(base_dir)
 
     # build TF graph
     tf.reset_default_graph()
@@ -62,7 +61,7 @@ def create_trained_model(config_name, input_ckpt=None):
         sess = tf.Session()
         saver = tf.train.Saver()
         saver.restore(sess, os.path.join(input_ckpt, ckpt_name.format(iteration)))
-        feed_dict = create_feed_dict(generate_input_target, batch_size, input_ph, target_ph)
+        feed_dict = create_feed_dict(generate_input_target, batch_size, input_ph, target_ph, is_trained=False)
         predictions = sess.run({
                 "outputs": output_ops_tr,
                 'target': target_ph
