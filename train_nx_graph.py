@@ -33,14 +33,10 @@ if __name__ == "__main__":
     import os
 
     from nx_graph.prepare import inputs_generator
-    base_dir = os.path.join(config['data']['input_dir'],'event00000{}_g{:03d}.npz')
-
     # default 2/3 for training and 1/3 for testing
-    generate_input_target = inputs_generator(base_dir)
+    generate_input_target = inputs_generator(config['data']['input_hitsgraph_dir'])
 
     config_tr = config['train']
-
-
     # How much time between logging and printing the current results.
     # save checkpoint very 10 mins
     log_every_seconds       = config_tr['time_lapse']
@@ -67,8 +63,8 @@ if __name__ == "__main__":
     model = get_model(config['model']['name'])
 
     input_graphs, target_graphs = generate_input_target(n_graphs)
-    input_ph  = utils_tf.placeholders_from_networkxs(input_graphs, force_dynamic_num_graphs=True)
-    target_ph = utils_tf.placeholders_from_networkxs(target_graphs, force_dynamic_num_graphs=True)
+    input_ph  = utils_tf.placeholders_from_data_dicts(input_graphs, force_dynamic_num_graphs=True)
+    target_ph = utils_tf.placeholders_from_data_dicts(target_graphs, force_dynamic_num_graphs=True)
 
     output_ops_tr = model(input_ph, num_processing_steps_tr)
 
@@ -123,19 +119,29 @@ if __name__ == "__main__":
 
     ## loop over iterations, each iteration generating a batch of data for training
     iruns = 0
+    all_run_time = start_time
+    all_data_taking_time = start_time
     for iteration in range(last_iteration, num_training_iterations):
         if iruns > iter_per_job:
             print("runs larger than {} iterations per job, stop".format(iter_per_job))
             break
         else: iruns += 1
         last_iteration = iteration
+        data_start_time = time.time()
         feed_dict = create_feed_dict(generate_input_target, batch_size, input_ph, target_ph)
+        all_data_taking_time += time.time() - data_start_time
+
+        # timing the run time only
+        run_start_time = time.time()
         train_values = sess.run({
             "step": step_op,
             "target": target_ph,
             "loss": loss_op_tr,
             "outputs": output_ops_tr
         }, feed_dict=feed_dict)
+        run_time = time.time() - run_start_time
+        all_run_time += run_time
+
         the_time = time.time()
         elapsed_since_last_log = the_time - last_log_time
 
@@ -159,6 +165,10 @@ if __name__ == "__main__":
             out_str = "# {:05d}, T {:.1f}, Ltr {:.4f}, Lge {:.4f}, Precision {:.4f}, Recall {:.4f}\n".format(
                 iteration, elapsed, train_values["loss"], test_values["loss"],
                 correct_tr, solved_tr)
+
+            run_cost_time = all_run_time - start_time
+            data_cost_time = all_data_taking_time - start_time
+            print("# {:05d}, Data taking cost: {:.1f}, Run cost: {:.1f}".format(iteration, data_cost_time, run_cost_time))
             with open(log_name, 'a') as f:
                 f.write(out_str)
 

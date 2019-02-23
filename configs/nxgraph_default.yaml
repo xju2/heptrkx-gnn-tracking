@@ -1,18 +1,19 @@
-prod_name: nxgraph_small_decoder_001
+prod_name: nxgraph_big_000
 output_dir: /global/homes/x/xju/track/gnn/code/gnn_networkx/trained_results
 data:
     name: hitgraphs
-    input_dir: /global/cscratch1/sd/xju/heptrkx/data/hitgraphs_001
-    section: 0
+    input_hitsgraph_dir: /global/cscratch1/sd/xju/heptrkx/data/hitgraphs_big_000
+    output_nxgraph_dir:  /global/cscratch1/sd/xju/heptrkx/data/nxgraphs_big_000
 
 model:
     name: default
 
 train:
-    log_name: train_nx_graph_decoder.log
-    time_lapse:  240  # how often save checkpoint in seconds
+    log_name: big.log
+    time_lapse:  120 # how often save checkpoint in seconds
     batch_size: 2
     iterations: 30000
-    n_iters: 4
+    iter_per_job: 2000
+    n_iters: 10
     learning_rate: 0.001
 

@@ -5,6 +5,8 @@ import numpy as np
 from datasets.graph import load_graph
 import networkx as nx
 
+from graph_nets import utils_np
+
 import os
 import glob
 import re
@@ -100,12 +102,13 @@ def graph_to_input_target(graph):
 
 
 def inputs_generator(base_dir_, n_train_fraction=-1):
-    base_dir = base_dir_
+    base_dir =  os.path.join(base_dir_, "event00000{}_g{:03d}_INPUT.npz")
 
     file_patten = base_dir.format(1000, 0).replace('1000', '*')
     all_files = glob.glob(file_patten)
     n_events = len(all_files)
-    evt_ids = [int(re.search('event00000([0-9]*)_g000.npz', os.path.basename(x)).group(1))
+    evt_ids = [int(re.search('event00000([0-9]*)_g000_INPUT.npz',
+                             os.path.basename(x)).group(1))
                for x in all_files]
 
     section_patten = base_dir.format(1000, 0).replace('_g000', '_g[0-9]*[0-9]*[0-9]')
@@ -160,11 +163,12 @@ def inputs_generator(base_dir_, n_train_fraction=-1):
                     if _evt_id_te_ >= n_events:
                         _evt_id_te_ = n_max_evt_id_tr
 
+            with np.load(file_name) as f:
+                input_graphs.append(dict(f.items()))
 
-            graph = hitsgraph_to_networkx_graph(load_graph(file_name))
-            input_graph, output_graph = graph_to_input_target(graph)
-            input_graphs.append(input_graph)
-            target_graphs.append(output_graph)
+            with np.load(file_name.replace("INPUT", "TARGET")) as f:
+                target_graphs.append(dict(f.items()))
+
             igraphs += 1
 
         return input_graphs, target_graphs

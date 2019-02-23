@@ -11,8 +11,8 @@ import yaml
 
 def create_feed_dict(generator, batch_size, input_ph, target_ph, is_trained=True):
     inputs, targets = generator(batch_size, is_trained)
-    input_graphs = utils_np.networkxs_to_graphs_tuple(inputs)
-    target_graphs = utils_np.networkxs_to_graphs_tuple(targets)
+    input_graphs  = utils_np.data_dicts_to_graphs_tuple(inputs)
+    target_graphs = utils_np.data_dicts_to_graphs_tuple(targets)
     feed_dict = {input_ph: input_graphs, target_ph: target_graphs}
 
     return feed_dict
