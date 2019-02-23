@@ -34,7 +34,7 @@ if __name__ == "__main__":
 
     from nx_graph.prepare import inputs_generator
     # default 2/3 for training and 1/3 for testing
-    generate_input_target = inputs_generator(config['data']['input_hitsgraph_dir'])
+    generate_input_target = inputs_generator(config['data']['output_nxgraph_dir'])
 
     config_tr = config['train']
     # How much time between logging and printing the current results.
@@ -121,6 +121,8 @@ if __name__ == "__main__":
     iruns = 0
     all_run_time = start_time
     all_data_taking_time = start_time
+
+    print("# (iteration number), TD (get graph), TR (TF run)")
     for iteration in range(last_iteration, num_training_iterations):
         if iruns > iter_per_job:
             print("runs larger than {} iterations per job, stop".format(iter_per_job))
@@ -168,7 +170,7 @@ if __name__ == "__main__":
 
             run_cost_time = all_run_time - start_time
             data_cost_time = all_data_taking_time - start_time
-            print("# {:05d}, Data taking cost: {:.1f}, Run cost: {:.1f}".format(iteration, data_cost_time, run_cost_time))
+            print("# {:05d}, TD {:.1f}, TR {:.1f}".format(iteration, data_cost_time, run_cost_time))
             with open(log_name, 'a') as f:
                 f.write(out_str)
 
