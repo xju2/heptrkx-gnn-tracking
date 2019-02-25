@@ -14,7 +14,7 @@ train:
     time_lapse:  60 # how often save checkpoint in seconds
     batch_size: 2
     iterations: 30000
-    iter_per_job: 2000
+    iter_per_job: 8000
     n_iters: 10
     learning_rate: 0.001
 

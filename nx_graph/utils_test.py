@@ -39,16 +39,15 @@ def create_trained_model(config_name, input_ckpt=None):
 
 
     # generate inputs
-    base_dir = os.path.join(config['data']['input_dir'],'event00000{}_g{:03d}.npz')
-    generate_input_target = inputs_generator(base_dir)
+    generate_input_target = inputs_generator(config['data']['output_nxgraph_dir'])
 
     # build TF graph
     tf.reset_default_graph()
     model = get_model(config['model']['name'])
 
     input_graphs, target_graphs = generate_input_target(n_graphs)
-    input_ph  = utils_tf.placeholders_from_networkxs(input_graphs, force_dynamic_num_graphs=True)
-    target_ph = utils_tf.placeholders_from_networkxs(target_graphs, force_dynamic_num_graphs=True)
+    input_ph  = utils_tf.placeholders_from_data_dicts(input_graphs, force_dynamic_num_graphs=True)
+    target_ph = utils_tf.placeholders_from_data_dicts(target_graphs, force_dynamic_num_graphs=True)
 
     output_ops_tr = model(input_ph, num_processing_steps_tr)
 
