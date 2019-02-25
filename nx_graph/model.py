@@ -54,7 +54,7 @@ class SegmentClassifier(snt.AbstractModule):
     )
     self._decoder = MLPGraphIndependent()
 
-    # Transforms the outputs into the appropriate shapes.
+    # Transforms the outputs into appropriate shapes.
     edge_output_size = 1
     edge_fn =lambda: snt.Sequential([
         snt.nets.MLP([LATENT_SIZE/2, edge_output_size],

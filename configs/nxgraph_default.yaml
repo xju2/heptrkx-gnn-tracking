@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 prod_name: nxgraph_big_000
 output_dir: /global/homes/x/xju/track/gnn/code/gnn_networkx/trained_results
 data:
@@ -17,4 +18,3 @@ train:
     iter_per_job: 8000
     n_iters: 10
     learning_rate: 0.001
-
