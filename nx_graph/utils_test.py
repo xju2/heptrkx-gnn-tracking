@@ -107,3 +107,4 @@ def plot_metrics(odd, tdd, odd_th=0.5, tdd_th=0.5):
     ax1.set_title('ROC curve, AUC = %.3f' % auc)
 
     plt.tight_layout()
+    return fig

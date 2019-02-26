@@ -74,8 +74,8 @@ def score_tracks(all_tracks, hits, truth):
     matched = truth.merge(new_df, on='hit_id', how='inner')
     tot_truth_weight = np.sum(matched['weight'])
 
-    ## remove the hits that belong to the same particle
-    # but of that the total number is less than 50% of the hits of the particle
+    ## remove the hits if their total is less than 50% of the hits
+    # that belong to the same particle.
     particle_ids = np.unique(matched['particle_id'])
     for p_id in particle_ids:
         pID_match = matched[matched['particle_id'] == p_id]
@@ -150,7 +150,7 @@ class TrackingScore(object):
 
         event_gnn   = score_tracks(all_gnn_tracks,  hits, truth)
         event_truth = score_tracks(all_true_tracks, hits, truth)
-        logging.debug("SCORE of {} event: {:.4f} {:.4f} {:.4f}, {:.4f}\n".format(
+        logging.debug("SCORE of {} event: {:.4f} {:.4f} {:.4f} {:.4f}\n".format(
                       ievt, event_gnn[0], event_truth[0], event_gnn[0]/event_truth[0], event_truth[1])
         )
         return [event_gnn[0], event_truth[0]]
