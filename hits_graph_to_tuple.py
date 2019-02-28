@@ -14,6 +14,13 @@ def get_saver(input_dir_, output_dir_):
     input_dir = input_dir_
     output_dir = output_dir_
     def save_hitsgraph(evt_id, isec):
+        input_data_name = os.path.join(
+            output_dir,
+            'event00000{}_g{:03d}_{}.npz'.format(evt_id, isec, INPUT_NAME))
+        if os.path.exists(input_data_name):
+            print(input_data_name, "is there")
+            return
+
         input_name = os.path.join(
             input_dir,
             'event00000{}_g{:03d}.npz'.format(evt_id, isec))
@@ -23,14 +30,9 @@ def get_saver(input_dir_, output_dir_):
         input_data = utils_np.networkx_to_data_dict(input_graph)
         target_data = utils_np.networkx_to_data_dict(target_graph)
 
-        np.savez(
-            os.path.join(output_dir,
-                         'event00000{}_g{:03d}_{}.npz'.format(evt_id, isec, INPUT_NAME)),
-            **input_data)
-        np.savez(
-            os.path.join(output_dir,
-                         'event00000{}_g{:03d}_{}.npz'.format(evt_id, isec, TARGET_NAME)),
-            **target_data)
+
+        np.savez( input_data_name, **input_data)
+        np.savez( input_data_name.replace(INPUT_NAME, TARGET_NAME), **target_data)
 
     return save_hitsgraph
 

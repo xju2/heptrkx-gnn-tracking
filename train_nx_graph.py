@@ -34,7 +34,7 @@ if __name__ == "__main__":
 
     from nx_graph.prepare import inputs_generator
     # default 2/3 for training and 1/3 for testing
-    generate_input_target = inputs_generator(config['data']['output_nxgraph_dir'])
+    generate_input_target = inputs_generator(config['data']['output_nxgraph_dir'], n_train_fraction=0.8)
 
     config_tr = config['train']
     # How much time between logging and printing the current results.
