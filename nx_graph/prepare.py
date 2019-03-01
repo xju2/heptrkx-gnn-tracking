@@ -45,7 +45,8 @@ def hitsgraph_to_networkx_graph(G):
 
     graph = nx.DiGraph()
 
-    ## add nodes
+    ## it is essential to add nodes first
+    # the node ID must be [0, N_NODES]
     for i in range(n_nodes):
         graph.add_node(i, pos=G.X[i], solution=0.0)
 
@@ -115,14 +116,25 @@ def inputs_generator(base_dir_, n_train_fraction=-1):
     n_sections = len(glob.glob(section_patten))
     n_total = n_events*n_sections
 
-    n_tr_fr = n_train_fraction if n_train_fraction > 0 else 0.7
-    n_max_evt_id_tr = int(n_events * n_tr_fr)
-    n_test = n_events - n_max_evt_id_tr
+
+    if n_events < 5:
+        split_section = True
+        n_max_evt_id_tr = n_events
+        n_test = n_events
+        pass
+    else:
+        split_section = False
+        n_tr_fr = n_train_fraction if n_train_fraction > 0 else 0.7
+        n_max_evt_id_tr = int(n_events * n_tr_fr)
+        n_test = n_events - n_max_evt_id_tr
 
     print("Total Events: {} with {} sections, total {} files ".format(
         n_events, n_sections, n_total))
     print("Training data: [{}, {}] events, total {} files".format(0, n_max_evt_id_tr-1, n_max_evt_id_tr*n_sections))
-    print("Testing data:  [{}, {}] events, total {} files".format(n_max_evt_id_tr, n_events, n_test*n_sections))
+    if split_section:
+        print("Testing data:  [{}, {}] events, total {} files".format(0, n_events-1, n_test*n_sections))
+    else:
+        print("Testing data:  [{}, {}] events, total {} files".format(n_max_evt_id_tr, n_events, n_test*n_sections))
 
 
     # keep track of training events
@@ -132,7 +144,7 @@ def inputs_generator(base_dir_, n_train_fraction=-1):
     _sec_id_tr_ = 0
     ## keep track of testing events
     global _evt_id_te_
-    _evt_id_te_ = n_max_evt_id_tr
+    _evt_id_te_ = n_max_evt_id_tr if not split_section else 0
     global _sec_id_te_
     _sec_id_te_ = 0
 
@@ -147,6 +159,7 @@ def inputs_generator(base_dir_, n_train_fraction=-1):
         while igraphs < n_graphs:
             # determine while file to read
             if is_train:
+                # for training
                 file_name = base_dir.format(evt_ids[_evt_id_tr_], _sec_id_tr_)
                 _sec_id_tr_ += 1
                 if _sec_id_tr_ == n_sections:
@@ -155,13 +168,14 @@ def inputs_generator(base_dir_, n_train_fraction=-1):
                     if _evt_id_tr_ >= n_max_evt_id_tr:
                         _evt_id_tr_ = 0
             else:
+                ## for testing
                 file_name = base_dir.format(evt_ids[_evt_id_te_], _sec_id_te_)
                 _sec_id_te_ += 1
                 if _sec_id_te_ == n_sections:
                     _evt_id_te_ += 1
                     _sec_id_te_ = 0
                     if _evt_id_te_ >= n_events:
-                        _evt_id_te_ = n_max_evt_id_tr
+                        _evt_id_te_ = n_max_evt_id_tr if not split_section else 0
 
             with np.load(file_name) as f:
                 input_graphs.append(dict(f.items()))
