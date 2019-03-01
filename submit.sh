@@ -5,9 +5,9 @@ function get_code(){
 	echo $NUMBER
 }
 
-nJobs=3 
+nJobs=5 
 
-CONFIG="configs/nxgraph_default.yaml"
+CONFIG="configs/nxgraph_test_pairs.yaml"
 EXE="slurm/run_nx_graph.sh $CONFIG"
 
 start=$(sbatch ${EXE})

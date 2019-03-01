@@ -177,6 +177,9 @@ def inputs_generator(base_dir_, n_train_fraction=-1):
                     if _evt_id_te_ >= n_events:
                         _evt_id_te_ = n_max_evt_id_tr if not split_section else 0
 
+            if not os.path.exists(file_name):
+                continue
+
             with np.load(file_name) as f:
                 input_graphs.append(dict(f.items()))
 
@@ -188,3 +191,28 @@ def inputs_generator(base_dir_, n_train_fraction=-1):
         return input_graphs, target_graphs
 
     return generate_input_target
+
+
+INPUT_NAME = "INPUT"
+TARGET_NAME = "TARGET"
+def get_networkx_saver(output_dir_):
+    """
+    save networkx graph as data dict for TF
+    """
+    output_dir = output_dir_
+    def save_networkx(evt_id, isec, graph):
+        output_data_name = os.path.join(
+            output_dir,
+            'event00000{}_g{:03d}_{}.npz'.format(evt_id, isec, INPUT_NAME))
+        if os.path.exists(output_data_name):
+            print(output_data_name, "is there")
+            return
+
+        input_graph, target_graph = graph_to_input_target(graph)
+        output_data = utils_np.networkx_to_data_dict(input_graph)
+        target_data = utils_np.networkx_to_data_dict(target_graph)
+
+        np.savez( output_data_name, **output_data)
+        np.savez( output_data_name.replace(INPUT_NAME, TARGET_NAME), **target_data)
+
+    return save_networkx

@@ -1,8 +1,8 @@
 #!/bin/bash
 #SBATCH --qos=shared
 #SBATCH --constraint=haswell
-#SBATCH --time=10:00:00
-#SBATCH --ntasks=1
+#SBATCH --time 10:00:00
+#SBATCH -c 10
 #SBATCH -A m3253
 
 
