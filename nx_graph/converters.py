@@ -47,7 +47,7 @@ def create_evt_pairs_converter(evt_file_name):
     hits_with_idx = hits.rename_axis('hit_idx').reset_index()
     feature_scale = np.array([1000., np.pi, 1000.])
 
-    print("Event {} has hit info ready to generate graphs  from pairs".format(evt_id))
+    print("Event {} pairs --> graphs with {:09d} nodes".format(evt_id, hits_with_idx.shape[0]))
 
     def pairs_to_graph(pairs):
         """
