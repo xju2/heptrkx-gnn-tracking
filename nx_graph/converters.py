@@ -7,6 +7,8 @@ import networkx as nx
 
 from .prepare import get_edge_features
 from trackml.dataset import load_event
+import re
+import os
 
 
 vlids = [(7,2), (7,4), (7,6), (7,8), (7,10), (7,12), (7,14),
@@ -21,6 +23,8 @@ vlids = [(7,2), (7,4), (7,6), (7,8), (7,10), (7,12), (7,14),
 n_det_layers = len(vlids)
 
 def create_evt_pairs_converter(evt_file_name):
+
+    evt_id = int(re.search('event00000([0-9]*)', os.path.basename(evt_file_name)).group(1))
 
     hits, particles, truth = load_event(
         evt_file_name, parts=['hits', 'particles', 'truth'])
@@ -43,6 +47,7 @@ def create_evt_pairs_converter(evt_file_name):
     hits_with_idx = hits.rename_axis('hit_idx').reset_index()
     feature_scale = np.array([1000., np.pi, 1000.])
 
+    print("Event {} has hit info ready to generate graphs  from pairs".format(evt_id))
 
     def pairs_to_graph(pairs):
         """

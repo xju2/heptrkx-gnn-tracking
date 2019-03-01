@@ -39,12 +39,14 @@ def save_pairs_to_graphs(pairs, evt_file_name, output_dir, n_pairs_per_file=3000
     pairs_converter = create_evt_pairs_converter(evt_file_name)
     pair_list = np.array_split(pairs, n_files)
 
+    saver = get_networkx_saver(output_dir)
     for ii,pair in enumerate(pair_list):
         graph = pairs_converter(pair)
         saver(evt_id, ii, graph)
 
 
 def process_event(evt_id, pairs_input_dir, output_dir, n_pairs_per_file):
+    print(os.getppid(),"-->", evt_id)
     pairs = read_pairs_input(os.path.join(pairs_input_dir, 'pairs_{}'.format(evt_id)))
     evt_file_name = os.path.join(config['input_track_events'], 'event{:09d}')
     evt_name = evt_file_name.format(evt_id)
@@ -92,10 +94,12 @@ if __name__ == "__main__":
     with open(log_name, 'a') as f:
         f.write(out_str)
 
-    with mp.Pool(processes=config['n_workers']) as pool:
+    n_workers = config['n_workers']
+    start_job = config['start_jobID']
+    with mp.Pool(processes=n_workers) as pool:
         process_func = partial(process_event,
                                pairs_input_dir=pairs_input_dir,
                                output_dir=output_dir,
                                n_pairs_per_file=config['n_pairs_per_file'])
-        pool.map(process_func, evt_ids)
+        pool.map(process_func, evt_ids[start_job:start_job+n_workers])
 
