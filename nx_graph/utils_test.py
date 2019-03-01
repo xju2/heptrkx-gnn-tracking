@@ -81,9 +81,13 @@ def create_trained_model(config_name, input_ckpt=None):
 
 def plot_metrics(odd, tdd, odd_th=0.5, tdd_th=0.5):
     y_pred, y_true = (odd > odd_th), (tdd > tdd_th)
-    print('Accuracy:  %.4f' % sklearn.metrics.accuracy_score(y_true, y_pred))
-    print('Precision: %.4f' % sklearn.metrics.precision_score(y_true, y_pred))
-    print('Recall:    %.4f' % sklearn.metrics.recall_score(y_true, y_pred))
+    accuracy  = sklearn.metrics.accuracy_score(y_true, y_pred)
+    precision = sklearn.metrics.precision_score(y_true, y_pred)
+    recall    = sklearn.metrics.recall_score(y_true, y_pred)
+
+    print('Accuracy:  %.4f' % accuracy)
+    print('Precision: %.4f' % precision)
+    print('Recall:    %.4f' % recall)
 
     fpr, tpr, _ = sklearn.metrics.roc_curve(y_true, odd)
 
@@ -104,7 +108,7 @@ def plot_metrics(odd, tdd, odd_th=0.5, tdd_th=0.5):
     ax1.plot([0, 1], [0, 1], '--')
     ax1.set_xlabel('False positive rate')
     ax1.set_ylabel('True positive rate')
-    ax1.set_title('ROC curve, AUC = %.3f' % auc)
+    ax1.set_title('ROC curve, AUC = %.4f' % auc)
 
     plt.tight_layout()
-    return fig
+    plt.savefig('roc_graph_nets.eps')

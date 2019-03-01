@@ -1,5 +1,5 @@
 input_pairs: /global/homes/x/xju/track/gnn/code/top-quarks/trained/output_pairs
 input_track_events: /global/cscratch1/sd/xju/heptrkx/trackml_inputs/train_all 
-output_graph: /global/cscratch1/sd/xju/heptrkx/data/graph_from_pairs_test
+output_graphs: /global/cscratch1/sd/xju/heptrkx/data/graph_from_pairs_test
 n_pairs_per_file: 30000
 n_workers: 10

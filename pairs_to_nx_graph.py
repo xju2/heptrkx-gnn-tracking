@@ -27,7 +27,7 @@ def read_pairs_input(file_name):
     return pairs
 
 
-def save_pairs_to_graphs(pairs, evt_file_name, output_dir, n_pairs_per_file=30000):
+def save_pairs_to_graphs(pairs, evt_file_name, output_dir, n_workers=1, n_pairs_per_file=30000):
 
     evt_id = int(re.search('event00000([0-9]*)', os.path.basename(evt_file_name)).group(1))
     total_pairs = pairs.shape[0]
@@ -39,24 +39,48 @@ def save_pairs_to_graphs(pairs, evt_file_name, output_dir, n_pairs_per_file=3000
     pair_list = np.array_split(pairs, n_files)
 
     saver = get_networkx_saver(output_dir)
-    for ii,pair in enumerate(pair_list):
-        graph = pairs_converter(pair)
+    ### create workers to each pair
+    with mp.Pool(processes=n_workers) as pool:
+        graphs = pool.map(pairs_converter, pair_list)
+
+    for ii,graph in enumerate(graphs):
         saver(evt_id, ii, graph)
 
 
 if __name__ == "__main__":
-    from nx_graph.utils_train import load_config
+    import os
+    import argparse
 
-    pairs_input_dir = '/global/homes/x/xju/track/gnn/code/top-quarks/trained/output_pairs'
-    output_dir = '/global/cscratch1/sd/xju/heptrkx/data/graph_from_pairs_test'
+    parser = argparse.ArgumentParser(description='Convert pairs to nx-graphs')
+    add_arg = parser.add_argument
+    add_arg('config',  nargs='?', default='configs/pairs_to_nx.yaml')
+    args = parser.parse_args()
+
+    from nx_graph.utils_train import load_config
+    config = load_config(args.config)
+
+
+
+    pairs_input_dir = config['input_pairs']
+    output_dir = config['output_graphs']
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
 
+    import re
+    import glob
+    evt_ids = set([int(re.search('pairs_([0-9]*)', os.path.basename(x)).group(1))
+               for x in glob.glob(os.path.join(pairs_input_dir, 'pairs_*'))])
+
+    ## check events that are already there
+    evt_search_pp = 'event00000([0-9]*)_g000_INPUT.npz'
+    evt_ids_ready = set([int(re.search(evt_search_pp, os.path.basename(x)).group(1))
+                     for x in glob.glob(os.path.join(output_dir, 'event*_g000_INPUT.npz'))])
+    evt_ids = sorted(list(evt_ids.difference(evt_ids_ready)))
+    print("events to process:", len(evt_ids))
+
     import time
     start_time = time.time()
-
-    evt_ids = [1000, 1002, 1003, 1004]
 
     log_name = os.path.join(output_dir, "timing.log")
     out_str  = time.strftime('%d %b %Y %H:%M:%S', time.localtime())
@@ -66,11 +90,17 @@ if __name__ == "__main__":
         f.write(out_str)
 
     out_str = ""
+    evt_file_name = os.path.join(config['input_track_events'], 'event{:09d}')
     for ii,evt_id in enumerate(evt_ids):
         pairs = read_pairs_input(os.path.join(pairs_input_dir, 'pairs_{}'.format(evt_id)))
-        evt_file_name = '/global/cscratch1/sd/xju/heptrkx/trackml_inputs/train_all/event{:09d}'.format(evt_id)
+        evt_name = evt_file_name.format(evt_id)
 
-        save_pairs_to_graphs(pairs, evt_file_name, output_dir)
+        save_pairs_to_graphs(
+            pairs, evt_name, output_dir,
+            configs['n_workers'],
+            configs['n_pairs_per_file']
+        )
+
         elapsed_time = time.time() - start_time
         info = "# {:05d}, # {:05d}, T {:.1f}\n".format(ii, evt_id, elapsed_time)
         out_str += info

@@ -203,7 +203,7 @@ def get_networkx_saver(output_dir_):
     def save_networkx(evt_id, isec, graph):
         output_data_name = os.path.join(
             output_dir,
-            'event00000{}_g{:03d}_{}.npz'.format(evt_id, isec, INPUT_NAME))
+            'event{:09d}_g{:03d}_{}.npz'.format(evt_id, isec, INPUT_NAME))
         if os.path.exists(output_data_name):
             print(output_data_name, "is there")
             return
