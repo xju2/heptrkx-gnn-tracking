@@ -70,20 +70,26 @@ def create_evt_pairs_converter(evt_file_name):
 
         # while hits will be used in the graph
         # a dictionary to keep track of hit_idx and node_idx
+        #graph = nx.DiGraph()
+        #hits_id_dict = {}
+        #used_hits_set = np.unique(np.concatenate([df_in_nodes['hit_idx'], df_out_nodes['hit_idx']]))
+        #for ii,idx in enumerate(used_hits_set):
+        #    hits_id_dict[idx] = ii
+        #    graph.add_node(ii, pos=hits.iloc[idx][['r', 'phi', 'z']].values/feature_scale, solution=0.0)
+
         graph = nx.DiGraph()
-        hits_id_dict = {}
-        used_hits_set = np.unique(np.concatenate([df_in_nodes['hit_idx'], df_out_nodes['hit_idx']]))
-        for ii,idx in enumerate(used_hits_set):
-            hits_id_dict[idx] = ii
-            graph.add_node(ii, pos=hits.iloc[idx][['r', 'phi', 'z']].values/feature_scale, solution=0.0)
+        for idx in hits_with_idx['hit_idx']:
+            graph.add_node(idx, pos=hits.iloc[idx][['r', 'phi', 'z']].values/feature_scale, solution=0.0)
 
         # add edges
         for idx in range(n_edges):
             in_hit_idx  = int(df_in_nodes.iloc[idx, 1])
             out_hit_idx = int(df_out_nodes.iloc[idx, 1])
 
-            in_node_idx  = hits_id_dict[in_hit_idx]
-            out_node_idx = hits_id_dict[out_hit_idx]
+            #in_node_idx  = hits_id_dict[in_hit_idx]
+            #out_node_idx = hits_id_dict[out_hit_idx]
+            in_node_idx  = in_hit_idx
+            out_node_idx = out_hit_idx
             f1 = graph.node[in_node_idx]['pos']
             f2 = graph.node[out_node_idx]['pos']
             distance = get_edge_features(f1, f2)
