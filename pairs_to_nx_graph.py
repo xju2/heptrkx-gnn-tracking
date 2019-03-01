@@ -12,6 +12,7 @@ from nx_graph.prepare import get_networkx_saver
 from nx_graph.converters import create_evt_pairs_converter
 
 import multiprocessing as mp
+from functools import partial
 
 def read_pairs_input(file_name):
     pairs = []
@@ -27,7 +28,7 @@ def read_pairs_input(file_name):
     return pairs
 
 
-def save_pairs_to_graphs(pairs, evt_file_name, output_dir, n_workers=1, n_pairs_per_file=30000):
+def save_pairs_to_graphs(pairs, evt_file_name, output_dir, n_pairs_per_file=30000):
 
     evt_id = int(re.search('event00000([0-9]*)', os.path.basename(evt_file_name)).group(1))
     total_pairs = pairs.shape[0]
@@ -38,13 +39,17 @@ def save_pairs_to_graphs(pairs, evt_file_name, output_dir, n_workers=1, n_pairs_
     pairs_converter = create_evt_pairs_converter(evt_file_name)
     pair_list = np.array_split(pairs, n_files)
 
-    saver = get_networkx_saver(output_dir)
-    ### create workers to each pair
-    with mp.Pool(processes=n_workers) as pool:
-        graphs = pool.map(pairs_converter, pair_list)
-
-    for ii,graph in enumerate(graphs):
+    for ii,pair in enumerate(pair_list):
+        graph = pairs_converter(pair)
         saver(evt_id, ii, graph)
+
+
+def process_event(evt_id, pairs_input_dir, output_dir, n_pairs_per_file):
+    pairs = read_pairs_input(os.path.join(pairs_input_dir, 'pairs_{}'.format(evt_id)))
+    evt_file_name = os.path.join(config['input_track_events'], 'event{:09d}')
+    evt_name = evt_file_name.format(evt_id)
+    save_pairs_to_graphs(
+        pairs, evt_name, output_dir, n_pairs_per_file)
 
 
 if __name__ == "__main__":
@@ -80,8 +85,6 @@ if __name__ == "__main__":
     print("events to process:", len(evt_ids))
 
     import time
-    start_time = time.time()
-
     log_name = os.path.join(output_dir, "timing.log")
     out_str  = time.strftime('%d %b %Y %H:%M:%S', time.localtime())
     out_str += '\n'
@@ -89,22 +92,10 @@ if __name__ == "__main__":
     with open(log_name, 'a') as f:
         f.write(out_str)
 
-    out_str = ""
-    evt_file_name = os.path.join(config['input_track_events'], 'event{:09d}')
-    for ii,evt_id in enumerate(evt_ids):
-        pairs = read_pairs_input(os.path.join(pairs_input_dir, 'pairs_{}'.format(evt_id)))
-        evt_name = evt_file_name.format(evt_id)
+    with mp.Pool(processes=config['n_workers']) as pool:
+        process_func = partial(process_event,
+                               pairs_input_dir=pairs_input_dir,
+                               output_dir=output_dir,
+                               n_pairs_per_file=config['n_pairs_per_file'])
+        pool.map(process_func, evt_ids)
 
-        save_pairs_to_graphs(
-            pairs, evt_name, output_dir,
-            configs['n_workers'],
-            configs['n_pairs_per_file']
-        )
-
-        elapsed_time = time.time() - start_time
-        info = "# {:05d}, # {:05d}, T {:.1f}\n".format(ii, evt_id, elapsed_time)
-        out_str += info
-        print(info)
-
-    with open(log_name, 'a') as f:
-        f.write(out_str)
