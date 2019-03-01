@@ -1,9 +1,9 @@
-prod_name: nxgraph_pairs_4evts
+prod_name: nxgraph_pairs_100evts
 output_dir: /global/homes/x/xju/track/gnn/code/gnn_networkx/trained_results
 data:
     name: hitgraphs
     input_hitsgraph_dir: /global/cscratch1/sd/xju/heptrkx/data/
-    output_nxgraph_dir:  /global/cscratch1/sd/xju/heptrkx/data/graph_from_pairs_test
+    output_nxgraph_dir:  /global/cscratch1/sd/xju/heptrkx/data/graph_from_pairs_test_100
     log_name: data_process.log
 
 model:
@@ -15,5 +15,5 @@ train:
     batch_size: 2
     iterations: 30000
     iter_per_job: 5000
-    n_iters: 10
+    n_iters: 15
     learning_rate: 0.001

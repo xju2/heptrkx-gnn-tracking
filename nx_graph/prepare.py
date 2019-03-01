@@ -112,8 +112,11 @@ def inputs_generator(base_dir_, n_train_fraction=-1):
                              os.path.basename(x)).group(1))
                for x in all_files]
 
-    section_patten = base_dir.format(1000, 0).replace('_g000', '_g[0-9]*[0-9]*[0-9]')
-    n_sections = len(glob.glob(section_patten))
+    def get_sections(xx):
+        section_patten = base_dir.format(xx, 0).replace('_g000', '_g[0-9]*[0-9]*[0-9]')
+        return len(glob.glob(section_patten))
+
+    n_sections = max([get_sections(xx) for xx in evt_ids])
     n_total = n_events*n_sections
 
 

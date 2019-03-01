@@ -7,7 +7,7 @@ from graph_nets import modules
 from graph_nets import utils_tf
 import sonnet as snt
 
-NUM_LAYERS = 2    # Hard-code number of layers in the edge/node/global models.
+NUM_LAYERS = 8    # Hard-code number of layers in the edge/node/global models.
 LATENT_SIZE = 64  # Hard-code latent layer sizes for demos.
 
 
@@ -52,7 +52,9 @@ class SegmentClassifier(snt.AbstractModule):
         node_model_fn=make_mlp_model,
         reducer=tf.unsorted_segment_sum
     )
-    self._decoder = MLPGraphIndependent()
+    self._decoder = modules.GraphIndependent(
+        edge_model_fn=make_mlp_model,
+        node_model_fn=None, global_model_fn=None)
 
     # Transforms the outputs into appropriate shapes.
     edge_output_size = 1
