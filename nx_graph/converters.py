@@ -67,16 +67,6 @@ def create_evt_pairs_converter(evt_file_name):
         pid2 = df_out_nodes['particle_id'].values
         y[:] = (pid1 == pid2) & (pid1 != 0)
 
-
-        # while hits will be used in the graph
-        # a dictionary to keep track of hit_idx and node_idx
-        #graph = nx.DiGraph()
-        #hits_id_dict = {}
-        #used_hits_set = np.unique(np.concatenate([df_in_nodes['hit_idx'], df_out_nodes['hit_idx']]))
-        #for ii,idx in enumerate(used_hits_set):
-        #    hits_id_dict[idx] = ii
-        #    graph.add_node(ii, pos=hits.iloc[idx][['r', 'phi', 'z']].values/feature_scale, solution=0.0)
-
         graph = nx.DiGraph()
         for idx in hits_with_idx['hit_idx']:
             graph.add_node(idx, pos=hits.iloc[idx][['r', 'phi', 'z']].values/feature_scale, solution=0.0)

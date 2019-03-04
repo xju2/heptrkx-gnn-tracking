@@ -12,7 +12,7 @@ model:
 train:
     log_name: pairs.log
     time_lapse:  120 # how often save checkpoint in seconds
-    batch_size: 2
+    batch_size: 1
     iterations: 30000
     iter_per_job: 5000
     n_iters: 15

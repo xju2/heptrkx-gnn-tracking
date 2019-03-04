@@ -28,7 +28,7 @@ def read_pairs_input(file_name):
     return pairs
 
 
-def save_pairs_to_graphs(pairs, evt_file_name, output_dir, n_pairs_per_file=30000):
+def save_pairs_to_graphs(pairs, evt_file_name, output_dir, ngraphs=-1, n_pairs_per_file=30000):
 
     evt_id = int(re.search('event00000([0-9]*)', os.path.basename(evt_file_name)).group(1))
     total_pairs = pairs.shape[0]
@@ -40,18 +40,29 @@ def save_pairs_to_graphs(pairs, evt_file_name, output_dir, n_pairs_per_file=3000
     pair_list = np.array_split(pairs, n_files)
 
     saver = get_networkx_saver(output_dir)
+    igraphs = 0;
     for ii,pair in enumerate(pair_list):
+        output_data_name = os.path.join(
+            output_dir,
+            'event{:09d}_g{:09d}_{}.npz'.format(evt_id, ii, "INPUT"))
+        if os.path.exists(output_data_name):
+            print(output_data_name, "is there")
+            continue
+
         graph = pairs_converter(pair)
         saver(evt_id, ii, graph)
+        ## stop at some point
+        igraphs += 1
+        if ngraphs > 0 and igraphs > ngraphs:
+            break
 
 
-def process_event(evt_id, pairs_input_dir, output_dir, n_pairs_per_file):
+def process_event(evt_id, pairs_input_dir, output_dir, ngraphs, n_pairs_per_file):
     print(os.getppid(),"-->", evt_id)
     pairs = read_pairs_input(os.path.join(pairs_input_dir, 'pairs_{}'.format(evt_id)))
     evt_file_name = os.path.join(config['input_track_events'], 'event{:09d}')
     evt_name = evt_file_name.format(evt_id)
-    save_pairs_to_graphs(
-        pairs, evt_name, output_dir, n_pairs_per_file)
+    save_pairs_to_graphs(pairs, evt_name, output_dir, ngraphs, n_pairs_per_file)
 
 
 if __name__ == "__main__":
@@ -66,24 +77,21 @@ if __name__ == "__main__":
     from nx_graph.utils_train import load_config
     config = load_config(args.config)
 
-
-
     pairs_input_dir = config['input_pairs']
     output_dir = config['output_graphs']
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-
     import re
     import glob
-    evt_ids = set([int(re.search('pairs_([0-9]*)', os.path.basename(x)).group(1))
+    evt_ids = sorted([int(re.search('pairs_([0-9]*)', os.path.basename(x)).group(1))
                for x in glob.glob(os.path.join(pairs_input_dir, 'pairs_*'))])
 
     ## check events that are already there
-    evt_search_pp = 'event00000([0-9]*)_g000_INPUT.npz'
-    evt_ids_ready = set([int(re.search(evt_search_pp, os.path.basename(x)).group(1))
-                     for x in glob.glob(os.path.join(output_dir, 'event*_g000_INPUT.npz'))])
-    evt_ids = sorted(list(evt_ids.difference(evt_ids_ready)))
+    #evt_search_pp = 'event00000([0-9]*)_g000_INPUT.npz'
+    #evt_ids_ready = set([int(re.search(evt_search_pp, os.path.basename(x)).group(1))
+    #                 for x in glob.glob(os.path.join(output_dir, 'event*_g000_INPUT.npz'))])
+    #evt_ids = sorted(list(evt_ids.difference(evt_ids_ready)))
     print("events to process:", len(evt_ids))
 
     import time
@@ -100,6 +108,8 @@ if __name__ == "__main__":
         process_func = partial(process_event,
                                pairs_input_dir=pairs_input_dir,
                                output_dir=output_dir,
-                               n_pairs_per_file=config['n_pairs_per_file'])
+                               ngraphs=config['ngraphs_per_job'],
+                               n_pairs_per_file=config['n_pairs_per_file']
+                              )
         pool.map(process_func, evt_ids[start_job:start_job+n_workers])
 

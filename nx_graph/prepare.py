@@ -103,20 +103,24 @@ def graph_to_input_target(graph):
 
 
 def inputs_generator(base_dir_, n_train_fraction=-1):
-    base_dir =  os.path.join(base_dir_, "event00000{}_g{:03d}_INPUT.npz")
+    base_dir =  os.path.join(base_dir_, "event00000{}_g{:09d}_INPUT.npz")
 
     file_patten = base_dir.format(1000, 0).replace('1000', '*')
     all_files = glob.glob(file_patten)
     n_events = len(all_files)
-    evt_ids = [int(re.search('event00000([0-9]*)_g000_INPUT.npz',
+    evt_ids = np.sort([int(re.search('event00000([0-9]*)_g000000000_INPUT.npz',
                              os.path.basename(x)).group(1))
-               for x in all_files]
+               for x in all_files])
+    print(evt_ids)
 
     def get_sections(xx):
-        section_patten = base_dir.format(xx, 0).replace('_g000', '_g[0-9]*[0-9]*[0-9]')
-        return len(glob.glob(section_patten))
+        section_patten = base_dir.format(xx, 0).replace('_g000000000', '*')
+        #print(section_patten)
+        return int(len(glob.glob(section_patten)))
 
-    n_sections = max([get_sections(xx) for xx in evt_ids])
+    all_sections = [get_sections(xx) for xx in evt_ids]
+    #print(all_sections)
+    n_sections = max(all_sections)
     n_total = n_events*n_sections
 
 
@@ -206,7 +210,7 @@ def get_networkx_saver(output_dir_):
     def save_networkx(evt_id, isec, graph):
         output_data_name = os.path.join(
             output_dir,
-            'event{:09d}_g{:03d}_{}.npz'.format(evt_id, isec, INPUT_NAME))
+            'event{:09d}_g{:09d}_{}.npz'.format(evt_id, isec, INPUT_NAME))
         if os.path.exists(output_data_name):
             print(output_data_name, "is there")
             return

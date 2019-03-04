@@ -7,7 +7,8 @@ function get_code(){
 
 nJobs=5 
 
-CONFIG="configs/nxgraph_test_pairs.yaml"
+#CONFIG="configs/nxgraph_test_pairs.yaml"
+CONFIG="configs/nxgraph_test_pairsWholeNodes.yaml"
 EXE="slurm/run_nx_graph.sh $CONFIG"
 
 start=$(sbatch ${EXE})
