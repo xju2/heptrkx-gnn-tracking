@@ -94,7 +94,7 @@ if __name__ == "__main__":
     saver = tf.train.Saver()
     ckpt_name = 'checkpoint_{:05d}.ckpt'
     if last_iteration > 0:
-        print("loading checkpoint")
+        print("loading checkpoint:", os.path.join(output_dir, ckpt_name.format(last_iteration)))
         saver.restore(sess, os.path.join(output_dir, ckpt_name.format(last_iteration)))
     else:
         init_ops = tf.global_variables_initializer()

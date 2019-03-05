@@ -22,8 +22,8 @@ vlids = [(7,2), (7,4), (7,6), (7,8), (7,10), (7,12), (7,14),
          (18,2), (18,4), (18,6), (18,8), (18,10), (18,12)]
 n_det_layers = len(vlids)
 
-def create_evt_pairs_converter(evt_file_name):
-
+def create_evt_pairs_converter(evt_file_name, use_all_nodes_=False):
+    use_all_nodes = use_all_nodes_
     evt_id = int(re.search('event00000([0-9]*)', os.path.basename(evt_file_name)).group(1))
 
     hits, particles, truth = load_event(
@@ -68,18 +68,30 @@ def create_evt_pairs_converter(evt_file_name):
         y[:] = (pid1 == pid2) & (pid1 != 0)
 
         graph = nx.DiGraph()
-        for idx in hits_with_idx['hit_idx']:
-            graph.add_node(idx, pos=hits.iloc[idx][['r', 'phi', 'z']].values/feature_scale, solution=0.0)
+        # only add the hits that are used in edges (not all nodes)
+        if not use_all_nodes:
+            hits_id_dict = {}
+            used_hits_set = np.unique(np.concatenate([df_in_nodes['hit_idx'], df_out_nodes['hit_idx']]))
+            for ii,idx in enumerate(used_hits_set):
+                hits_id_dict[idx] = ii
+                graph.add_node(ii, pos=hits.iloc[idx][['r', 'phi', 'z']].values/feature_scale, solution=0.0)
+        else:
+            # use all hits in the event!
+            for idx in hits_with_idx['hit_idx']:
+                graph.add_node(idx, pos=hits.iloc[idx][['r', 'phi', 'z']].values/feature_scale, solution=0.0)
 
         # add edges
         for idx in range(n_edges):
             in_hit_idx  = int(df_in_nodes.iloc[idx, 1])
             out_hit_idx = int(df_out_nodes.iloc[idx, 1])
 
-            #in_node_idx  = hits_id_dict[in_hit_idx]
-            #out_node_idx = hits_id_dict[out_hit_idx]
-            in_node_idx  = in_hit_idx
-            out_node_idx = out_hit_idx
+            if use_all_nodes:
+                in_node_idx  = in_hit_idx
+                out_node_idx = out_hit_idx
+            else:
+                in_node_idx  = hits_id_dict[in_hit_idx]
+                out_node_idx = hits_id_dict[out_hit_idx]
+
             f1 = graph.node[in_node_idx]['pos']
             f2 = graph.node[out_node_idx]['pos']
             distance = get_edge_features(f1, f2)

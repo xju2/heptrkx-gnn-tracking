@@ -10,6 +10,7 @@ from graph_nets import utils_np
 import os
 import glob
 import re
+import random
 
 def calc_dphi(phi1, phi2):
     """Computes phi2-phi1 given in range [-pi,pi]"""
@@ -118,9 +119,13 @@ def inputs_generator(base_dir_, n_train_fraction=-1):
         #print(section_patten)
         return int(len(glob.glob(section_patten)))
 
-    all_sections = [get_sections(xx) for xx in evt_ids]
-    #print(all_sections)
-    n_sections = max(all_sections)
+    if len(evt_ids) < 102:
+        all_sections = [get_sections(xx) for xx in evt_ids]
+        n_sections = max(all_sections)
+    else:
+        # too long to run all of them...
+        n_sections = get_sections(evt_ids[0])
+
     n_total = n_events*n_sections
 
 
@@ -144,46 +149,22 @@ def inputs_generator(base_dir_, n_train_fraction=-1):
         print("Testing data:  [{}, {}] events, total {} files".format(n_max_evt_id_tr, n_events, n_test*n_sections))
 
 
-    # keep track of training events
-    global _evt_id_tr_
-    _evt_id_tr_ = 0
-    global _sec_id_tr_
-    _sec_id_tr_ = 0
-    ## keep track of testing events
-    global _evt_id_te_
-    _evt_id_te_ = n_max_evt_id_tr if not split_section else 0
-    global _sec_id_te_
-    _sec_id_te_ = 0
-
     def generate_input_target(n_graphs, is_train=True):
-        global _evt_id_tr_
-        global _sec_id_tr_
-        global _evt_id_te_
-        global _sec_id_te_
         input_graphs = []
         target_graphs = []
         igraphs = 0
         while igraphs < n_graphs:
             # determine while file to read
+            sec_id = random.randint(0, n_sections)
             if is_train:
-                # for training
-                file_name = base_dir.format(evt_ids[_evt_id_tr_], _sec_id_tr_)
-                _sec_id_tr_ += 1
-                if _sec_id_tr_ == n_sections:
-                    _evt_id_tr_ += 1
-                    _sec_id_tr_ = 0
-                    if _evt_id_tr_ >= n_max_evt_id_tr:
-                        _evt_id_tr_ = 0
+                evt_id = random.randint(0, n_max_evt_id_tr)
             else:
-                ## for testing
-                file_name = base_dir.format(evt_ids[_evt_id_te_], _sec_id_te_)
-                _sec_id_te_ += 1
-                if _sec_id_te_ == n_sections:
-                    _evt_id_te_ += 1
-                    _sec_id_te_ = 0
-                    if _evt_id_te_ >= n_events:
-                        _evt_id_te_ = n_max_evt_id_tr if not split_section else 0
+                if split_section:
+                    evt_id = random.randint(0, n_events)
+                else:
+                    evt_id = random.randint(n_max_evt_id_tr, n_events)
 
+            file_name = base_dir.format(evt_ids[evt_id], sec_id)
             if not os.path.exists(file_name):
                 continue
 

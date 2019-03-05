@@ -111,5 +111,6 @@ if __name__ == "__main__":
                                ngraphs=config['ngraphs_per_job'],
                                n_pairs_per_file=config['n_pairs_per_file']
                               )
+        #pool.map(process_func, evt_ids)
         pool.map(process_func, evt_ids[start_job:start_job+n_workers])
 

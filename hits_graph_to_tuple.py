@@ -16,7 +16,7 @@ def get_saver(input_dir_, output_dir_):
     def save_hitsgraph(evt_id, isec):
         input_data_name = os.path.join(
             output_dir,
-            'event00000{}_g{:03d}_{}.npz'.format(evt_id, isec, INPUT_NAME))
+            'event00000{}_g{:09d}_{}.npz'.format(evt_id, isec, INPUT_NAME))
         if os.path.exists(input_data_name):
             print(input_data_name, "is there")
             return
