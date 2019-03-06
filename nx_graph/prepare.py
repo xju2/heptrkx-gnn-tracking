@@ -41,34 +41,6 @@ def get_edge_features(in_node, out_node):
     return np.array([deta, dphi, dR, dZ])
 
 
-def hitsgraph_to_networkx_graph(G):
-    n_nodes, n_edges = G.Ri.shape
-
-    graph = nx.DiGraph()
-
-    ## it is essential to add nodes first
-    # the node ID must be [0, N_NODES]
-    for i in range(n_nodes):
-        graph.add_node(i, pos=G.X[i], solution=0.0)
-
-    for iedge in range(n_edges):
-        in_node_id  = G.Ri[:, iedge].nonzero()[0][0]
-        out_node_id = G.Ro[:, iedge].nonzero()[0][0]
-
-        # distance as features
-        in_node_features  = G.X[in_node_id]
-        out_node_features = G.X[out_node_id]
-        distance = get_edge_features(in_node_features, out_node_features)
-        # add edges, bi-directions
-        graph.add_edge(in_node_id, out_node_id, distance=distance, solution=G.y[iedge])
-        graph.add_edge(out_node_id, in_node_id, distance=distance, solution=G.y[iedge])
-        # add "solution" to nodes
-        graph.node[in_node_id].update(solution=G.y[iedge])
-        graph.node[out_node_id].update(solution=G.y[iedge])
-
-    # add global features, not used for now
-    graph.graph['features'] = np.array([0.])
-    return graph
 
 
 def graph_to_input_target(graph):
@@ -155,14 +127,14 @@ def inputs_generator(base_dir_, n_train_fraction=-1):
         igraphs = 0
         while igraphs < n_graphs:
             # determine while file to read
-            sec_id = random.randint(0, n_sections)
+            sec_id = random.randint(0, n_sections-1)
             if is_train:
-                evt_id = random.randint(0, n_max_evt_id_tr)
+                evt_id = random.randint(0, n_max_evt_id_tr-1)
             else:
                 if split_section:
-                    evt_id = random.randint(0, n_events)
+                    evt_id = random.randint(0, n_events-1)
                 else:
-                    evt_id = random.randint(n_max_evt_id_tr, n_events)
+                    evt_id = random.randint(n_max_evt_id_tr, n_events-1)
 
             file_name = base_dir.format(evt_ids[evt_id], sec_id)
             if not os.path.exists(file_name):

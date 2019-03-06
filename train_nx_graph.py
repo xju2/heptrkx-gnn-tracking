@@ -73,10 +73,15 @@ if __name__ == "__main__":
     # Loss across processing steps.
     loss_op_tr = sum(loss_ops_tr) / num_processing_steps_tr
 
-    # Optimizer
-    learning_rate = config_tr['learning_rate']
+    # Optimizer, with decaying learning rate
+    global_step = tf.Variable(0, trainable=False)
+    start_learning_rate = config_tr['learning_rate']
+    learning_rate = tf.train.exponential_decay(
+        start_learning_rate, global_step,
+        decay_steps=10000,
+        decay_rate=0.96, staircase=True)
     optimizer = tf.train.AdamOptimizer(learning_rate)
-    step_op = optimizer.minimize(loss_op_tr)
+    step_op = optimizer.minimize(loss_op_tr, global_step=global_step)
 
     # Lets an iterable of TF graphs be output from a session as NP graphs.
     # copyed from deepmind's example, not sure needed...

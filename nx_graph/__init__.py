@@ -16,6 +16,7 @@ def get_model(model_name=None):
     if model_name == "LESS":
         return mm_less()
     elif model_name == "NOLAYERNORM":
+        print("Use model", model_name)
         return mm_nonorm()
     else:
         pass
