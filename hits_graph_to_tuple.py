@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import os
 
-from nx_graph.prepare import hitsgraph_to_networkx_graph
+from nx_graph.utils_data import hitsgraph_to_networkx_graph
 from nx_graph.prepare import graph_to_input_target
 
 from datasets.graph import load_graph

@@ -4,25 +4,25 @@ import networkx as nx
 import numpy as np
 import os
 
-def data_dict_to_networkx(dd_input, dd_target):
+from .prepare import get_edge_features
+
+def data_dict_to_networkx(dd_input, dd_target, is_digraph=True):
     input_nx = utils_np.data_dict_to_networkx(dd_input)
     target_nx = utils_np.data_dict_to_networkx(dd_target)
 
-    G = nx.Graph()
+    G = nx.DiGraph() if is_digraph else nx.Graph()
     for node_index, node_features in input_nx.nodes(data=True):
         G.add_node(node_index, pos=node_features['features'])
 
-    for receiver, sender, features in target_nx.edges(data=True):
+    for sender, receiver, features in target_nx.edges(data=True):
         G.add_edge(sender, receiver, solution=features['features'])
+        G.add_edge(receiver, sender, solution=features['features'])
 
     return G
 
 
-def get_graph(path, evtid, isec=0, n_phi_sections=8, n_eta_sections=2):
-    phi_range = (-np.pi, np.pi)
-    phi_edges = np.linspace(*phi_range, num=n_phi_sections+1)
-
-    scale = [1000, np.pi/n_phi_sections, 1000]
+def get_graph(path, evtid, isec=0, n_phi_sections=8, n_eta_sections=2,
+              is_digraph=True, do_correction=False):
 
     file_name = 'event{:09d}_g{:09d}_INPUT.npz'.format(evtid, isec)
     with np.load(os.path.join(path, file_name)) as f:
@@ -30,7 +30,13 @@ def get_graph(path, evtid, isec=0, n_phi_sections=8, n_eta_sections=2):
     with np.load(os.path.join(path, file_name.replace("INPUT", "TARGET"))) as f:
         target_data_dict = dict(f.items())
 
-    G = data_dict_to_networkx(input_data_dict, target_data_dict)
+    G = data_dict_to_networkx(input_data_dict, target_data_dict, is_digraph)
+    if not do_correction:
+        return G
+
+    phi_range = (-np.pi, np.pi)
+    phi_edges = np.linspace(*phi_range, num=n_phi_sections+1)
+    scale = [1000, np.pi/n_phi_sections, 1000]
     # update phi
     phi_min = phi_edges[isec//n_eta_sections]
     phi_max = phi_edges[isec//n_eta_sections+1]
@@ -46,7 +52,6 @@ def get_graph(path, evtid, isec=0, n_phi_sections=8, n_eta_sections=2):
     return G
 
 
-
 def hitsgraph_to_networkx_graph(G):
     n_nodes, n_edges = G.Ri.shape
 
@@ -58,6 +63,10 @@ def hitsgraph_to_networkx_graph(G):
         graph.add_node(i, pos=G.X[i], solution=0.0)
 
     for iedge in range(n_edges):
+        """
+        In_node:  node is a receiver, hits at outer-most layers can only be In-node
+        Out-node: node is a sender, so hits in inner-most layer can only be Out-node
+        """
         in_node_id  = G.Ri[:, iedge].nonzero()[0][0]
         out_node_id = G.Ro[:, iedge].nonzero()[0][0]
 
@@ -66,8 +75,10 @@ def hitsgraph_to_networkx_graph(G):
         out_node_features = G.X[out_node_id]
         distance = get_edge_features(in_node_features, out_node_features)
         # add edges, bi-directions
-        graph.add_edge(in_node_id, out_node_id, distance=distance, solution=G.y[iedge])
+        # connection of inner to outer
         graph.add_edge(out_node_id, in_node_id, distance=distance, solution=G.y[iedge])
+        # connection of outer to inner
+        graph.add_edge(in_node_id, out_node_id, distance=distance, solution=G.y[iedge])
         # add "solution" to nodes
         graph.node[in_node_id].update(solution=G.y[iedge])
         graph.node[out_node_id].update(solution=G.y[iedge])
@@ -75,3 +86,64 @@ def hitsgraph_to_networkx_graph(G):
     # add global features, not used for now
     graph.graph['features'] = np.array([0.])
     return graph
+
+
+def networkx_graph_to_hitsgraph(G, is_digraph=True):
+    n_nodes = len(G.nodes())
+    n_edges = len(G.edges())//2 if is_digraph else len(G.edges())
+    n_features = len(G.node[0]['pos'])
+
+    X = np.zeros((n_nodes, n_features), dtype=np.float32)
+    Ri = np.zeros((n_nodes, n_edges), dtype=np.uint8)
+    Ro = np.zeros((n_nodes, n_edges), dtype=np.uint8)
+
+    for node,features in G.nodes(data=True):
+        X[node, :] = features['pos']
+
+    ## build relations
+    segments = []
+    y = []
+    for n, nbrsdict in G.adjacency():
+        for nbr, eattr in nbrsdict.items():
+            ## as hitsgraph is a directed graph from inner-most to outer-most
+            ## so assume sender < reciver;
+            if n > nbr and is_digraph:
+                continue
+            segments.append((n, nbr))
+            y.append(int(eattr['solution'][0]))
+
+    if len(y) != n_edges:
+        print(len(y),"not equals to # of edges", n_edges)
+    segments = np.array(segments)
+    Ro[segments[:, 0], np.arange(n_edges)] = 1
+    Ri[segments[:, 1], np.arange(n_edges)] = 1
+    y = np.array(y, dtype=np.float32)
+    return (X, Ri, Ro, y)
+
+
+def is_diff_networkx(G1, G2):
+    """
+    G1,G2, networkx graphs
+    Return True if they are different, False otherwise
+    note that edge features are not checked!
+    """
+    # check node features first
+    GRAPH_NX_FEATURES_KEY = 'pos'
+    node_id1 = np.array([
+        x[1][GRAPH_NX_FEATURES_KEY]
+        for x in G1.nodes(data=True)
+        if x[1][GRAPH_NX_FEATURES_KEY] is not None])
+    node_id2 = np.array([
+        x[1][GRAPH_NX_FEATURES_KEY]
+        for x in G2.nodes(data=True)
+        if x[1][GRAPH_NX_FEATURES_KEY] is not None])
+
+    # check edges
+    diff = np.any(node_id1 != node_id2)
+    for sender, receiver, _ in G1.edges(data=True):
+        try:
+            _ = G2.edges[(sender, receiver)]
+        except KeyError:
+            diff = True
+            break
+    return diff

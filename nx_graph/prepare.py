@@ -42,7 +42,6 @@ def get_edge_features(in_node, out_node):
 
 
 
-
 def graph_to_input_target(graph):
     def create_feature(attr, fields):
         return np.hstack([np.array(attr[field], dtype=float) for field in fields])
