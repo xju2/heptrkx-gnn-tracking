@@ -35,23 +35,24 @@ def get_edge_features(in_node, out_node):
     return np.array([deta, dphi, dR, dZ])
 
 
-def data_dict_to_networkx(dd_input, dd_target, is_digraph=True):
-    input_nx = utils_np.data_dict_to_networkx(dd_input)
+def data_dict_to_networkx(dd_input, dd_target, use_digraph=True):
+    input_nx  = utils_np.data_dict_to_networkx(dd_input)
     target_nx = utils_np.data_dict_to_networkx(dd_target)
 
-    G = nx.DiGraph() if is_digraph else nx.Graph()
+    G = nx.DiGraph() if use_digraph else nx.Graph()
     for node_index, node_features in input_nx.nodes(data=True):
         G.add_node(node_index, pos=node_features['features'])
 
     for sender, receiver, features in target_nx.edges(data=True):
         G.add_edge(sender, receiver, solution=features['features'])
-        G.add_edge(receiver, sender, solution=features['features'])
+        if use_digraph:
+            G.add_edge(receiver, sender, solution=features['features'])
 
     return G
 
 
-def get_graph(path, evtid, isec=0, n_phi_sections=8, n_eta_sections=2,
-              is_digraph=True, do_correction=False):
+def get_graph_from_saved_data_dict(path, evtid, isec=0, n_phi_sections=8, n_eta_sections=2,
+              use_digraph=True, do_correction=False):
 
     file_name = 'event{:09d}_g{:09d}_INPUT.npz'.format(evtid, isec)
     with np.load(os.path.join(path, file_name)) as f:
@@ -59,7 +60,7 @@ def get_graph(path, evtid, isec=0, n_phi_sections=8, n_eta_sections=2,
     with np.load(os.path.join(path, file_name.replace("INPUT", "TARGET"))) as f:
         target_data_dict = dict(f.items())
 
-    G = data_dict_to_networkx(input_data_dict, target_data_dict, is_digraph)
+    G = data_dict_to_networkx(input_data_dict, target_data_dict, use_digraph)
     if not do_correction:
         return G
 
@@ -81,7 +82,7 @@ def get_graph(path, evtid, isec=0, n_phi_sections=8, n_eta_sections=2,
     return G
 
 
-def hitsgraph_to_networkx_graph(G):
+def hitsgraph_to_networkx_graph(G, use_digraph=True):
     n_nodes, n_edges = G.Ri.shape
 
     graph = nx.DiGraph()
@@ -107,7 +108,8 @@ def hitsgraph_to_networkx_graph(G):
         # connection of inner to outer
         graph.add_edge(out_node_id, in_node_id, distance=distance, solution=G.y[iedge])
         # connection of outer to inner
-        graph.add_edge(in_node_id, out_node_id, distance=distance, solution=G.y[iedge])
+        if use_digraph:
+            graph.add_edge(in_node_id, out_node_id, distance=distance, solution=G.y[iedge])
         # add "solution" to nodes
         graph.node[in_node_id].update(solution=G.y[iedge])
         graph.node[out_node_id].update(solution=G.y[iedge])
