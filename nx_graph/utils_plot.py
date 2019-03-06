@@ -1,7 +1,7 @@
 import networkx as nx
 import numpy as np
 
-def plot(G, ax=None):
+def plot_networkx(G, ax=None):
     """G is networkx graph,
     node feature: {'pos': [r, phi, z]}
     edge feature: {"solution": []}

@@ -40,7 +40,7 @@ def create_trained_model(config_name, input_ckpt=None):
 
 
     # generate inputs
-    generate_input_target = inputs_generator(config['data']['output_nxgraph_dir'])
+    generate_input_target = inputs_generator(config['data']['output_nxgraph_dir'], n_train_fraction=0.8)
 
     # build TF graph
     tf.reset_default_graph()
