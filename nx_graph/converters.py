@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import networkx as nx
 
-from .prepare import get_edge_features
+from .utils_data import get_edge_features
 from trackml.dataset import load_event
 import re
 import os

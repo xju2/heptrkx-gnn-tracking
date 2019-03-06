@@ -4,7 +4,36 @@ import networkx as nx
 import numpy as np
 import os
 
-from .prepare import get_edge_features
+
+def calc_dphi(phi1, phi2):
+    """Computes phi2-phi1 given in range [-pi,pi]"""
+    dphi = phi2 - phi1
+    if dphi > np.pi:
+        dphi -= 2*np.pi
+    if dphi < -np.pi:
+        dphi += 2*np.pi
+    return dphi
+
+
+def get_edge_features(in_node, out_node):
+    # input are the features of incoming and outgoing nodes
+    # they are ordered as [r, phi, z]
+    in_r, in_phi, in_z    = in_node
+    out_r, out_phi, out_z = out_node
+
+    in_r3 = np.sqrt(in_r**2 + in_z**2)
+    out_r3 = np.sqrt(out_r**2 + out_z**2)
+
+    in_theta = np.arccos(in_z/in_r3)
+    in_eta = -np.log(np.tan(in_theta/2.0))
+    out_theta = np.arccos(out_z/out_r3)
+    out_eta = -np.log(np.tan(out_theta/2.0))
+    deta = out_eta - in_eta
+    dphi = calc_dphi(out_phi, in_phi)
+    dR = np.sqrt(deta**2 + dphi**2)
+    dZ = in_z - out_z
+    return np.array([deta, dphi, dR, dZ])
+
 
 def data_dict_to_networkx(dd_input, dd_target, is_digraph=True):
     input_nx = utils_np.data_dict_to_networkx(dd_input)
