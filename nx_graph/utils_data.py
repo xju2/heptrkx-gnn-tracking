@@ -37,7 +37,7 @@ def get_edge_features(in_node, out_node):
     return np.array([deta, dphi, dR, dZ])
 
 
-def data_dict_to_networkx(dd_input, dd_target, use_digraph=True):
+def data_dict_to_networkx(dd_input, dd_target, use_digraph=True, bidirection=True):
     input_nx  = utils_np.data_dict_to_networkx(dd_input)
     target_nx = utils_np.data_dict_to_networkx(dd_target)
 
@@ -47,7 +47,7 @@ def data_dict_to_networkx(dd_input, dd_target, use_digraph=True):
 
     for sender, receiver, features in target_nx.edges(data=True):
         G.add_edge(sender, receiver, solution=features['features'])
-        if use_digraph:
+        if use_digraph and bidirection:
             G.add_edge(receiver, sender, solution=features['features'])
 
     return G
