@@ -1,14 +1,26 @@
 
-from .utils_fit import poly_fit2
+from .utils_fit import poly_fit_phi
+from .utils_fit import pairwise
+
 import networkx as nx
 import numpy as np
 
-import itertools
 from functools import partial
+
+def get_nbr_weights(G, pp, used_hits=None):
+    nbrs = list(set(nx.neighbors(G, pp)).difference(set(used_hits)))
+    if len(nbrs) < 1:
+        return None,None
+
+    weights = [G.edges[(pp, i)][feature_name][0] for i in nbrs]
+    if max(weights) < th:
+        return None,None
+    return nbrs, weights
 
 
 def find_next_hits(G, pp, used_hits, th=0.1, th_re=0.8, feature_name='solution'):
     """G is the graph, path is previous hits."""
+
     nbrs = list(set(nx.neighbors(G, pp)).difference(set(used_hits)))
     if len(nbrs) < 1:
         return None
@@ -17,9 +29,10 @@ def find_next_hits(G, pp, used_hits, th=0.1, th_re=0.8, feature_name='solution')
     if max(weights) < th:
         return None
 
-    sorted_idx = reversed(np.argsort(weights))
+    sorted_idx = list(reversed(np.argsort(weights)))
     next_hits = [nbrs[sorted_idx[0]]]
-    for ii,idx in range(1, len(sorted_idx)):
+    for ii in range(1, len(sorted_idx)):
+        idx = sorted_idx[ii]
         w = weights[idx]
         if w > th_re:
             next_hits.append(nbrs[idx])
@@ -95,33 +108,25 @@ def chose_a_road(road, diff):
     return res
 
 
-def pairwise(iterable):
-  """s -> (s0,s1), (s1,s2), (s2, s3), ..."""
-  a, b = itertools.tee(iterable)
-  next(b, None)
-  return zip(a, b)
 
-
-def get_tracks(G, th=0.1, th_re=0.8, feature_name='solution'):
+def get_tracks(G, th=0.1, th_re=0.8, feature_name='solution', with_fit=True):
     used_nodes = []
     sub_graphs = []
-    next_hit_fn = partial(find_next_hits, th=0.1, th_re=0.8, feature_name='solution')
+    next_hit_fn = partial(find_next_hits, th=th, th_re=th_re, feature_name=feature_name)
     for node in G.nodes():
         if node in used_nodes:
             continue
-        road = roads(G, node, next_hit_fn, used_nodes)
-        diff = fit_road(G, road)
+        road = build_roads(G, node, next_hit_fn, used_nodes)
+        diff = fit_road(G, road) if with_fit else [0.]*len(road)
         a_road = chose_a_road(road, diff)
 
         if len(a_road) < 3:
             used_nodes.append(node)
             continue
 
-        a_track = pairwise(a_road[:-1])
+        a_track = list(pairwise(a_road[:-1]))
         sub = nx.edge_subgraph(G, a_track)
         sub_graphs.append(sub)
         used_nodes += list(sub.nodes())
 
-    n_tracks = len(sub_graphs)
-    print("total tracks:", n_tracks)
     return sub_graphs
