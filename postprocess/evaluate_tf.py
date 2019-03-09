@@ -1,4 +1,5 @@
 import tensorflow as tf
+
 from graph_nets import utils_tf
 from graph_nets import utils_np
 
@@ -8,6 +9,7 @@ import numpy as np
 
 from nx_graph.prepare import inputs_generator
 from nx_graph import get_model
+from nx_graph.utils_data import data_dict_to_networkx
 
 def load_config(config_file):
     with open(config_file) as f:
