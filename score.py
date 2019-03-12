@@ -1,216 +1,107 @@
 #!/usr/bin/env python3
-import yaml
-import os
-import logging
 
+from postprocess.evaluate_tf import create_evaluator
 
-import torch
+import networkx as nx
 import numpy as np
-import pandas as pd
+import matplotlib.pyplot as plt
 
-from trackml.dataset import load_event
-from trackml.score import score_event
+from graph_nets import utils_np
+from nx_graph.utils_data import merge_truth_info_to_hits
 
-from datasets.graph import load_graph
-from models import get_model
-
-## the tracking methods
-from postprocess import pathfinder
-from postprocess import glue
-
-def get_output_dir(config):
-    return os.path.expandvars(config['experiment']['output_dir'])
-
-def get_input_dir(config):
-    return os.path.expandvars(config['data']['input_dir'])
-
-def load_config(config_file):
-    with open(config_file) as f:
-        return yaml.load(f)
-
-def print_config(config_file):
-    out = "------{}------\n".format(config_file)
-    with open(config_file) as f:
-        for line in f:
-            out += line
-    out += "--------------\n"
-    return out
-
-
-def load_summaries(config):
-    summary_file = os.path.join(get_output_dir(config), 'summaries.npz')
-    return np.load(summary_file)
-
-def load_model(config, reload_epoch):
-    model_config = config['model']
-    model_type = model_config.pop('model_type')
-    model_config.pop('optimizer', None)
-    model_config.pop('learning_rate', None)
-    model_config.pop('loss_func', None)
-    model = get_model(name=model_type, **model_config)
-
-    # Reload specified model checkpoint
-    output_dir = get_output_dir(config)
-    checkpoint_file = os.path.join(output_dir, 'checkpoints',
-                                   'model_checkpoint_%03i.pth.tar' % reload_epoch)
-    model.load_state_dict(torch.load(checkpoint_file, map_location='cpu')['model'])
-    return model
-
-def score_tracks(all_tracks, hits, truth):
-    # this part takes most of time
-    # need improvement
-    total_tracks = len(all_tracks)
-    # logging.info("total tracks: {}".format(total_tracks))
-
-    results = []
-    for itrk, track in enumerate(all_tracks):
-        results += [(x, itrk) for x in track]
-
-    new_df = pd.DataFrame(results, columns=['hit_id', 'track_id'])
-    new_df = new_df.drop_duplicates(subset='hit_id')
-
-    df_sub = hits[['hit_id']]
-    df_sub = df_sub.merge(new_df, on='hit_id', how='outer').fillna(total_tracks+1)
-    matched = truth.merge(new_df, on='hit_id', how='inner')
-    tot_truth_weight = np.sum(matched['weight'])
-
-    ## remove the hits if their total is less than 50% of the hits
-    # that belong to the same particle.
-    particle_ids = np.unique(matched['particle_id'])
-    for p_id in particle_ids:
-        pID_match = matched[matched['particle_id'] == p_id]
-        if pID_match.shape[0] <= truth[truth['particle_id'] == p_id].shape[0]*0.5:
-            tot_truth_weight -= np.sum(pID_match['weight'])
-
-    return [score_event(truth, df_sub), tot_truth_weight]
-
-
-class TrackingScore(object):
-    def __init__(self, config_data_file,
-                 config_train_file,
-                 method,
-                 reload_epoch=18,
-                 weight_cut=0.5,
-                ):
-        #logging.debug(print_config(config_data_file ))
-        #logging.debug(print_config(config_train_file))
-
-        config = load_config(config_data_file)
-        self.hitgraph_dir = config['output_dir']
-        self.trackdata_dir = config['input_dir']
-        selection = config['selection']
-        self.n_sections = selection['n_phi_sections'] * selection['n_eta_sections']
-
-        # load model from the trained epoch
-        self.config_train_file = config_train_file
-        self.reload_epoch = reload_epoch
-        self.model = None
-        self.update_model = False
-        self.weight_cutoff = weight_cut
-        self.method = method
-
-    def print_info(self):
-        out =  "method:      {}\n".format(self.method)
-        out += "weight cut:  {:.2f}\n".format(self.weight_cutoff)
-        logging.info(out)
-
-    def set_train_config(self, config_file):
-        self.config_train_file = config_file
-
-    def load_epoch(self, reload_epoch):
-        self.reload_epoch = reload_epoch
-
-    def get_score(self, n_events):
-        self.print_info()
-        if self.update_model or self.model is None:
-            self.model = load_model(load_config(self.config_train_file),
-                                    reload_epoch=self.reload_epoch).eval()
-        all_scores= np.array([
-            self.get_score_of_one_event(ievt)
-            for ievt in range(n_events)
-        ])
-        return np.mean(all_scores[:, 0]), np.mean(all_scores[:, 1])
-
-
-    def get_score_of_one_event(self, ievt):
-        event_str = "event00000{0}".format(1000+ievt)
-        logging.debug("processing {} event:".format(event_str))
-
-        # get score of the track candidates
-        # load the event info from tracking ml
-        event_input_name = os.path.join(self.trackdata_dir, event_str)
-        hits, truth = load_event(event_input_name, parts=['hits', 'truth'])
-
-        all_gnn_tracks = []
-        all_true_tracks = []
-        for i in range(self.n_sections):
-            res_tracks = self.get_tracks_of_one_sector(event_str, i, hits, truth)
-            all_gnn_tracks += res_tracks[0]
-            all_true_tracks += res_tracks[1]
-
-        event_gnn   = score_tracks(all_gnn_tracks,  hits, truth)
-        event_truth = score_tracks(all_true_tracks, hits, truth)
-        logging.debug("SCORE of {} event: {:.4f} {:.4f} {:.4f} {:.4f}\n".format(
-                      ievt, event_gnn[0], event_truth[0], event_gnn[0]/event_truth[0], event_truth[1])
-        )
-        return [event_gnn[0], event_truth[0]]
-
-
-    def get_tracks_of_one_sector(self, event_str, iSec, hits, truth):
-        logging.debug("processing {} section".format(iSec))
-        file_name = os.path.join(self.hitgraph_dir,
-                                 event_str+"_g{:03d}.npz".format(iSec))
-        id_name = file_name.replace('.npz', '_ID.npz')
-
-        G = load_graph(file_name)
-        with np.load(id_name) as f:
-            hit_ids = f['ID']
-
-        n_hits = G.X.shape[0]
-        batch_input = [torch.from_numpy(m[None]).float() for m in [G.X, G.Ri, G.Ro]]
-        with torch.no_grad():
-            weights = self.model(batch_input).flatten().numpy()
-
-        gnn_tracks = glue.get_tracks(G, weights, hit_ids, hits, truth) \
-                if self.method=='glue' else \
-                pathfinder.get_tracks(G, weights, hit_ids, self.weight_cutoff)
-
-        true_tracks = glue.get_tracks(G, G.y, hit_ids, hits, truth) \
-                if self.method=='glue' else \
-                pathfinder.get_tracks(G, G.y, hit_ids, self.weight_cutoff)
-
-        return gnn_tracks, true_tracks
 
 
 if __name__ == "__main__":
     import sys
     import argparse
+    import os
+    import glob
+    from nx_graph.utils_train import load_config
 
     parser = argparse.ArgumentParser(description='Get a score from postprocess')
     add_arg = parser.add_argument
-    add_arg('data_config',  nargs='?', default='configs/xy_pre_small.yaml')
-    add_arg('train_config', nargs='?', default='configs/hello_graph.yaml')
-    add_arg('--nEvents',    default=1, type=int, help='number of events for scoring')
-    add_arg('--nEpoch',     default=18, type=int, help='reload model from an epoch')
-    add_arg('-m', '--method', default='glue', help='postprocess method, [glue, pathfinder]')
-    add_arg('--weightCut', default=0.5, type=float, help='weight cut for pathfinder')
-    add_arg('--log', default='info', help='logging level')
+    add_arg('train_config', nargs='?', default='configs/nxgraph_test_NOINT.yaml')
+    add_agr('--evt', default=6000, type=int, help='event ID for evaluation')
+    add_agr('--sec', default=-1,   type=int, help='section ID for evaluation, default use all sections')
+    add_arg('--nEpoch',     default=7128, type=int, help='reload model from an epoch')
+    add_arg('-c', '--ckpt', default='trained_results/nxgraph_big_test_NOINT/bak', help='path that stores checkpoint')
+    add_arg('--trkml', default='/global/cscratch1/sd/xju/heptrkx/trackml_inputs/train_all', help='original tracking data')
 
     args = parser.parse_args()
-    numeric_level = getattr(logging, args.log.upper(), None)
-    logging.basicConfig(filename='score.log',
-                        level=numeric_level,
-                        format='%(asctime)s - %(name)s - %(levelname)s: %(message)s')
+    config_file = args.train_config
+    input_ckpt = args.ckpt
+    iteration = args.nEpoch
 
-    tracking_score = TrackingScore(
-        args.data_config,
-        args.train_config,
-        method=args.method,
-        reload_epoch=args.nEpoch,
-        weight_cut=args.weightCut
-    )
+    # create the model
+    model = create_evaluator(config_file, iteration, input_ckpt)
+    config = load_config(config_file)
 
-    scores = tracking_score.get_score(args.nEvents)
-    logging.info("score of gnn:   {:.4f}".format(scores[0]))
-    logging.info("score of truth: {:.4f}".format(scores[1]))
-    logging.info("ratio:          {:.4f}".format(scores[0]/scores[1]))
+    # prepare for data
+    file_dir = config['data']['output_nxgraph_dir']
+    base_dir =  os.path.join(file_dir, "event00000{}_g{:09d}_INPUT.npz")
+    evtid = args.evt
+    isec = args.sec
+
+    file_names = []
+    section_list = []
+    if isec < 0:
+        section_patten = base_dir.format(evtid, 0).replace('_g{:09}'.format(0), '*')
+        n_sections = int(len(glob.glob(section_patten)))
+        file_names = [base_dir.format(evtid, ii) for ii in range(n_sections)]
+        section_list = [ii for ii in range(n_sections)]
+    else:
+        file_names = [base_dir.format(evtid, isec)]
+        section_list = [isec]
+
+
+    batch_size = config['train']['batch_size']
+    n_batches = len(file_names)//2 + 1
+    split_inputs = np.array_split(file_names, n_batches)
+
+    hits_graph_dir = config['data']['input_hitsgraph_dir']
+    trk_dir = args.trkml
+    dd = os.path.join(trk_dir, 'event{:09d}')
+    hits, particles, truth = load_event(dd.format(evtid), parts=['hits', 'particles', 'truth'])
+    hits = merge_truth_info_to_hits(hits, truth, particles)
+    true_features = ['pt', 'particle_id', 'nhits']
+
+    all_graphs = []
+    # evaluate each graph
+    for ibatch in range(n_batches):
+        ## pad batch_size
+        current_files = list(split_inputs[ibatch])
+        if len(current_files) < batch_size:
+            last_file = current_files[-1]
+            current_files += [last_file] *(batch_size-len(current_files))
+
+        input_graphs = []
+        target_graphs = []
+        for file_name in current_files:
+            with np.load(file_name) as f:
+                input_graphs.append(dict(f.items()))
+
+            with np.load(file_name.replace("INPUT", "TARGET")) as f:
+                target_graphs.append(dict(f.items()))
+
+        graphs = model(utils_np.data_dicts_to_graphs_tuple(input_graphs),
+                       utils_np.data_dicts_to_graphs_tuple(target_graphs))
+        if len(graphs) != batch_size:
+            raise ValueError("graph size not the same as batch-size")
+
+        # decorate the graph with truth info
+        for ii in range(batch_size):
+            idx = ibatch*batch_size + ii
+            id_name = os.path.join(hits_graph_dir, "event{:09d}_g{:03d}_ID.npz".format(evtid, idx))
+            with np.load(id_name) as f:
+                hit_ids = f['ID']
+
+            for node in graphs[ii].nodes():
+                hit_id = hit_ids[node]
+                graphs[ii].node[node]['hit_id'] = hit_id
+                graphs[ii].node[node]['info'] = hits[hits['hit_id'] == hit_id][true_features].values
+
+        all_graphs += graphs
+
+
+    # after get all_graphs...
+    # start to do some performance checks

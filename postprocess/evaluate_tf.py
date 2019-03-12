@@ -66,7 +66,7 @@ def create_evaluator(config_name, iteration, input_ckpt=None):
             "target": target_ph
         }, feed_dict=feed_dict)
         output = predictions['outputs'][-1]
-        output_dd  = utils_np.graphs_tuple_to_data_dicts(output)
+        output_nxs = utils_np.graphs_tuple_to_networkxs(output)
         input_dds  = utils_np.graphs_tuple_to_data_dicts(input_graphs)
         target_dds = utils_np.graphs_tuple_to_data_dicts(target_graphs)
         graphs = []
@@ -78,7 +78,7 @@ def create_evaluator(config_name, iteration, input_ckpt=None):
 
             ## update edge features with TF output
             for edge in graph.edges():
-                graph.edges[edge]['predict'] = output[ig].edges[edge]['features']
+                graph.edges[edge]['predict'] = output_nxs[ig].edges[edge+(0,)]['features']
             graphs.append(graph)
             ig += 1
 

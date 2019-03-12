@@ -7,7 +7,7 @@ import numpy as np
 
 from functools import partial
 
-def get_nbr_weights(G, pp, used_hits=None):
+def get_nbr_weights(G, pp, used_hits=None, feature_name='solution', th=0.1):
     nbrs = list(set(nx.neighbors(G, pp)).difference(set(used_hits)))
     if len(nbrs) < 1:
         return None,None
@@ -15,7 +15,12 @@ def get_nbr_weights(G, pp, used_hits=None):
     weights = [G.edges[(pp, i)][feature_name][0] for i in nbrs]
     if max(weights) < th:
         return None,None
-    return nbrs, weights
+
+    sort_idx = list(reversed(np.argsort(weights)))
+    nbrss = [nbrs[x] for x in sort_idx]
+    wss = [weights[x] for x in sort_idx]
+
+    return nbrss, wss
 
 
 def find_next_hits(G, pp, used_hits, th=0.1, th_re=0.8, feature_name='solution'):
@@ -49,7 +54,7 @@ def build_roads(G, ss, next_hit_fn, used_hits):
     # get started
     next_hits = next_hit_fn(G, ss, used_hits)
     if next_hits is None:
-        return [(ss,)]
+        return [(ss,None)]
     path = []
     for hit in next_hits:
         path.append((ss, hit))
@@ -69,7 +74,9 @@ def build_roads(G, ss, next_hit_fn, used_hits):
             if start is None:
                 new_path.append(pp)
                 continue
-            next_hits = next_hit_fn(G, pp[-1], used_hits)
+
+            used_hits_cc = np.unique(used_hits + list(pp))
+            next_hits = next_hit_fn(G, pp[-1], used_hits_cc)
             if next_hits is None:
                 new_path.append(pp + (None,))
             else:
