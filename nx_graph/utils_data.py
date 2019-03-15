@@ -127,7 +127,6 @@ def hitsgraph_to_networkx_graph(G, use_digraph=True, bidirection=True):
         in_node_features  = G.X[in_node_id]
         out_node_features = G.X[out_node_id]
         distance = get_edge_features(in_node_features, out_node_features)
-        # add edges, bi-directions
         # connection of inner to outer
         graph.add_edge(out_node_id, in_node_id, distance=distance, solution=[G.y[iedge]])
         # connection of outer to inner
@@ -223,7 +222,7 @@ def merge_truth_info_to_hits(hits, truth, particles):
 
     truth = truth.merge(particles, on='particle_id')
     ## selective information
-    hits = hits.merge(truth[['hit_id', 'particle_id', 'pt', 'nhits']], on='hit_id', how='left')
+    hits = hits.merge(truth[['hit_id', 'particle_id', 'pt', 'nhits', 'weight']], on='hit_id', how='left')
     hits = hits.fillna(value=0)
 
     # Assign convenient layer number [0-47]

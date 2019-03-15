@@ -1,32 +1,17 @@
 
-from .utils_fit import poly_fit_phi
-from .utils_fit import pairwise
+from . import utils_fit
 
 import networkx as nx
 import numpy as np
 
 from functools import partial
 
-def get_nbr_weights(G, pp, used_hits=None, feature_name='solution', th=0.1):
-    nbrs = list(set(nx.neighbors(G, pp)).difference(set(used_hits)))
-    if len(nbrs) < 1:
-        return None,None
-
-    weights = [G.edges[(pp, i)][feature_name][0] for i in nbrs]
-    if max(weights) < th:
-        return None,None
-
-    sort_idx = list(reversed(np.argsort(weights)))
-    nbrss = [nbrs[x] for x in sort_idx]
-    wss = [weights[x] for x in sort_idx]
-
-    return nbrss, wss
 
 
 def find_next_hits(G, pp, used_hits, th=0.1, th_re=0.8, feature_name='solution'):
     """G is the graph, path is previous hits."""
 
-    nbrs = list(set(nx.neighbors(G, pp)).difference(set(used_hits)))
+    nbrs = list(set(G.neighbors(pp)).difference(set(used_hits)))
     if len(nbrs) < 1:
         return None
 
@@ -94,12 +79,11 @@ def fit_road(G, road):
         z   = np.array([G.node[i]['pos'][2] for i in path[:-1]])
         phi = np.array([G.node[i]['pos'][1] for i in path[:-1]])
         if len(z) > 1:
-            _, _, diff = poly_fit_phi(z, phi)
+            _, _, diff = utils_fit.poly_fit_phi(z, phi)
             road_chi2.append(np.sum(diff)/len(z))
         else:
             road_chi2.append(1)
 
-#         print(chi2)
     return road_chi2
 
 
@@ -129,10 +113,11 @@ def get_tracks(G, th=0.1, th_re=0.8, feature_name='solution', with_fit=True):
 
         if len(a_road) < 3:
             used_nodes.append(node)
+            sub_graphs.append(G.subgraph([node]))
             continue
 
-        a_track = list(pairwise(a_road[:-1]))
-        sub = nx.edge_subgraph(G, a_track)
+        a_track = list(utils_fit.pairwise(a_road[:-1]))
+        sub = G.edge_subgraph(a_track)
         sub_graphs.append(sub)
         used_nodes += list(sub.nodes())
 

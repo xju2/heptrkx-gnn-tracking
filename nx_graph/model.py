@@ -24,7 +24,7 @@ def make_mlp_model():
       snt.nets.MLP([LATENT_SIZE] * NUM_LAYERS,
                    activation=tf.nn.selu,
                    activate_final=True),
-      snt.LayerNorm()
+      #snt.LayerNorm()
   ])
 
 class MLPGraphIndependent(snt.AbstractModule):
@@ -77,6 +77,7 @@ class SegmentClassifier(snt.AbstractModule):
     for _ in range(num_processing_steps):
         core_input = utils_tf.concat([latent0, latent], axis=1)
         latent = self._core(core_input)
-        decoded_op = self._decoder(latent)
-        output_ops.append(self._output_transform(decoded_op))
+
+    decoded_op = self._decoder(latent)
+    output_ops.append(self._output_transform(decoded_op))
     return output_ops

@@ -5,6 +5,7 @@ from postprocess.evaluate_tf import create_evaluator
 import networkx as nx
 import numpy as np
 import matplotlib.pyplot as plt
+from trackml.dataset import load_event
 
 from graph_nets import utils_np
 from nx_graph.utils_data import merge_truth_info_to_hits

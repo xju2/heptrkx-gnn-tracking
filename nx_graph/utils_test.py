@@ -10,6 +10,7 @@ import sklearn.metrics
 import os
 import numpy as np
 
+from . import utils_train
 from .utils_train import load_config
 from .utils_train import create_feed_dict
 from .utils_train import eval_output
@@ -85,9 +86,9 @@ def plot_metrics(odd, tdd, odd_th=0.5, tdd_th=0.5):
     precision = sklearn.metrics.precision_score(y_true, y_pred)
     recall    = sklearn.metrics.recall_score(y_true, y_pred)
 
-    print('Accuracy:  %.4f' % accuracy)
-    print('Precision: %.4f' % precision)
-    print('Recall:    %.4f' % recall)
+    print('Accuracy:            %.4f' % accuracy)
+    print('Precision (purity):  %.4f' % precision)
+    print('Recall (efficiency): %.4f' % recall)
 
     fpr, tpr, _ = sklearn.metrics.roc_curve(y_true, odd)
 

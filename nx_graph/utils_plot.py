@@ -8,6 +8,9 @@ def plot_networkx(G, ax=None, only_true=False):
     node feature: {'pos': [r, phi, z]}
     edge feature: {"solution": []}
     """
+    if ax is None:
+        fig, ax = plt.subplots()
+
     n_edges = len(G.edges())
     edge_colors = [0.]*n_edges
     true_edges = []

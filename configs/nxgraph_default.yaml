@@ -1,4 +1,4 @@
-prod_name: nxgraph_big_002
+prod_name: nxgraph_big_003
 output_dir: /global/homes/x/xju/track/gnn/code/gnn_networkx/trained_results
 data:
     name: hitgraphs
@@ -11,9 +11,9 @@ model:
 
 train:
     log_name: big.log
-    time_lapse:  60 # how often save checkpoint in seconds
+    time_lapse:  120 # how often save checkpoint in seconds
     batch_size: 2
-    iterations: 30000
-    iter_per_job: 8000
+    iterations: 50000
+    iter_per_job: 10000
     n_iters: 10
     learning_rate: 0.001

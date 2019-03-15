@@ -1,8 +1,10 @@
 #!/usr/bin/env python
 import os
 
-from nx_graph.utils_data import hitsgraph_to_networkx_graph
-from nx_graph.prepare import graph_to_input_target
+#from ..nx_graph.utils_data import hitsgraph_to_networkx_graph
+#from ..nx_graph.prepare import graph_to_input_target
+from ..nx_graph import utils_data
+from ..nx_graph import prepare
 
 from datasets.graph import load_graph
 
@@ -24,8 +26,8 @@ def get_saver(input_dir_, output_dir_):
         input_name = os.path.join(
             input_dir,
             'event00000{}_g{:03d}.npz'.format(evt_id, isec))
-        graph = hitsgraph_to_networkx_graph(load_graph(input_name))
-        input_graph, target_graph = graph_to_input_target(graph)
+        graph = utils_data.hitsgraph_to_networkx_graph(load_graph(input_name))
+        input_graph, target_graph = prepare.graph_to_input_target(graph)
 
         input_data = utils_np.networkx_to_data_dict(input_graph)
         target_data = utils_np.networkx_to_data_dict(target_graph)
@@ -82,6 +84,7 @@ if __name__ == "__main__":
     input_dir = config['data']['input_hitsgraph_dir']
     base_dir = os.path.join(input_dir,'event00000{}_g{:03d}.npz')
 
+    # find number of files, section IDs in hitgraphs directory
     file_patten = base_dir.format(1000, 0).replace('1000', '*')
     all_files = glob.glob(file_patten)
     n_events = len(all_files)
