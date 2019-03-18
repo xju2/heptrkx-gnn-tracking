@@ -8,12 +8,7 @@ import tensorflow as tf
 from graph_nets import utils_tf
 from graph_nets import utils_np
 
-from nx_graph.utils_train import create_feed_dict
-from nx_graph.utils_train import create_loss_ops
-from nx_graph.utils_train import make_all_runnable_in_session
-from nx_graph.utils_train import compute_matrics
-from nx_graph.utils_train import load_config
-
+from nx_graph import utils_train
 
 if __name__ == "__main__":
     import sys
@@ -27,10 +22,24 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    config = load_config(args.config)
+    config = utils_train.load_config(args.config)
 
     import time
     import os
+
+    # add ops to save and restore all the variables
+    prod_name = config['prod_name']
+    output_dir = os.path.join(config['output_dir'], prod_name)
+    print("trained model will be save at:", output_dir)
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    files = glob.glob(output_dir+"/*.ckpt.meta")
+    last_iteration = 0 if len(files) < 1 else max([
+        int(re.search('checkpoint_([0-9]*).ckpt.meta', os.path.basename(x)).group(1))
+        for x in files
+    ])
+    print("last iteration:", last_iteration)
 
     from nx_graph.prepare import inputs_generator
     # default 2/3 for training and 1/3 for testing
@@ -44,14 +53,8 @@ if __name__ == "__main__":
     num_training_iterations = config_tr['iterations']
     iter_per_job            = 2500 if 'iter_per_job' not in config_tr else config_tr['iter_per_job']
     num_processing_steps_tr = config_tr['n_iters']      ## level of message-passing
-    prod_name = config['prod_name']
     print("Maximum iterations per job: {}".format(iter_per_job))
 
-    # add ops to save and restore all the variables
-    output_dir = os.path.join(config['output_dir'], prod_name)
-    print("trained model will be save at:", output_dir)
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
 
 
     ## start to build tensorflow sessions
@@ -69,7 +72,13 @@ if __name__ == "__main__":
     output_ops_tr = model(input_ph, num_processing_steps_tr)
 
     # Training loss.
-    loss_ops_tr = create_loss_ops(target_ph, output_ops_tr)
+    loss_weights = 1.0
+    if config['train']['real_weight']:
+        real_weight = config['train']['real_weight']
+        fake_weight = config['train']['fake_weight']
+        loss_weights = target_ph.edges * real_weight + (1 - target_ph.edges)*fake_weight
+
+    loss_ops_tr = utils_train.create_loss_ops(target_ph, output_ops_tr, loss_weights)
     # Loss across processing steps.
     loss_op_tr = sum(loss_ops_tr) / num_processing_steps_tr
 
@@ -78,23 +87,17 @@ if __name__ == "__main__":
     start_learning_rate = config_tr['learning_rate']
     learning_rate = tf.train.exponential_decay(
         start_learning_rate, global_step,
-        decay_steps=10000,
-        decay_rate=0.96, staircase=True)
+        decay_steps=1000,
+        decay_rate=0.97, staircase=True)
     optimizer = tf.train.AdamOptimizer(learning_rate)
     step_op = optimizer.minimize(loss_op_tr, global_step=global_step)
 
     # Lets an iterable of TF graphs be output from a session as NP graphs.
     # copyed from deepmind's example, not sure needed...
-    input_ph, target_ph = make_all_runnable_in_session(input_ph, target_ph)
+    input_ph, target_ph = utils_train.make_all_runnable_in_session(input_ph, target_ph)
 
     sess = tf.Session()
 
-    files = glob.glob(output_dir+"/*.ckpt.meta")
-    last_iteration = 0 if len(files) < 1 else max([
-        int(re.search('checkpoint_([0-9]*).ckpt.meta', os.path.basename(x)).group(1))
-        for x in files
-    ])
-    print("last iteration:", last_iteration)
 
     saver = tf.train.Saver()
     ckpt_name = 'checkpoint_{:05d}.ckpt'
@@ -135,7 +138,8 @@ if __name__ == "__main__":
         else: iruns += 1
         last_iteration = iteration
         data_start_time = time.time()
-        feed_dict = create_feed_dict(generate_input_target, batch_size, input_ph, target_ph)
+
+        feed_dict = utils_train.create_feed_dict(generate_input_target, batch_size, input_ph, target_ph)
         all_data_taking_time += time.time() - data_start_time
 
         # timing the run time only
@@ -155,14 +159,14 @@ if __name__ == "__main__":
         if elapsed_since_last_log > log_every_seconds:
             # save a checkpoint
             last_log_time = the_time
-            feed_dict = create_feed_dict(generate_input_target,
+            feed_dict = utils_train.create_feed_dict(generate_input_target,
                                          batch_size, input_ph, target_ph, is_trained=False)
             test_values = sess.run({
                 "target": target_ph,
                 "loss": loss_op_tr,
                 "outputs": output_ops_tr
             }, feed_dict=feed_dict)
-            correct_tr, solved_tr = compute_matrics(
+            correct_tr, solved_tr = utils_train.compute_matrics(
                 test_values["target"], test_values["outputs"][-1])
             elapsed = time.time() - start_time
             losses_tr.append(train_values["loss"])

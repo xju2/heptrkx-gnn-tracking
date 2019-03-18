@@ -3,9 +3,13 @@ import networkx as nx
 
 import numpy as np
 import pandas as pd
+import math
 
 import os
+from collections import namedtuple
 
+Point = namedtuple('Point', ['x', 'y', 'z'])
+Pos = namedtuple('Pos', ['x', 'y', 'z', 'eta', 'phi', 'theta', 'r3', 'r'])
 
 def calc_dphi(phi1, phi2):
     """Computes phi2-phi1 given in range [-pi,pi]"""
@@ -17,24 +21,72 @@ def calc_dphi(phi1, phi2):
     return dphi
 
 
+def pos_transform(r, phi, z):
+    x = r * math.cos(phi)
+    y = r * math.sin(phi)
+    r3 = math.sqrt(r**2 + z**2)
+    theta = math.acos(z/r3)
+    eta = -math.log(math.tan(theta*0.5))
+    return Pos(x, y, z, eta, phi, theta, r3, r)
+
+def dist(x, y):
+    return math.sqrt(x**2 + y**2)
+
+def wdist(a, d, w):
+    pp = a.x*a.x + a.y*a.y + a.z*a.z*w
+    pd = a.x*d.x + a.y*d.y + a.z*d.z*w
+    dd = d.x*d.x + d.y*d.y + d.z*d.z*w
+    return math.sqrt(abs(pp - pd*pd/dd))
+
+def wdistr(r1, dr, az, dz, w):
+    pp = r1*r1+az*az*w
+    pd = r1*dr+az*dz*w
+    dd = dr*dr+dz*dz*w
+    return math.sqrt(abs(pp-pd*pd/dd))
+
+def circle(a, b, c):
+    ax = a.x-c.x
+    ay = a.y-c.y
+    bx = b.x-c.x
+    by = b.y-c.y
+    aa = ax*ax + ay*ay
+    bb = bx*bx + by*by
+    idet = 0.5/(ax*by-ay*bx)
+    p0 = Point(x=(aa*by-bb*ay)*idet, y=(ax*bb-bx*aa)*idet, z=0)
+    r = math.sqrt(p0.x*p0.x + p0.y*p0.y)
+    p = Point(x=p0.x+c.x, y=p0.y+c.y, z=p0.z)
+    return p, r
+
+
+def zdists(a, b):
+    origin = Point(x=0, y=0, z=0)
+    p, r = circle(origin, a, b)
+    ang_ab = 2*math.asin(dist(a.x-b.x, a.y-b.y)*0.5/r)
+    ang_a = 2*math.asin(dist(a.x, a.y)*0.5/r)
+    return abs(b.z-a.z-a.z*ang_ab/ang_a)
+
+
 def get_edge_features(in_node, out_node):
     # input are the features of incoming and outgoing nodes
     # they are ordered as [r, phi, z]
-    in_r, in_phi, in_z    = in_node
-    out_r, out_phi, out_z = out_node
+    v_in = pos_transform(*in_node)
+    v_out = pos_transform(*out_node)
 
-    in_r3 = np.sqrt(in_r**2 + in_z**2)
-    out_r3 = np.sqrt(out_r**2 + out_z**2)
-
-    in_theta = np.arccos(in_z/in_r3)
-    in_eta = -np.log(np.tan(in_theta/2.0))
-    out_theta = np.arccos(out_z/out_r3)
-    out_eta = -np.log(np.tan(out_theta/2.0))
-    deta = out_eta - in_eta
-    dphi = calc_dphi(out_phi, in_phi)
+    deta = v_out.eta - v_in.eta
+    dphi = calc_dphi(v_out.phi, v_in.phi)
     dR = np.sqrt(deta**2 + dphi**2)
-    dZ = in_z - out_z
-    return np.array([deta, dphi, dR, dZ])
+    dZ = v_out.z - v_in.z
+
+    pa = Point(x=v_out.x, y=v_out.y, z=v_out.z)
+    pb = Point(x=v_in.x, y=v_in.y, z=v_in.z)
+    pd = Point(x=pa.x-pb.x, y=pa.y-pb.y, z=pa.z-pb.z)
+
+    wd0 = wdist(pa, pd, 0)
+    wd1 = wdist(pa, pd, 1)
+    zd0 = zdists(pa, pb)
+    wdr = wdistr(v_out.r, v_in.r-v_out.r, pa.z, pd.z, 1)
+
+    return np.array([deta, dphi, dR, dZ, wd0, wd1, zd0, wdr])
 
 
 def data_dict_to_networkx(dd_input, dd_target, use_digraph=True, bidirection=True):
@@ -245,3 +297,73 @@ def merge_truth_info_to_hits(hits, truth, particles):
     # add hit indexes to column hit_idx
     hits = hits.rename_axis('hit_idx').reset_index()
     return hits
+
+
+def pairs_to_df(pairs, hits):
+    """pairs is np.array, each row is a pair. columns are incoming and outgoing nodes
+    return a DataFrame with columns,
+    ['hit_id_in', 'hit_idx_in', 'layer_in', 'hit_id_out', 'hit_idx_out', 'layer_out']
+    """
+
+    # form a DataFrame
+    in_nodes  = pd.DataFrame(pairs[:, 0], columns=['hit_id'])
+    out_nodes = pd.DataFrame(pairs[:, 1], columns=['hit_id'])
+
+    # add hit features
+    ins  = in_nodes.merge(hits, on='hit_id', how='left')
+    outs = out_nodes.merge(hits, on='hit_id', how='left')
+    pid1 = ins['particle_id'].values
+    pid2 = outs['particle_id'].values
+    y = np.zeros(ins.shape[0], dtype=np.float32)
+    y[:] = (pid1 == pid2) & (pid1 != 0)
+    true_pairs = pd.DataFrame(y, columns=['true'])
+
+    # rename incoming nodes and outgoing nodes, concatenate them
+    ins  = ins.rename(columns={'hit_id': 'hit_id_in', "hit_idx": 'hit_idx_in', 'layer': 'layer_in'})
+    outs = outs.rename(columns={'hit_id': 'hit_id_out', "hit_idx": 'hit_idx_out', 'layer': 'layer_out'})
+    edges = pd.concat([ins[['hit_id_in', 'hit_idx_in', 'layer_in']], outs[['hit_id_out', 'hit_idx_out', 'layer_out']], true_pairs], axis=1)
+    return edges
+
+
+def pairs_to_graph(pairs, hits, use_digraph=True, bidirection=True):
+    """only pairs with both hits presented in hits are used
+    pairs is DataFrame, with columns
+    ['hit_id_in', 'hit_idx_in', 'layer_in', 'hit_id_out', 'hit_idx_out', 'layer_out']
+    hits: nodes in the graphs
+    """
+    h0_edges = pairs[(pairs['hit_id_in'].isin(hits['hit_id'])) & (pairs['hit_id_out'].isin(hits['hit_id']))]
+    # hits from consecutive layers
+    edges = h0_edges[ abs(h0_edges['layer_out']-h0_edges['layer_in']) == 1]
+
+
+    graph = nx.DiGraph() if use_digraph else nx.Graph()
+    graph.graph['features'] = np.array([0.])
+
+    feature_names = ['r', 'phi', 'z']
+    feature_scale = np.array([1000., np.pi / n_phi_sections, 1000.])
+
+    n_hits = hits.shape[0]
+    hits_id_dict = {}
+    for idx in range(n_hits):
+        graph.add_node(idx, pos=hits.iloc[idx][feature_names].values/feature_scale, solution=0.0)
+        hits_id_dict[int(hits.iloc[idx]['hit_id'].values)] = idx
+
+    n_edges = edges.shape[0]
+    for idx in range(n_edges):
+        in_hit_idx  = int(edges.iloc[idx]['hit_id_in'])
+        out_hit_idx = int(df_out_nodes.iloc[idx]['hit_id_out'])
+
+        in_node_idx  = hits_id_dict[in_hit_idx]
+        out_node_idx = hits_id_dict[out_hit_idx]
+        f1 = graph.node[in_node_idx]['pos']
+        f2 = graph.node[out_node_idx]['pos']
+        distance = get_edge_features(f1, f2)
+        solution = edges.iloc[idx]['true']
+        graph.add_edge(in_node_idx,  out_node_idx, distance=distance, solution=solution)
+        if use_digraph and bidirection:
+            graph.add_edge(out_node_idx,  in_node_idx, distance=distance, solution=solution)
+
+        graph.node[in_node_idx].update(solution=solution)
+        graph.node[out_node_idx].update(solution=solution)
+
+    return graph

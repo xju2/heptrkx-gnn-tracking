@@ -9,7 +9,8 @@ nJobs=5
 
 #CONFIG="configs/nxgraph_test_pairs.yaml"
 #CONFIG="configs/nxgraph_test_pairsWholeNodes.yaml"
-CONFIG="configs/nxgraph_default.yaml"
+#CONFIG="configs/nxgraph_default.yaml"
+CONFIG="configs/nxgraph_digraph.yaml"
 EXE="slurm/run_nx_graph.sh $CONFIG"
 
 start=$(sbatch ${EXE})

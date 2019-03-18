@@ -9,7 +9,7 @@ import numpy as np
 
 from nx_graph.prepare import inputs_generator
 from nx_graph import get_model
-from nx_graph.utils_data import data_dict_to_networkx
+from nx_graph import utils_data
 
 def load_config(config_file):
     with open(config_file) as f:
@@ -72,7 +72,7 @@ def create_evaluator(config_name, iteration, input_ckpt=None):
         graphs = []
         ig = 0
         for input_dd,target_dd in zip(input_dds, target_dds):
-            graph = data_dict_to_networkx(
+            graph = utils_data.data_dict_to_networkx(
                 input_dd, target_dd,
                 use_digraph=use_digraph, bidirection=bidirection)
 

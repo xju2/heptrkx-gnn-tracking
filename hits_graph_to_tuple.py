@@ -1,10 +1,8 @@
 #!/usr/bin/env python
 import os
 
-#from ..nx_graph.utils_data import hitsgraph_to_networkx_graph
-#from ..nx_graph.prepare import graph_to_input_target
-from ..nx_graph import utils_data
-from ..nx_graph import prepare
+from nx_graph import utils_data
+from nx_graph import prepare
 
 from datasets.graph import load_graph
 
@@ -78,6 +76,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Train nx-graph with configurations')
     add_arg = parser.add_argument
     add_arg('config',  nargs='?', default='configs/nxgraph_default.yaml')
+    add_arg('-b', '--bidirection', action='store_true')
     args = parser.parse_args()
 
     config = load_config(args.config)
@@ -101,7 +100,7 @@ if __name__ == "__main__":
     if not os.path.exists(output):
         os.makedirs(output)
 
-    saver = get_saver(input_dir, output)
+    saver = prepare.get_networkx_saver(output)
 
     print("Input directory: {}".format(input_dir))
     print("Output directory: {}".format(output))
@@ -118,9 +117,17 @@ if __name__ == "__main__":
         f.write(out_str)
 
     out_str = ""
+    # loop over all events and sections...
     for ii, evt_id in enumerate(sorted(evt_ids)):
         for isec in range(n_sections):
-            saver(evt_id, isec)
+            input_name = os.path.join(
+                input_dir,
+                'event00000{}_g{:03d}.npz'.format(evt_id, isec))
+            if not os.path.exists(input_name):
+                continue
+            graph = utils_data.hitsgraph_to_networkx_graph(
+                load_graph(input_name), bidirection=args.bidirection)
+            saver(evt_id, isec, graph)
 
         elapsed_time = time.time() - start_time
         info = "# {:05d}, # {:05d}, T {:.1f}\n".format(ii, evt_id, elapsed_time)

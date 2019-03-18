@@ -18,10 +18,10 @@ def create_feed_dict(generator, batch_size, input_ph, target_ph, is_trained=True
     return feed_dict
 
 
-def create_loss_ops(target_op, output_ops):
+def create_loss_ops(target_op, output_ops, weights):
     # only use edges
     loss_ops = [
-        tf.losses.log_loss(target_op.edges, output_op.edges)
+        tf.losses.log_loss(target_op.edges, output_op.edges, weights=weights)
         for output_op in output_ops
     ]
     return loss_ops
