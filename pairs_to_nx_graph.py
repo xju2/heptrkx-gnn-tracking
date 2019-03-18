@@ -53,13 +53,19 @@ def process_event(evt_id, pairs_input_dir, output_dir, n_phi_sections):
 
     ihit = full_trks_in_barrel
     hits_sections = []
+    feature_scale = np.array([1000., np.pi / n_phi_sections, 1000.])
+
     for i, (phi_min,phi_max) in enumerate(utils_fit.pairwise(phi_edges)):
         phi_hits = ihit[(ihit.phi > phi_min) & (ihit.phi < phi_max)]
-        centered_phi = phi_hits.phi - (phi_min + phi_max) / 2
+        centered_phi = (phi_hits.phi - (phi_min + phi_max) / 2.)/feature_scale[1]
+
         phi_hits = phi_hits.assign(phi=centered_phi, phi_section=i)
         for j, (eta_min, eta_max) in enumerate(utils_fit.pairwise(eta_edges)):
             sec_hits = phi_hits[(phi_hits.eta > eta_min) & (phi_hits.eta < eta_max)]
-            hits_sections.append(sec_hits.assign(eta_section=j))
+            sec_hits = sec_hits.assign(
+                r=sec_hits['r']/feature_scale[0],
+                z=sec_hits['z']/feature_scale[2])
+            hits_sections.append(sec_hits)
 
     # reads pairs and write them into graphs
     pairs = utils_io.read_pairs_input(os.path.join(pairs_input_dir, 'pairs_{}'.format(evt_id)))

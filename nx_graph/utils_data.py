@@ -340,18 +340,17 @@ def pairs_to_graph(pairs, hits, use_digraph=True, bidirection=True):
     graph.graph['features'] = np.array([0.])
 
     feature_names = ['r', 'phi', 'z']
-    feature_scale = np.array([1000., np.pi / n_phi_sections, 1000.])
 
     n_hits = hits.shape[0]
     hits_id_dict = {}
     for idx in range(n_hits):
-        graph.add_node(idx, pos=hits.iloc[idx][feature_names].values/feature_scale, solution=0.0)
-        hits_id_dict[int(hits.iloc[idx]['hit_id'].values)] = idx
+        graph.add_node(idx, pos=hits.iloc[idx][feature_names].values, solution=0.0)
+        hits_id_dict[int(hits.iloc[idx]['hit_id'])] = idx
 
     n_edges = edges.shape[0]
     for idx in range(n_edges):
         in_hit_idx  = int(edges.iloc[idx]['hit_id_in'])
-        out_hit_idx = int(df_out_nodes.iloc[idx]['hit_id_out'])
+        out_hit_idx = int(edges.iloc[idx]['hit_id_out'])
 
         in_node_idx  = hits_id_dict[in_hit_idx]
         out_node_idx = hits_id_dict[out_hit_idx]
