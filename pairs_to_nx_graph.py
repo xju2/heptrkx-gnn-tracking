@@ -75,6 +75,7 @@ def process_event(evt_id, pairs_input_dir, output_dir, n_phi_sections):
     saver = get_networkx_saver(output_dir)
     for isec, hit_in_section in enumerate(hits_sections):
         G = utils_data.pairs_to_graph(all_edges, hit_in_section)
+        G.graph['sec_info'] = isec
         saver(evt_id, isec, G)
 
 

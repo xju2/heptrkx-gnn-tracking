@@ -86,8 +86,10 @@ def get_edge_features(in_node, out_node):
     zd0 = zdists(pa, pb)
     wdr = wdistr(v_out.r, v_in.r-v_out.r, pa.z, pd.z, 1)
 
-    return np.array([deta, dphi, dR, dZ, wd0, wd1, zd0, wdr])
-
+    return {
+        "distance": np.array([deta, dphi, dR, dZ]),
+        "angles": np.array([wd0, wd1, zd0, wdr])
+    }
 
 def data_dict_to_networkx(dd_input, dd_target, use_digraph=True, bidirection=True):
     input_nx  = utils_np.data_dict_to_networkx(dd_input)
@@ -178,12 +180,13 @@ def hitsgraph_to_networkx_graph(G, use_digraph=True, bidirection=True):
         # distance as features
         in_node_features  = G.X[in_node_id]
         out_node_features = G.X[out_node_id]
-        distance = get_edge_features(in_node_features, out_node_features)
+        edge_features = get_edge_features(out_node_features, in_node_features)
         # connection of inner to outer
-        graph.add_edge(out_node_id, in_node_id, distance=distance, solution=[G.y[iedge]])
+        graph.add_edge(out_node_id, in_node_id, solution=[G.y[iedge]], **edge_features)
         # connection of outer to inner
         if use_digraph and bidirection:
-            graph.add_edge(in_node_id, out_node_id, distance=distance, solution=[G.y[iedge]])
+            edge_features = get_edge_features(in_node_features, out_node_features)
+            graph.add_edge(in_node_id, out_node_id, solution=[G.y[iedge]], **edge_features)
         # add "solution" to nodes
         graph.node[in_node_id].update(solution=[G.y[iedge]])
         graph.node[out_node_id].update(solution=[G.y[iedge]])
@@ -333,7 +336,8 @@ def pairs_to_graph(pairs, hits, use_digraph=True, bidirection=True):
     """
     h0_edges = pairs[(pairs['hit_id_in'].isin(hits['hit_id'])) & (pairs['hit_id_out'].isin(hits['hit_id']))]
     # hits from consecutive layers
-    edges = h0_edges[ abs(h0_edges['layer_out']-h0_edges['layer_in']) == 1]
+    layer_diff = [1, 14, 13, -1, -14, -13]
+    edges = h0_edges[ (h0_edges['layer_out']-h0_edges['layer_in']).isin(layer_diff)]
 
 
     graph = nx.DiGraph() if use_digraph else nx.Graph()
@@ -344,8 +348,12 @@ def pairs_to_graph(pairs, hits, use_digraph=True, bidirection=True):
     n_hits = hits.shape[0]
     hits_id_dict = {}
     for idx in range(n_hits):
-        graph.add_node(idx, pos=hits.iloc[idx][feature_names].values, solution=0.0)
-        hits_id_dict[int(hits.iloc[idx]['hit_id'])] = idx
+        hit_id = int(hits.iloc[idx]['hit_id'])
+        graph.add_node(idx,
+                       pos=hits.iloc[idx][feature_names].values,
+                       hit_id=hit_id,
+                       solution=0.0)
+        hits_id_dict[hit_id] = idx
 
     n_edges = edges.shape[0]
     for idx in range(n_edges):
@@ -356,11 +364,12 @@ def pairs_to_graph(pairs, hits, use_digraph=True, bidirection=True):
         out_node_idx = hits_id_dict[out_hit_idx]
         f1 = graph.node[in_node_idx]['pos']
         f2 = graph.node[out_node_idx]['pos']
-        distance = get_edge_features(f1, f2)
+        edge_features = get_edge_features(f1, f2)
         solution = edges.iloc[idx]['true']
-        graph.add_edge(in_node_idx,  out_node_idx, distance=distance, solution=solution)
+        graph.add_edge(in_node_idx,  out_node_idx, solution=solution, **edge_features)
         if use_digraph and bidirection:
-            graph.add_edge(out_node_idx,  in_node_idx, distance=distance, solution=solution)
+            edge_features = get_edge_features(f2, f1)
+            graph.add_edge(out_node_idx,  in_node_idx, solution=solution, **edge_features)
 
         graph.node[in_node_idx].update(solution=solution)
         graph.node[out_node_idx].update(solution=solution)

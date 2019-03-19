@@ -78,8 +78,7 @@ if __name__ == "__main__":
         fake_weight = config['train']['fake_weight']
         loss_weights = target_ph.edges * real_weight + (1 - target_ph.edges)*fake_weight
 
-    loss_ops_tr = utils_train.create_loss_ops(target_ph, output_ops_tr, loss_weights)
-    # Loss across processing steps.
+    loss_ops_tr = utils_train.create_loss_ops(target_ph, output_ops_tr, loss_weights) # Loss across processing steps.
     loss_op_tr = sum(loss_ops_tr) / num_processing_steps_tr
 
     # Optimizer, with decaying learning rate

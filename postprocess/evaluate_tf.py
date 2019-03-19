@@ -27,7 +27,6 @@ def create_evaluator(config_name, iteration, input_ckpt=None):
     config = load_config(config_name)
     config_tr = config['train']
 
-    log_every_seconds       = config_tr['time_lapse']
     batch_size = n_graphs   = config_tr['batch_size']   # need optimization
     num_processing_steps_tr = config_tr['n_iters']      ## level of message-passing
     prod_name = config['prod_name']

@@ -1,19 +1,21 @@
-prod_name: nxgraph_pairs_10evts_001
+prod_name: nxgraph_pairs_001
 output_dir: /global/homes/x/xju/track/gnn/code/gnn_networkx/trained_results
 data:
     name: hitgraphs
-    input_hitsgraph_dir: /global/cscratch1/sd/xju/heptrkx/data/
-    output_nxgraph_dir:  /global/cscratch1/sd/xju/heptrkx/data/graph_from_pairs_test_10
+    input_hitsgraph_dir: /global/homes/x/xju/atlas/heptrkx/data/hitgraphs_big_000
+    output_nxgraph_dir:  /global/homes/x/xju/atlas/heptrkx/data/graphs_from_pairs_phi4_eta6
     log_name: data_process.log
 
 model:
     name: default
 
 train:
-    log_name: pairs.log
+    log_name: big.log
     time_lapse:  120 # how often save checkpoint in seconds
     batch_size: 1
-    iterations: 30000
-    iter_per_job: 5000
-    n_iters: 15
+    iterations: 180000
+    iter_per_job: 20000
+    n_iters: 8
     learning_rate: 0.001
+    real_weight: 1.5
+    fake_weight: 0.5
