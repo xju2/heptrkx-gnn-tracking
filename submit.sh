@@ -12,8 +12,8 @@ nJobs=5
 #CONFIG="configs/nxgraph_default.yaml"
 #CONFIG="configs/nxgraph_digraph.yaml"
 
-#CONFIG="configs/nxgraph_test_pairs.yaml"
-CONFIG="configs/nxgraph_test_new_edgeFeatures_bidirection.yaml"
+CONFIG="configs/nxgraph_test_pairs.yaml"
+#CONFIG="configs/nxgraph_test_new_edgeFeatures_bidirection.yaml"
 
 EXE="slurm/run_nx_graph.sh $CONFIG"
 

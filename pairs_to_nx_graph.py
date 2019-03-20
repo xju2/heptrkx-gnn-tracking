@@ -76,6 +76,10 @@ def process_event(evt_id, pairs_input_dir, output_dir, n_phi_sections):
     for isec, hit_in_section in enumerate(hits_sections):
         G = utils_data.pairs_to_graph(all_edges, hit_in_section)
         G.graph['sec_info'] = isec
+        # save hitIDs
+        ID = [G.node[i]['hit_id'] for i in G.nodes()]
+        filename_ID = os.path.join(output_dir, "event{:09d}_g{:03d}_ID.npz".format(evt_id, isec))
+        np.savez(filename_ID, ID=ID)
         saver(evt_id, isec, G)
 
 
