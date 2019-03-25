@@ -20,7 +20,7 @@ model = create_evaluator(config_file, 99987, input_ckpt)
 
 config = utils_train.load_config(config_file)
 evtid = 1099
-isec = -1
+isec = 0
 batch_size = config['train']['batch_size']
 
 file_dir = config['data']['output_nxgraph_dir']
@@ -92,18 +92,16 @@ for ibatch in range(n_batches):
 weights = []
 truths = []
 for G in all_graphs:
-    weight = [G.edges[edge]['predict'][0] for edge in G.edges()]
-    truth  = [G.edges[edge]['solution'][0] for edge in G.edges()]
-    weights += weight
-    truths += truth
+    weights += [G.edges[edge]['predict'][0] for edge in G.edges()]
+    truths  += [G.edges[edge]['solution'][0] for edge in G.edges()]
 
 weights = np.array(weights)
 truths = np.array(truths)
-utils_test.plot_metrics(weights, truths, odd_th=0.1)
+utils_test.plot_metrics(weights, truths, odd_th=0.5)
 
 # post process
 # take one section as an example
-"""
+
 G = all_graphs[0]
 all_true_tracks = wrangler.get_tracks(G, feature_name='solution')
 all_predict_tracks = wrangler.get_tracks(G, feature_name='predict')
@@ -116,6 +114,7 @@ print(len(total_particles))
 th = 0.
 good_pids, bad_pids = analysis.label_particles(pred_df, truth, th, ignore_noise=True)
 good_trks = hits[hits['particle_id'].isin(good_pids)]
+
 def print_info(res_pred):
     print(res_pred['n_correct'], res_pred['n_wrong'], len(res_pred['isolated_pids']), len(res_pred['broken_pids']), len(res_pred['connected_pids']))
 
@@ -125,4 +124,4 @@ print_info(res_pred)
 print("True Info")
 res_truth = analysis.summary_on_prediction(G, good_trks, true_df)
 print_info(res_truth)
-"""
+

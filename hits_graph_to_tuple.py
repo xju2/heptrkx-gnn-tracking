@@ -1,66 +1,24 @@
 #!/usr/bin/env python
 import os
+import numpy as np
+from functools import partial
 
 from nx_graph import utils_data
 from nx_graph import prepare
 
 from datasets.graph import load_graph
+import multiprocessing as mp
 
-file_format = 'event00000{}_g{:03d}_{}.npz'
-INPUT_NAME = "INPUT"
-TARGET_NAME = "TARGET"
-
-def get_saver(input_dir_, output_dir_):
-    input_dir = input_dir_
-    output_dir = output_dir_
-    def save_hitsgraph(evt_id, isec):
-        input_data_name = os.path.join(
-            output_dir,
-            'event00000{}_g{:09d}_{}.npz'.format(evt_id, isec, INPUT_NAME))
-        if os.path.exists(input_data_name):
-            print(input_data_name, "is there")
-            return
-
+def process_event(evt_id, input_dir, n_sections, saver_fn, bidirection):
+    for isec in range(n_sections):
         input_name = os.path.join(
             input_dir,
-            'event00000{}_g{:03d}.npz'.format(evt_id, isec))
-        graph = utils_data.hitsgraph_to_networkx_graph(load_graph(input_name))
-        input_graph, target_graph = prepare.graph_to_input_target(graph)
+            'event{:09d}_g{:03d}.npz'.format(evt_id, isec))
+        if os.path.exists(input_name) and not saver_fn(evt_id, isec, None):
+            graph = utils_data.hitsgraph_to_networkx_graph(
+                load_graph(input_name), bidirection=bidirection)
 
-        input_data = utils_np.networkx_to_data_dict(input_graph)
-        target_data = utils_np.networkx_to_data_dict(target_graph)
-
-
-        np.savez( input_data_name, **input_data)
-        np.savez( input_data_name.replace(INPUT_NAME, TARGET_NAME), **target_data)
-
-    return save_hitsgraph
-
-def get_loader(input_dir_):
-    """
-    Load data dict and convert to graph tuples that could
-    be directly feeded to TF
-    """
-    input_dir = input_dir_
-    def load_nxgraph(evt_id, isec):
-        input_name = os.path.join(
-            input_dir,
-            'event00000{}_g{:03d}_{}.npz'.format(evt_id, isec, INPUT_NAME))
-        # load input
-        with np.load(input_name) as f:
-            input_data_dict = dict(f.items())
-        input_G = utils_np.data_dicts_to_graphs_tuple([input_data_dict])
-
-        target_name= os.path.join(
-            input_dir,
-            'event00000{}_g{:03d}_{}.npz'.format(evt_id, isec, TARGET_NAME))
-        with np.load(file_name.format(TARGET_NAME)) as f:
-            target_data_dict = dict(f.items())
-        target_G = utils_np.data_dicts_to_graphs_tuple([target_data_dict])
-
-        return input_G, target_G
-
-    return load_nxgraph
+            saver_fn(evt_id, isec, graph)
 
 if __name__ == "__main__":
     import numpy as np
@@ -77,6 +35,7 @@ if __name__ == "__main__":
     add_arg = parser.add_argument
     add_arg('config',  nargs='?', default='configs/nxgraph_default.yaml')
     add_arg('-b', '--bidirection', action='store_true')
+    add_arg('-i', '--itask', type=int, default=0)
     args = parser.parse_args()
 
     config = load_config(args.config)
@@ -87,8 +46,8 @@ if __name__ == "__main__":
     file_patten = base_dir.format(1000, 0).replace('1000', '*')
     all_files = glob.glob(file_patten)
     n_events = len(all_files)
-    evt_ids = [int(re.search('event00000([0-9]*)_g000.npz', os.path.basename(x)).group(1))
-               for x in all_files]
+    evt_ids = sorted([int(re.search('event00000([0-9]*)_g000.npz', os.path.basename(x)).group(1))
+               for x in all_files])
 
     section_patten = base_dir.format(1000, 0).replace('_g000', '_g[0-9]*[0-9]*[0-9]')
     n_sections = len(glob.glob(section_patten))
@@ -117,22 +76,24 @@ if __name__ == "__main__":
         f.write(out_str)
 
     out_str = ""
-    # loop over all events and sections...
-    for ii, evt_id in enumerate(sorted(evt_ids)):
-        for isec in range(n_sections):
-            input_name = os.path.join(
-                input_dir,
-                'event00000{}_g{:03d}.npz'.format(evt_id, isec))
-            if not os.path.exists(input_name):
-                continue
-            graph = utils_data.hitsgraph_to_networkx_graph(
-                load_graph(input_name), bidirection=args.bidirection)
-            saver(evt_id, isec, graph)
+    # split all evt_ids to n_tasks and n_workers
+    n_tasks = config['data']['n_tasks']
+    n_workers = config['data']['n_workers']
+    evt_ids_split = np.array_split(evt_ids, n_tasks)[args.itask]
 
-        elapsed_time = time.time() - start_time
-        info = "# {:05d}, # {:05d}, T {:.1f}\n".format(ii, evt_id, elapsed_time)
-        out_str += info
-        print(info)
+    # invoke workers
+    with mp.Pool(processes=n_workers) as pool:
+        pp_fn = partial(process_event,
+                        input_dir=input_dir,
+                        n_sections=n_sections,
+                        saver_fn=saver,
+                        bidirection=args.bidirection)
+        pool.map(pp_fn, evt_ids_split)
+
+    elapsed_time = time.time() - start_time
+    info = "# {:05d}, # {:05d}, T {:.1f}\n".format(ii, evt_id, elapsed_time)
+    out_str += info
+    print(info)
 
     with open(log_name, 'a') as f:
         f.write(out_str)

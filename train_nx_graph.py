@@ -86,7 +86,7 @@ if __name__ == "__main__":
     start_learning_rate = config_tr['learning_rate']
     learning_rate = tf.train.exponential_decay(
         start_learning_rate, global_step,
-        decay_steps=1000,
+        decay_steps=500,
         decay_rate=0.97, staircase=True)
     optimizer = tf.train.AdamOptimizer(learning_rate)
     step_op = optimizer.minimize(loss_op_tr, global_step=global_step)

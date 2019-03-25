@@ -1,4 +1,4 @@
-prod_name: nxgraph_pairs_004
+prod_name: nxgraph_pairs_005
 output_dir: /global/homes/x/xju/track/gnn/code/gnn_networkx/trained_results
 data:
     name: hitgraphs
@@ -15,7 +15,7 @@ train:
     batch_size: 1
     iterations: 180000
     iter_per_job: 20000
-    n_iters: 8
+    n_iters: 6
     learning_rate: 0.001
     real_weight: 1.5
     fake_weight: 0.5

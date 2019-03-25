@@ -1,4 +1,4 @@
-prod_name: nxgraph_digraph_004
+prod_name: nxgraph_digraph_005
 output_dir: /global/homes/x/xju/track/gnn/code/gnn_networkx/trained_results
 data:
     name: hitgraphs
@@ -7,15 +7,15 @@ data:
     log_name: data_process.log
 
 model:
-    name: MORE
+    name: SMART
 
 train:
     log_name: big.log
-    time_lapse:  60 # how often save checkpoint in seconds
-    batch_size: 2
-    iterations: 100000
-    iter_per_job: 20000
-    n_iters: 8
+    time_lapse:  120 # how often save checkpoint in seconds
+    batch_size: 16
+    iterations: 11000
+    iter_per_job: 1000
+    n_iters: 6
     learning_rate: 0.001
     real_weight: 1.0
     fake_weight: 0.5

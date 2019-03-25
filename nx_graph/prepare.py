@@ -161,7 +161,10 @@ def get_networkx_saver(output_dir_):
             'event{:09d}_g{:09d}_{}.npz'.format(evt_id, isec, INPUT_NAME))
         if os.path.exists(output_data_name):
             print(output_data_name, "is there")
-            return
+            return True
+
+        if graph is None:
+            return False
 
         input_graph, target_graph = graph_to_input_target(graph)
         output_data = utils_np.networkx_to_data_dict(input_graph)
@@ -169,5 +172,6 @@ def get_networkx_saver(output_dir_):
 
         np.savez( output_data_name, **output_data)
         np.savez( output_data_name.replace(INPUT_NAME, TARGET_NAME), **target_data)
+        return True
 
     return save_networkx

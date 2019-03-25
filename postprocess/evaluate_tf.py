@@ -53,7 +53,10 @@ def create_evaluator(config_name, iteration, input_ckpt=None):
 
     sess = tf.Session()
     saver = tf.train.Saver()
-    saver.restore(sess, os.path.join(input_ckpt, ckpt_name.format(iteration)))
+    if iteration < 0:
+        saver.restore(sess, tf.train.latest_checkpoint(input_ckpt))
+    else:
+        saver.restore(sess, os.path.join(input_ckpt, ckpt_name.format(iteration)))
 
     def evaluator(input_graphs, target_graphs, use_digraph=False, bidirection=False):
         """
