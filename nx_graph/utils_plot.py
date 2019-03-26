@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 
 def get_pos(Gp):
     pos = {}
-    for inode, node in enumerate(Gp.nodes()):
+    for node in Gp.nodes():
         r, phi, z = Gp.node[node]['pos']
         x = r * np.cos(phi)
         y = r * np.sin(phi)
@@ -38,6 +38,27 @@ def plot_networkx(G, ax=None, only_true=False):
 
     nx.draw(Gp, pos, node_color='#A0CBE2', edge_color=edge_colors,
        width=0.5, with_labels=False, node_size=1, ax=ax)
+
+
+
+def draw_nx_with_edge_cmaps(
+    G, weight_name='predict', weight_range=(0, 1),
+    ax=None, cmaps=plt.cm.Greys, threshold=0.):
+
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(8, 8), constrained_layout=True)
+
+    pos = get_pos(G)
+    #edges, weights = zip(*nx.get_edge_attributes(G, weight_name).items())
+    #weights = [x[0] for x in weights]
+    res = [(edge, G.edges[edge]['predict'][0]) for edge in G.edges() if G.edges[edge]['predict'][0] > threshold]
+    edges, weights = zip(*dict(res).items())
+
+    vmin, vmax = weight_range
+
+    nx.draw(G, pos, node_color='#A0CBE2', edge_color=weights, edge_cmap=cmaps,
+            edgelist=edges, width=0.5, with_labels=False,
+            node_size=1, edge_vmin=vmin, edge_vmax=vmax, ax=ax, arrows=False)
 
 
 def plot_hits(hits, numb=5, fig=None):
