@@ -10,10 +10,14 @@ from graph_nets import utils_np
 from nx_graph import prepare, utils_test
 
 
-config_file = 'configs/nxgraph_test_pairs.yaml'
-input_ckpt = 'trained_results/nxgraph_pairs_004'
+#config_file = 'configs/nxgraph_test_pairs.yaml'
+#input_ckpt = 'trained_results/nxgraph_pairs_004'
+#iteration = 99987
+config_file = 'configs/nxgraph_default.yaml'
+input_ckpt = 'trained_results/nxgraph_big_002'
+iteration = 6205
 
-model = create_evaluator(config_file, 99987, input_ckpt)
+model = create_evaluator(config_file, iteration, input_ckpt)
 
 is_digraph = True
 is_bidirection = False

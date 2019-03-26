@@ -54,7 +54,7 @@ class SegmentClassifier(snt.AbstractModule):
     )
     self._decoder = modules.GraphIndependent(
         edge_model_fn=make_mlp_model,
-        node_model_fn=None, global_model_fn=None, name='decoder')
+        node_model_fn=None, global_model_fn=None)
 
     # Transforms the outputs into appropriate shapes.
     edge_output_size = 1

@@ -77,7 +77,7 @@ def create_trained_model(config_name, input_ckpt=None):
     return evaluator
 
 
-def plot_metrics(odd, tdd, odd_th=0.5, tdd_th=0.5, outname='roc_graph_nets.eps'):
+def plot_metrics(odd, tdd, odd_th=0.5, tdd_th=0.5, outname='roc_graph_nets.eps', metrics=[0, 1, 2, 3]):
     y_pred, y_true = (odd > odd_th), (tdd > tdd_th)
     accuracy  = sklearn.metrics.accuracy_score(y_true, y_pred)
     precision = sklearn.metrics.precision_score(y_true, y_pred)
@@ -97,27 +97,27 @@ def plot_metrics(odd, tdd, odd_th=0.5, tdd_th=0.5, outname='roc_graph_nets.eps')
     # Plot the model outputs
     # binning=dict(bins=50, range=(0,1), histtype='step', log=True)
     binning=dict(bins=50, histtype='step', log=True)
-    ax0.hist(odd[y_true==False], label='fake', **binning)
-    ax0.hist(odd[y_true], label='true', **binning)
+    ax0.hist(odd[y_true==False], lw=2, label='fake', **binning)
+    ax0.hist(odd[y_true], lw=2, label='true', **binning)
     ax0.set_xlabel('Model output', fontsize=fontsize)
     ax0.tick_params(width=2, grid_alpha=0.5, labelsize=minor_size)
-    ax0.legend(loc=0)
+    ax0.legend(loc=0, fontsize=fontsize)
 
     # Plot the ROC curve
     auc = sklearn.metrics.auc(fpr, tpr)
     ax1.plot(fpr, tpr)
-    ax1.plot([0, 1], [0, 1], '--')
+    ax1.plot([0, 1], [0, 1], '--', lw=2)
     ax1.set_xlabel('False positive rate', fontsize=fontsize)
     ax1.set_ylabel('True positive rate', fontsize=fontsize)
-    ax1.set_title('ROC curve, AUC = %.4f' % auc)
+    ax1.set_title('ROC curve, AUC = %.4f' % auc, fontsize=fontsize)
     ax1.tick_params(width=2, grid_alpha=0.5, labelsize=minor_size)
 
     p, r, t = sklearn.metrics.precision_recall_curve(y_true, odd)
-    ax2.plot(t, p[:-1], label='purity')
-    ax2.plot(t, r[:-1], label='efficiency')
+    ax2.plot(t, p[:-1], label='purity', fontsize=fontsize)
+    ax2.plot(t, r[:-1], label='efficiency', fontsize=fontsize)
     ax2.set_xlabel('Cut on model score', fontsize=fontsize)
     ax2.tick_params(width=2, grid_alpha=0.5, labelsize=minor_size)
-    ax2.legend()
+    ax2.legend(fontsize=fontsize)
 
     ax3.plot(p, r)
     ax3.set_xlabel('Purity', fontsize=fontsize)

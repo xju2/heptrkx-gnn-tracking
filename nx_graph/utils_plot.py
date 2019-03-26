@@ -3,6 +3,16 @@ import numpy as np
 
 import matplotlib.pyplot as plt
 
+def get_pos(Gp):
+    pos = {}
+    for inode, node in enumerate(Gp.nodes()):
+        r, phi, z = Gp.node[node]['pos']
+        x = r * np.cos(phi)
+        y = r * np.sin(phi)
+        pos[node] = np.array([x, y])
+    return pos
+
+
 def plot_networkx(G, ax=None, only_true=False):
     """G is networkx graph,
     node feature: {'pos': [r, phi, z]}
@@ -24,12 +34,7 @@ def plot_networkx(G, ax=None, only_true=False):
     Gp = nx.edge_subgraph(G, true_edges) if only_true else G
     edge_colors = ['r']*len(true_edges) if only_true else edge_colors 
 
-    pos = {}
-    for inode, node in enumerate(Gp.nodes()):
-        r, phi, z = Gp.node[node]['pos']
-        x = r * np.cos(phi)
-        y = r * np.sin(phi)
-        pos[node] = np.array([x, y])
+    pos = get_pos(Gp)
 
     nx.draw(Gp, pos, node_color='#A0CBE2', edge_color=edge_colors,
        width=0.5, with_labels=False, node_size=1, ax=ax)

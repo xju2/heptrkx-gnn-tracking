@@ -128,36 +128,6 @@ def correct_networkx(Gi, isec, n_phi_sections=8, n_eta_sections=2):
     return G
 
 
-def get_graph_from_saved_data_dict(path, evtid, isec=0, n_phi_sections=8, n_eta_sections=2,
-              use_digraph=True, do_correction=False):
-
-    file_name = 'event{:09d}_g{:09d}_INPUT.npz'.format(evtid, isec)
-    with np.load(os.path.join(path, file_name)) as f:
-        input_data_dict = dict(f.items())
-    with np.load(os.path.join(path, file_name.replace("INPUT", "TARGET"))) as f:
-        target_data_dict = dict(f.items())
-
-    G = data_dict_to_networkx(input_data_dict, target_data_dict, use_digraph)
-    if not do_correction:
-        return G
-
-    phi_range = (-np.pi, np.pi)
-    phi_edges = np.linspace(*phi_range, num=n_phi_sections+1)
-    scale = [1000, np.pi/n_phi_sections, 1000]
-    # update phi
-    phi_min = phi_edges[isec//n_eta_sections]
-    phi_max = phi_edges[isec//n_eta_sections+1]
-    for node_id, features in G.nodes(data=True):
-        new_feature = features['pos']*scale
-        new_feature[1] = new_feature[1] + (phi_min + phi_max) / 2
-        if new_feature[1] > np.pi:
-            new_feature[1] -= 2*np.pi
-        if new_feature[1] < -np.pi:
-            new_feature[1]+= 2*np.pi
-
-        G.node[node_id].update(pos=new_feature)
-    return G
-
 
 def hitsgraph_to_networkx_graph(G, use_digraph=True, bidirection=True):
     n_nodes, n_edges = G.Ri.shape
