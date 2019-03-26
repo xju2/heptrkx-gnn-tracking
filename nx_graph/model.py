@@ -54,7 +54,7 @@ class SegmentClassifier(snt.AbstractModule):
     )
     self._decoder = modules.GraphIndependent(
         edge_model_fn=make_mlp_model,
-        node_model_fn=None, global_model_fn=None)
+        node_model_fn=None, global_model_fn=None, name='decoder')
 
     # Transforms the outputs into appropriate shapes.
     edge_output_size = 1
@@ -76,6 +76,6 @@ class SegmentClassifier(snt.AbstractModule):
         core_input = utils_tf.concat([latent0, latent], axis=1)
         latent = self._core(core_input)
 
-    decoded_op = self._decoder(latent)
-    output_ops.append(self._output_transform(decoded_op))
+        decoded_op = self._decoder(latent)
+        output_ops.append(self._output_transform(decoded_op))
     return output_ops

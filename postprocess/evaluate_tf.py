@@ -19,7 +19,7 @@ def load_config(config_file):
 ckpt_name = 'checkpoint_{:05d}.ckpt'
 
 
-def create_evaluator(config_name, iteration, input_ckpt=None):
+def create_evaluator(config_name, iteration, input_ckpt=None, model_only=False):
     """
     @config: configuration for train_nx_graph
     """

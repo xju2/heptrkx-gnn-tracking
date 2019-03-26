@@ -18,3 +18,6 @@ def read_pairs_input(file_name):
     return pairs
 
 
+def load_data_dicts(file_name):
+    with np.load(file_name) as f:
+        return dict(f.items())

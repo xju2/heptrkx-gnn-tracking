@@ -6,6 +6,7 @@ from datasets.graph import load_graph
 import networkx as nx
 
 from graph_nets import utils_np
+from . import utils_io
 
 import os
 import glob
@@ -46,9 +47,6 @@ def graph_to_input_target(graph):
     return input_graph, target_graph
 
 
-def load_data_dicts(file_name):
-    with np.load(file_name) as f:
-        return dict(f.items())
 
 
 class index_mgr:
@@ -138,8 +136,8 @@ def inputs_generator(base_dir_, n_train_fraction=-1):
             if not os.path.exists(file_name):
                 continue
 
-            input_graphs.append(load_data_dicts(file_name))
-            target_graphs.append(load_data_dicts(file_name.replace("INPUT", "TARGET")))
+            input_graphs.append(utils_io.load_data_dicts(file_name))
+            target_graphs.append(utils_io.load_data_dicts(file_name.replace("INPUT", "TARGET")))
 
             igraphs += 1
 

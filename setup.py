@@ -6,24 +6,33 @@ from __future__ import print_function
 from setuptools import find_packages
 from setuptools import setup
 
+description="Use Graph Network to reconstruct tracks"
+
 setup(
     name="gnn_track",
-    version="1.0.4.dev",
-    description="Library for building graph networks in Tensorflow and Sonnet.",
+    version="0.0.1",
+    description="Library for building tracks with Graph Nural Networks.",
     long_description=description,
-    author="DeepMind",
+    author="HEPTrkx",
     license="Apache License, Version 2.0",
-    keywords=["graph networks", "tensorflow", "sonnet", "machine learning"],
-    url="https://github.com/deepmind/graph-nets",
+    keywords=["graph networks", "track formation", "tracking", "machine learning"],
+    url="https://github.com/xju2/hep-gnn-tracking",
     packages=find_packages(),
     install_requires=[
-        "absl-py",
-        "dm-sonnet==1.23",
+        "graph_nets",
+        "tensorflow==1.12",
         "future",
         "networkx",
         "numpy",
+        "scipy",
+        "pandas",
         "setuptools",
         "six",
+        "dm-sonnet==1.23",
+        "matplotlib",
+        "sklearn",
+        "torch",
+        "torchvision"
     ],
     classifiers=[
         "Development Status :: 4 - Beta",

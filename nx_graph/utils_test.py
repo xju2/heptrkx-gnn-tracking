@@ -77,7 +77,7 @@ def create_trained_model(config_name, input_ckpt=None):
     return evaluator
 
 
-def plot_metrics(odd, tdd, odd_th=0.5, tdd_th=0.5):
+def plot_metrics(odd, tdd, odd_th=0.5, tdd_th=0.5, outname='roc_graph_nets.eps'):
     y_pred, y_true = (odd > odd_th), (tdd > tdd_th)
     accuracy  = sklearn.metrics.accuracy_score(y_true, y_pred)
     precision = sklearn.metrics.precision_score(y_true, y_pred)
@@ -124,4 +124,4 @@ def plot_metrics(odd, tdd, odd_th=0.5, tdd_th=0.5):
     ax3.set_ylabel('Efficiency', fontsize=fontsize)
     ax3.tick_params(width=2, grid_alpha=0.5, labelsize=minor_size)
 
-    plt.savefig('roc_graph_nets.eps')
+    plt.savefig(outname)

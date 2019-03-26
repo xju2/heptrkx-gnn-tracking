@@ -1,3 +1,7 @@
+batch_size = n_graphs = 1
+num_processing_steps_tr = 8
+
+
 from postprocess.evaluate_tf import create_evaluator
 
 import numpy as np
