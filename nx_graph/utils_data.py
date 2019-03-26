@@ -345,3 +345,35 @@ def pairs_to_graph(pairs, hits, use_digraph=True, bidirection=True):
         graph.node[out_node_idx].update(solution=solution)
 
     return graph
+
+
+def predicted_graphs_tuple_to_networkxs_with_truth(gnn_output, input_graphs, target_graphs, **kwargs):
+    output_nxs = utils_np.graphs_tuple_to_networkxs(gnn_output)
+    input_dds  = utils_np.graphs_tuple_to_data_dicts(input_graphs)
+    target_dds = utils_np.graphs_tuple_to_data_dicts(target_graphs)
+
+    total_graphs = len(output_nxs)
+    print("total_graphs", total_graphs)
+    graphs = []
+    for ig in range(total_graphs):
+        input_dd = input_dds[ig]
+        target_dd = target_dds[ig]
+
+        graph = data_dict_to_networkx(input_dd, target_dd, **kwargs)
+
+        ## update edge features with TF output
+        for edge in graph.edges():
+            graph.edges[edge]['predict'] = output_nxs[ig].edges[edge+(0,)]['features']
+
+        graphs.append(graph)
+    return graphs
+
+
+def get_true_subgraph(G):
+    true_edges = []
+    for iedge,edge in enumerate(G.edges(data=True)):
+        if int(edge[2]['solution'][0]) == 1:
+            true_edges.append((edge[0], edge[1]))
+
+    Gp = nx.edge_subgraph(G, true_edges)
+    return Gp
