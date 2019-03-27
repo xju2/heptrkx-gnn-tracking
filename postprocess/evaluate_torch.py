@@ -3,7 +3,7 @@
 import torch
 from models import get_model
 from datasets.graph import load_graph
-from nx_graph.utils_data import hitsgraph_to_networkx_graph
+from nx_graph.utils_data import hitsgraph_to_networkx
 from nx_graph.utils_data import correct_networkx
 
 import re
@@ -59,7 +59,7 @@ def create_evaluator(config_file, reload_epoch):
             with torch.no_grad():
                 weights = model(batch_input).flatten().numpy()
 
-            nx_G = hitsgraph_to_networkx_graph(G, use_digraph=use_digraph,
+            nx_G = hitsgraph_to_networkx(G, use_digraph=use_digraph,
                                                bidirection=bidirection)
             ## update edge features with the new weights
             n_nodes, n_edges = G.Ri.shape

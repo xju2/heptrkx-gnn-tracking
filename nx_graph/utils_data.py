@@ -129,41 +129,6 @@ def correct_networkx(Gi, isec, n_phi_sections=8, n_eta_sections=2):
 
 
 
-def hitsgraph_to_networkx_graph(G, use_digraph=True, bidirection=True):
-    n_nodes, n_edges = G.Ri.shape
-
-    graph = nx.DiGraph() if use_digraph else nx.Graph()
-
-    ## it is essential to add nodes first
-    # the node ID must be [0, N_NODES]
-    for i in range(n_nodes):
-        graph.add_node(i, pos=G.X[i], solution=[0.0])
-
-    for iedge in range(n_edges):
-        """
-        In_node:  node is a receiver, hits at outer-most layers can only be In-node
-        Out-node: node is a sender, so hits in inner-most layer can only be Out-node
-        """
-        in_node_id  = G.Ri[:, iedge].nonzero()[0][0]
-        out_node_id = G.Ro[:, iedge].nonzero()[0][0]
-
-        # distance as features
-        in_node_features  = G.X[in_node_id]
-        out_node_features = G.X[out_node_id]
-        edge_features = get_edge_features(out_node_features, in_node_features)
-        # connection of inner to outer
-        graph.add_edge(out_node_id, in_node_id, solution=[G.y[iedge]], **edge_features)
-        # connection of outer to inner
-        if use_digraph and bidirection:
-            edge_features = get_edge_features(in_node_features, out_node_features)
-            graph.add_edge(in_node_id, out_node_id, solution=[G.y[iedge]], **edge_features)
-        # add "solution" to nodes
-        graph.node[in_node_id].update(solution=[G.y[iedge]])
-        graph.node[out_node_id].update(solution=[G.y[iedge]])
-
-    # add global features, not used for now
-    graph.graph['features'] = np.array([0.])
-    return graph
 
 
 def networkx_graph_to_hitsgraph(G, is_digraph=True):
@@ -298,7 +263,32 @@ def pairs_to_df(pairs, hits):
     return edges
 
 
-def pairs_to_graph(pairs, hits, use_digraph=True, bidirection=True):
+def hitsgraph_to_networkx(G, use_digraph=True, bidirection=True):
+    n_nodes, n_edges = G.Ri.shape
+
+    graph = nx.DiGraph() if use_digraph else nx.Graph()
+
+    ## it is essential to add nodes first
+    # the node ID must be [0, N_NODES]
+    for i in range(n_nodes):
+        graph.add_node(i, pos=G.X[i], solution=[0.0])
+
+    for iedge in range(n_edges):
+        """
+        In_node:  node is a receiver, hits at outer-most layers can only be In-node
+        Out-node: node is a sender, so hits in inner-most layer can only be Out-node
+        """
+        in_node_id  = G.Ri[:, iedge].nonzero()[0][0]
+        out_node_id = G.Ro[:, iedge].nonzero()[0][0]
+        solution = [G.y[iedge]]
+        _add_edge(graph, out_node_id, in_node_id, solution, bidirection)
+
+    # add global features, not used for now
+    graph.graph['features'] = np.array([0.])
+    return graph
+
+
+def pairs_to_networkx(pairs, hits, use_digraph=True, bidirection=True):
     """only pairs with both hits presented in hits are used
     pairs is DataFrame, with columns
     ['hit_id_in', 'hit_idx_in', 'layer_in', 'hit_id_out', 'hit_idx_out', 'layer_out']
@@ -332,19 +322,30 @@ def pairs_to_graph(pairs, hits, use_digraph=True, bidirection=True):
 
         in_node_idx  = hits_id_dict[in_hit_idx]
         out_node_idx = hits_id_dict[out_hit_idx]
-        f1 = graph.node[in_node_idx]['pos']
-        f2 = graph.node[out_node_idx]['pos']
-        edge_features = get_edge_features(f1, f2)
-        solution = edges.iloc[idx]['true']
-        graph.add_edge(in_node_idx,  out_node_idx, solution=solution, **edge_features)
-        if use_digraph and bidirection:
-            edge_features = get_edge_features(f2, f1)
-            graph.add_edge(out_node_idx,  in_node_idx, solution=solution, **edge_features)
 
-        graph.node[in_node_idx].update(solution=solution)
-        graph.node[out_node_idx].update(solution=solution)
+        solution = edges.iloc[idx]['true']
+        _add_edge(graph, in_node_idx, out_node_idx, solution)
 
     return graph
+
+
+def _add_edge(G, sender, receiver, solution, bidirection):
+    f1 = G.node[sender]['pos']   # (r, phi, z)
+    f2 = G.node[receiver]['pos']
+    if f1[0] > f2[0]:
+        # sender should have smaller *r*
+        # swap
+        sender, reciver = reciver, sender
+        f1, f2 = f2, f1
+
+    edge_features = get_edge_features(f1, f2)
+    G.add_edge(sender,  receiver, solution=solution, **edge_features)
+    if bidirection:
+        edge_features = get_edge_features(f2, f1)
+        G.add_edge(reciver,  sender, solution=solution, **edge_features)
+
+    G.node[sender].update(solution=solution)
+    G.node[reciver].update(solution=solution)
 
 
 def predicted_graphs_tuple_to_networkxs_with_truth(gnn_output, input_graphs, target_graphs, **kwargs):

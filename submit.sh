@@ -5,15 +5,16 @@ function get_code(){
 	echo $NUMBER
 }
 
-nJobs=1
+nJobs=5
 
 #CONFIG="configs/nxgraph_test_pairs.yaml"
 #CONFIG="configs/nxgraph_test_pairsWholeNodes.yaml"
 #CONFIG="configs/nxgraph_default.yaml"
 #CONFIG="configs/nxgraph_digraph.yaml"
-CONFIG="configs/nxgraph_test_digraph.yaml"
 
-#CONFIG="configs/nxgraph_test_pairs.yaml"
+#CONFIG="configs/nxgraph_test_digraph.yaml"
+CONFIG="configs/nxgraph_test_pairs.yaml"
+
 #CONFIG="configs/nxgraph_test_new_edgeFeatures_bidirection.yaml"
 
 EXE="slurm/run_nx_graph.sh $CONFIG"
