@@ -47,8 +47,6 @@ def graph_to_input_target(graph):
     return input_graph, target_graph
 
 
-
-
 class index_mgr:
     def __init__(self, n_total, training_frac=0.8):
         self.max_tr = int(n_total*training_frac)

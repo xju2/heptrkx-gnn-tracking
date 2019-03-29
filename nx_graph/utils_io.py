@@ -2,6 +2,13 @@
 
 import numpy as np
 import pandas as pd
+import yaml
+
+ckpt_name = 'checkpoint_{:05d}.ckpt'
+
+def load_config(config_file):
+    with open(config_file) as f:
+        return yaml.load(f)
 
 
 def read_pairs_input(file_name):

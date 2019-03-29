@@ -2,6 +2,10 @@ import networkx as nx
 import numpy as np
 
 import matplotlib.pyplot as plt
+import sklearn.metrics
+
+fontsize=16
+minor_size=14
 
 def get_pos(Gp):
     pos = {}
@@ -41,7 +45,7 @@ def plot_networkx(G, ax=None, only_true=False):
 
 
 
-def draw_nx_with_edge_cmaps(
+def plot_nx_with_edge_cmaps(
     G, weight_name='predict', weight_range=(0, 1),
     ax=None, cmaps=plt.cm.Greys, threshold=0.):
 
@@ -64,7 +68,7 @@ def draw_nx_with_edge_cmaps(
 def plot_hits(hits, numb=5, fig=None):
     """
     hits is a Dataframe that combines the info from [hits, truth, particles]
-    from nx_graph.utils_data import merge_truth_info_to_hits 
+    from nx_graph.utils_data import merge_truth_info_to_hits
     """
     if fig is None:
         fig = plt.figure(figsize=(15, 12))
@@ -94,8 +98,6 @@ def plot_hits(hits, numb=5, fig=None):
         ax4.plot(data[:,2], np.abs(data[:,3]), '-', alpha=0.5, lw=4, label='{}'.format(p))
         ax4.scatter(data[:,2], np.abs(data[:,3]), marker='o', edgecolor='black', s=np.ones(len(data))*30, alpha=0.5)
 
-    fontsize=16
-    minor_size=14
     y_labels = ['r [mm]', "$\eta$", '$\phi$']
     y_lims = [(0, 1100), (-5, 5), (-np.pi, np.pi)]
     for i in range(3):
@@ -111,3 +113,52 @@ def plot_hits(hits, numb=5, fig=None):
 
     return fig, axs
 
+
+def plot_metrics(odd, tdd, odd_th=0.5, tdd_th=0.5, outname='roc_graph_nets.eps'):
+    y_pred, y_true = (odd > odd_th), (tdd > tdd_th)
+    accuracy  = sklearn.metrics.accuracy_score(y_true, y_pred)
+    precision = sklearn.metrics.precision_score(y_true, y_pred)
+    recall    = sklearn.metrics.recall_score(y_true, y_pred)
+
+    print('Accuracy:            %.4f' % accuracy)
+    print('Precision (purity):  %.4f' % precision)
+    print('Recall (efficiency): %.4f' % recall)
+
+    fpr, tpr, _ = sklearn.metrics.roc_curve(y_true, odd)
+
+
+    fig, axs = plt.subplots(2, 2, figsize=(12, 10), constrained_layout=True)
+    axs = axs.flatten()
+    ax0, ax1, ax2, ax3 = axs
+
+    # Plot the model outputs
+    # binning=dict(bins=50, range=(0,1), histtype='step', log=True)
+    binning=dict(bins=50, histtype='step', log=True)
+    ax0.hist(odd[y_true==False], lw=2, label='fake', **binning)
+    ax0.hist(odd[y_true], lw=2, label='true', **binning)
+    ax0.set_xlabel('Model output', fontsize=fontsize)
+    ax0.tick_params(width=2, grid_alpha=0.5, labelsize=minor_size)
+    ax0.legend(loc=0, fontsize=fontsize)
+
+    # Plot the ROC curve
+    auc = sklearn.metrics.auc(fpr, tpr)
+    ax1.plot(fpr, tpr, lw=2)
+    ax1.plot([0, 1], [0, 1], '--', lw=2)
+    ax1.set_xlabel('False positive rate', fontsize=fontsize)
+    ax1.set_ylabel('True positive rate', fontsize=fontsize)
+    ax1.set_title('ROC curve, AUC = %.4f' % auc, fontsize=fontsize)
+    ax1.tick_params(width=2, grid_alpha=0.5, labelsize=minor_size)
+
+    p, r, t = sklearn.metrics.precision_recall_curve(y_true, odd)
+    ax2.plot(t, p[:-1], label='purity', lw=2)
+    ax2.plot(t, r[:-1], label='efficiency', lw=2)
+    ax2.set_xlabel('Cut on model score', fontsize=fontsize)
+    ax2.tick_params(width=2, grid_alpha=0.5, labelsize=minor_size)
+    ax2.legend(fontsize=fontsize)
+
+    ax3.plot(p, r, lw=2)
+    ax3.set_xlabel('Purity', fontsize=fontsize)
+    ax3.set_ylabel('Efficiency', fontsize=fontsize)
+    ax3.tick_params(width=2, grid_alpha=0.5, labelsize=minor_size)
+
+    plt.savefig(outname)

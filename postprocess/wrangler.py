@@ -93,7 +93,7 @@ def chose_a_road(road, diff):
     # only if another road has small difference in phi-fit
     # and longer than the first one, it is used.
     for i in range(1, len(road)):
-        if diff[i] < diff[0] and len(road[i]) > len(res):
+        if diff[i] <= diff[0] and len(road[i]) > len(res):
             res = road[i]
 
     return res

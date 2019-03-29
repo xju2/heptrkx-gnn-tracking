@@ -15,7 +15,7 @@ def process_event(evt_id, input_dir, n_sections, saver_fn, bidirection):
             input_dir,
             'event{:09d}_g{:03d}.npz'.format(evt_id, isec))
         if os.path.exists(input_name) and not saver_fn(evt_id, isec, None):
-            graph = utils_data.hitsgraph_to_networkx_graph(
+            graph = utils_data.hitsgraph_to_nx(
                 load_graph(input_name), bidirection=bidirection)
 
             saver_fn(evt_id, isec, graph)

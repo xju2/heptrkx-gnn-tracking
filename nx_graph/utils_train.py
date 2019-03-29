@@ -33,7 +33,10 @@ def make_all_runnable_in_session(*args):
 
 
 def eval_output(target, output):
-
+    """
+    target, output are graph-tuple from TF-GNN,
+    each of them contains N=batch-size graphs
+    """
     tdds = utils_np.graphs_tuple_to_data_dicts(target)
     odds = utils_np.graphs_tuple_to_data_dicts(output)
 
@@ -48,13 +51,7 @@ def eval_output(target, output):
     return test_pred, test_target
 
 
-def compute_matrics(target, output):
+def compute_matrics(target, output, thresh=0.5):
     test_pred, test_target = eval_output(target, output)
-    thresh = 0.5
     y_pred, y_true = (test_pred > thresh), (test_target > thresh)
     return sklearn.metrics.precision_score(y_true, y_pred), sklearn.metrics.recall_score(y_true, y_pred)
-
-
-def load_config(config_file):
-    with open(config_file) as f:
-        return yaml.load(f)

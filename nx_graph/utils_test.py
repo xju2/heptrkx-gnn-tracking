@@ -10,23 +10,17 @@ import sklearn.metrics
 import os
 import numpy as np
 
-from . import utils_train
-from . import prepare
-from . import get_model
+from . import utils_train, utils_io, prepare, get_model
+from .utils_io import ckpt_name
 
 import matplotlib.pyplot as plt
-
-ckpt_name = 'checkpoint_{:05d}.ckpt'
-
-fontsize=16
-minor_size = 14
 
 def create_trained_model(config_name, input_ckpt=None):
     """
     @config: configuration for train_nx_graph
     """
     # load configuration file
-    config = utils_train.load_config(config_name)
+    config = utils_io.load_config(config_name)
     config_tr = config['train']
 
     log_every_seconds       = config_tr['time_lapse']
@@ -75,53 +69,3 @@ def create_trained_model(config_name, input_ckpt=None):
         return np.concatenate(odds), np.concatenate(tdds)
 
     return evaluator
-
-
-def plot_metrics(odd, tdd, odd_th=0.5, tdd_th=0.5, outname='roc_graph_nets.eps', metrics=[0, 1, 2, 3]):
-    y_pred, y_true = (odd > odd_th), (tdd > tdd_th)
-    accuracy  = sklearn.metrics.accuracy_score(y_true, y_pred)
-    precision = sklearn.metrics.precision_score(y_true, y_pred)
-    recall    = sklearn.metrics.recall_score(y_true, y_pred)
-
-    print('Accuracy:            %.4f' % accuracy)
-    print('Precision (purity):  %.4f' % precision)
-    print('Recall (efficiency): %.4f' % recall)
-
-    fpr, tpr, _ = sklearn.metrics.roc_curve(y_true, odd)
-
-
-    fig, axs = plt.subplots(2, 2, figsize=(12, 10), constrained_layout=True)
-    axs = axs.flatten()
-    ax0, ax1, ax2, ax3 = axs
-
-    # Plot the model outputs
-    # binning=dict(bins=50, range=(0,1), histtype='step', log=True)
-    binning=dict(bins=50, histtype='step', log=True)
-    ax0.hist(odd[y_true==False], lw=2, label='fake', **binning)
-    ax0.hist(odd[y_true], lw=2, label='true', **binning)
-    ax0.set_xlabel('Model output', fontsize=fontsize)
-    ax0.tick_params(width=2, grid_alpha=0.5, labelsize=minor_size)
-    ax0.legend(loc=0, fontsize=fontsize)
-
-    # Plot the ROC curve
-    auc = sklearn.metrics.auc(fpr, tpr)
-    ax1.plot(fpr, tpr)
-    ax1.plot([0, 1], [0, 1], '--', lw=2)
-    ax1.set_xlabel('False positive rate', fontsize=fontsize)
-    ax1.set_ylabel('True positive rate', fontsize=fontsize)
-    ax1.set_title('ROC curve, AUC = %.4f' % auc, fontsize=fontsize)
-    ax1.tick_params(width=2, grid_alpha=0.5, labelsize=minor_size)
-
-    p, r, t = sklearn.metrics.precision_recall_curve(y_true, odd)
-    ax2.plot(t, p[:-1], label='purity', fontsize=fontsize)
-    ax2.plot(t, r[:-1], label='efficiency', fontsize=fontsize)
-    ax2.set_xlabel('Cut on model score', fontsize=fontsize)
-    ax2.tick_params(width=2, grid_alpha=0.5, labelsize=minor_size)
-    ax2.legend(fontsize=fontsize)
-
-    ax3.plot(p, r)
-    ax3.set_xlabel('Purity', fontsize=fontsize)
-    ax3.set_ylabel('Efficiency', fontsize=fontsize)
-    ax3.tick_params(width=2, grid_alpha=0.5, labelsize=minor_size)
-
-    plt.savefig(outname)

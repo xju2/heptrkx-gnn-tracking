@@ -8,23 +8,16 @@ import os
 import numpy as np
 
 from nx_graph.prepare import inputs_generator
-from nx_graph import get_model
-from nx_graph import utils_data
-
-def load_config(config_file):
-    with open(config_file) as f:
-        return yaml.load(f)
+from nx_graph import get_model, utils_data, utils_train, utils_io
+from nx_graph.utils_io import ckpt_name
 
 
-ckpt_name = 'checkpoint_{:05d}.ckpt'
-
-
-def create_evaluator(config_name, iteration, input_ckpt=None, model_only=False):
+def create_evaluator(config_name, iteration, input_ckpt=None):
     """
     @config: configuration for train_nx_graph
     """
     # load configuration file
-    config = load_config(config_name)
+    config = utils_io.load_config(config_name)
     config_tr = config['train']
 
     batch_size = n_graphs   = config_tr['batch_size']   # need optimization
@@ -68,22 +61,10 @@ def create_evaluator(config_name, iteration, input_ckpt=None, model_only=False):
             "target": target_ph
         }, feed_dict=feed_dict)
         output = predictions['outputs'][-1]
-        output_nxs = utils_np.graphs_tuple_to_networkxs(output)
-        input_dds  = utils_np.graphs_tuple_to_data_dicts(input_graphs)
-        target_dds = utils_np.graphs_tuple_to_data_dicts(target_graphs)
-        graphs = []
-        ig = 0
-        for input_dd,target_dd in zip(input_dds, target_dds):
-            graph = utils_data.data_dict_to_networkx(
-                input_dd, target_dd,
-                use_digraph=use_digraph, bidirection=bidirection)
 
-            ## update edge features with TF output
-            for edge in graph.edges():
-                graph.edges[edge]['predict'] = output_nxs[ig].edges[edge+(0,)]['features']
-            graphs.append(graph)
-            ig += 1
-
-        return graphs
+        return utils_data.predicted_graphs_to_nxs(
+            output, input_graphs, target_graphs,
+            use_digraph=use_digraph,
+            bidirection=bidirection)
 
     return evaluator

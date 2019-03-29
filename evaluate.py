@@ -1,39 +1,60 @@
-from postprocess.evaluate_tf import create_evaluator
-
-import networkx as nx
-import numpy as np
-import matplotlib.pyplot as plt
-
-from graph_nets import utils_np
-from trackml.dataset import load_event
-from nx_graph import utils_plot, utils_data, utils_train, prepare, utils_test
-from postprocess import wrangler, analysis
+#!/usr/bin/env python
 
 
-import os
-import glob
+if __name__ == "__main__":
+    import argparse
+    import sys
 
-config_file = 'configs/nxgraph_test_pairs.yaml'
-input_ckpt = 'trained_results/nxgraph_pairs_004'
+    parser = argparse.ArgumentParser(description='Train nx-graph with configurations')
+    add_arg = parser.add_argument
+    add_arg('config',  nargs='?', default='configs/nxgraph_default.yaml')
+    add_arg('--iteration',  type='int', default=-1)
+    add_arg('--torch', action='store_true')
+    add_arg('--ckpt', type='str', default=None)
+    add_arg('--trkdir', type='str',
+            default='/global/homes/x/xju/atlas/heptrkx/trackml_inputs/train_all')
 
-model = create_evaluator(config_file, 99987, input_ckpt)
+    args = parser.parse_args()
 
-config = utils_train.load_config(config_file)
-evtid = 1099
-isec = 0
-batch_size = config['train']['batch_size']
+    if args.torch:
+        from postprocess.evaluate_torch import create_evaluator
+    else:
+        from postprocess.evaluate_tf import create_evaluator
 
-file_dir = config['data']['output_nxgraph_dir']
-hits_graph_dir = config['data']['input_hitsgraph_dir']
-trk_dir = '/global/homes/x/xju/atlas/heptrkx/trackml_inputs/train_all'
-base_dir =  os.path.join(file_dir, "event00000{}_g{:09d}_INPUT.npz")
-file_names = []
-if isec < 0:
-    section_patten = base_dir.format(evtid, 0).replace('_g{:09}'.format(0), '*')
-    n_sections = int(len(glob.glob(section_patten)))
-    file_names = [(base_dir.format(evtid, ii), ii) for ii in range(n_sections)]
-else:
-    file_names = [(base_dir.format(evtid, isec), isec)]
+
+
+    import networkx as nx
+    import numpy as np
+
+    from graph_nets import utils_np, utils_tf
+    from trackml.dataset import load_event
+    from nx_graph import utils_plot, utils_data, utils_train, prepare, utils_test
+    from postprocess import wrangler, analysis
+
+
+    import os
+    import glob
+
+    config_file = args.config
+
+    model = create_evaluator(config_file, args.iteration, args.ckpt)
+
+    config = utils_io.load_config(config_file)
+    evtid = 660
+    isec = 0
+    batch_size = config['train']['batch_size']
+
+    file_dir = config['data']['output_nxgraph_dir']
+    hits_graph_dir = config['data']['input_hitsgraph_dir']
+    trk_dir = '/global/homes/x/xju/atlas/heptrkx/trackml_inputs/train_all'
+    base_dir =  os.path.join(file_dir, "event00000{}_g{:09d}_INPUT.npz")
+    file_names = []
+    if isec < 0:
+        section_patten = base_dir.format(evtid, 0).replace('_g{:09}'.format(0), '*')
+        n_sections = int(len(glob.glob(section_patten)))
+        file_names = [(base_dir.format(evtid, ii), ii) for ii in range(n_sections)]
+    else:
+        file_names = [(base_dir.format(evtid, isec), isec)]
 
 n_batches = len(file_names)//batch_size if len(file_names)%batch_size==0 else len(file_names)//batch_size + 1
 split_inputs = np.array_split(file_names, n_batches)

@@ -13,10 +13,10 @@ train:
     log_name: big.log
     time_lapse:  120 # how often save checkpoint in seconds
     batch_size: 16
-    iterations: 11000
+    iterations: 22000
     iter_per_job: 1000
     n_iters: 6
-    learning_rate: 0.001
+    learning_rate: 0.0005
     real_weight: 1.0
     fake_weight: 0.5
 

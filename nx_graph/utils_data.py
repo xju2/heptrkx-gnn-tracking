@@ -4,6 +4,7 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 import math
+import numbers
 
 import os
 from collections import namedtuple
@@ -66,7 +67,7 @@ def zdists(a, b):
     return abs(b.z-a.z-a.z*ang_ab/ang_a)
 
 
-def get_edge_features(in_node, out_node):
+def get_edge_features(in_node, out_node, add_angles=False):
     # input are the features of incoming and outgoing nodes
     # they are ordered as [r, phi, z]
     v_in = pos_transform(*in_node)
@@ -75,23 +76,27 @@ def get_edge_features(in_node, out_node):
     deta = v_out.eta - v_in.eta
     dphi = calc_dphi(v_out.phi, v_in.phi)
     dR = np.sqrt(deta**2 + dphi**2)
-    dZ = v_out.z - v_in.z
+    #dZ = v_out.z - v_in.z
+    dZ = v_in.z - v_out.z #
 
-    pa = Point(x=v_out.x, y=v_out.y, z=v_out.z)
-    pb = Point(x=v_in.x, y=v_in.y, z=v_in.z)
-    pd = Point(x=pa.x-pb.x, y=pa.y-pb.y, z=pa.z-pb.z)
+    results = {"distance": np.array([deta, dphi, dR, dZ])}
 
-    wd0 = wdist(pa, pd, 0)
-    wd1 = wdist(pa, pd, 1)
-    zd0 = zdists(pa, pb)
-    wdr = wdistr(v_out.r, v_in.r-v_out.r, pa.z, pd.z, 1)
+    if add_angles:
+        pa = Point(x=v_out.x, y=v_out.y, z=v_out.z)
+        pb = Point(x=v_in.x, y=v_in.y, z=v_in.z)
+        pd = Point(x=pa.x-pb.x, y=pa.y-pb.y, z=pa.z-pb.z)
 
-    return {
-        "distance": np.array([deta, dphi, dR, dZ]),
-        "angles": np.array([wd0, wd1, zd0, wdr])
-    }
+        wd0 = wdist(pa, pd, 0)
+        wd1 = wdist(pa, pd, 1)
+        zd0 = zdists(pa, pb)
+        wdr = wdistr(v_out.r, v_in.r-v_out.r, pa.z, pd.z, 1)
 
-def data_dict_to_networkx(dd_input, dd_target, use_digraph=True, bidirection=True):
+        results['angles'] = np.array([wd0, wd1, zd0, wdr])
+
+    return results
+
+
+def data_dict_to_nx(dd_input, dd_target, use_digraph=True, bidirection=True):
     input_nx  = utils_np.data_dict_to_networkx(dd_input)
     target_nx = utils_np.data_dict_to_networkx(dd_target)
 
@@ -128,9 +133,6 @@ def correct_networkx(Gi, isec, n_phi_sections=8, n_eta_sections=2):
     return G
 
 
-
-
-
 def networkx_graph_to_hitsgraph(G, is_digraph=True):
     n_nodes = len(G.nodes())
     n_edges = len(G.edges())//2 if is_digraph else len(G.edges())
@@ -149,7 +151,7 @@ def networkx_graph_to_hitsgraph(G, is_digraph=True):
     for n, nbrsdict in G.adjacency():
         for nbr, eattr in nbrsdict.items():
             ## as hitsgraph is a directed graph from inner-most to outer-most
-            ## so assume sender < reciver;
+            ## so assume sender < receiver;
             if n > nbr and is_digraph:
                 continue
             segments.append((n, nbr))
@@ -263,15 +265,21 @@ def pairs_to_df(pairs, hits):
     return edges
 
 
-def hitsgraph_to_networkx(G, use_digraph=True, bidirection=True):
+def hitsgraph_to_nx(G, IDs=None, use_digraph=True, bidirection=True):
     n_nodes, n_edges = G.Ri.shape
 
     graph = nx.DiGraph() if use_digraph else nx.Graph()
 
     ## it is essential to add nodes first
     # the node ID must be [0, N_NODES]
-    for i in range(n_nodes):
-        graph.add_node(i, pos=G.X[i], solution=[0.0])
+    if IDs is None:
+        for i in range(n_nodes):
+            graph.add_node(i, pos=G.X[i], solution=[0.0])
+    else:
+        for i in range(n_nodes):
+            graph.add_node(i, pos=G.X[i],
+                           hit_id=IDs.iloc[i],
+                           solution=[0.0])
 
     for iedge in range(n_edges):
         """
@@ -288,17 +296,16 @@ def hitsgraph_to_networkx(G, use_digraph=True, bidirection=True):
     return graph
 
 
-def pairs_to_networkx(pairs, hits, use_digraph=True, bidirection=True):
+def segments_to_nx(hits, segments, sender_name, receiver_name, use_digraph=True, bidirection=True):
     """only pairs with both hits presented in hits are used
-    pairs is DataFrame, with columns
-    ['hit_id_in', 'hit_idx_in', 'layer_in', 'hit_id_out', 'hit_idx_out', 'layer_out']
     hits: nodes in the graphs
+    segments: DataFrame, with columns ['sender_hit_id', 'receiver_hit_id', 'true'], true edge or not
     """
-    h0_edges = pairs[(pairs['hit_id_in'].isin(hits['hit_id'])) & (pairs['hit_id_out'].isin(hits['hit_id']))]
-    # hits from consecutive layers
-    layer_diff = [1, 14, 13, -1, -14, -13]
-    edges = h0_edges[ (h0_edges['layer_out']-h0_edges['layer_in']).isin(layer_diff)]
 
+    #h0_edges = pairs[(pairs['hit_id_in'].isin(hits['hit_id'])) & (pairs['hit_id_out'].isin(hits['hit_id']))]
+    # hits from consecutive layers
+    #layer_diff = [1, 14, 13, -1, -14, -13]
+    #edges = h0_edges[ (h0_edges['layer_out']-h0_edges['layer_in']).isin(layer_diff)]
 
     graph = nx.DiGraph() if use_digraph else nx.Graph()
     graph.graph['features'] = np.array([0.])
@@ -315,40 +322,40 @@ def pairs_to_networkx(pairs, hits, use_digraph=True, bidirection=True):
                        solution=0.0)
         hits_id_dict[hit_id] = idx
 
-    n_edges = edges.shape[0]
+    n_edges = segments.shape[0]
     for idx in range(n_edges):
-        in_hit_idx  = int(edges.iloc[idx]['hit_id_in'])
-        out_hit_idx = int(edges.iloc[idx]['hit_id_out'])
+        in_hit_idx  = int(segments.iloc[idx][sender_name])
+        out_hit_idx = int(segments.iloc[idx][receiver_name])
 
         in_node_idx  = hits_id_dict[in_hit_idx]
         out_node_idx = hits_id_dict[out_hit_idx]
 
-        solution = edges.iloc[idx]['true']
-        _add_edge(graph, in_node_idx, out_node_idx, solution)
+        solution = segments.iloc[idx]['true']
+        _add_edge(graph, in_node_idx, out_node_idx, solution, bidirection)
 
     return graph
 
 
-def _add_edge(G, sender, receiver, solution, bidirection):
+def _add_edge(G, sender, receiver, solution, bidirection, with_edge_features=True):
     f1 = G.node[sender]['pos']   # (r, phi, z)
     f2 = G.node[receiver]['pos']
     if f1[0] > f2[0]:
         # sender should have smaller *r*
         # swap
-        sender, reciver = reciver, sender
+        sender, receiver = receiver, sender
         f1, f2 = f2, f1
 
     edge_features = get_edge_features(f1, f2)
     G.add_edge(sender,  receiver, solution=solution, **edge_features)
     if bidirection:
         edge_features = get_edge_features(f2, f1)
-        G.add_edge(reciver,  sender, solution=solution, **edge_features)
+        G.add_edge(receiver,  sender, solution=solution, **edge_features)
 
     G.node[sender].update(solution=solution)
-    G.node[reciver].update(solution=solution)
+    G.node[receiver].update(solution=solution)
 
 
-def predicted_graphs_tuple_to_networkxs_with_truth(gnn_output, input_graphs, target_graphs, **kwargs):
+def predicted_graphs_to_nxs(gnn_output, input_graphs, target_graphs, **kwargs):
     output_nxs = utils_np.graphs_tuple_to_networkxs(gnn_output)
     input_dds  = utils_np.graphs_tuple_to_data_dicts(input_graphs)
     target_dds = utils_np.graphs_tuple_to_data_dicts(target_graphs)
@@ -360,7 +367,7 @@ def predicted_graphs_tuple_to_networkxs_with_truth(gnn_output, input_graphs, tar
         input_dd = input_dds[ig]
         target_dd = target_dds[ig]
 
-        graph = data_dict_to_networkx(input_dd, target_dd, **kwargs)
+        graph = data_dict_to_nx(input_dd, target_dd, **kwargs)
 
         ## update edge features with TF output
         for edge in graph.edges():
@@ -378,3 +385,29 @@ def get_true_subgraph(G):
 
     Gp = nx.edge_subgraph(G, true_edges)
     return Gp
+
+
+def nx_to_pandas(nx_G, edge_feature=None):
+    df_nodes = pd.DataFrame([(ii, nx_G.node[ii]['hit_id']) for ii in nx_G.nodes()],
+                            columns=['node_idx', 'hit_id'])
+
+    df_edges = pd.DataFrame([(ii, nx_G.node[ff[0]]['hit_id'], nx_G.node[ff[1]]['hit_id'])
+                             for ii, ff in enumerate(nx_G.edges(data=True))],
+                            columns=['edge_idx', 'sender', 'receiver'])
+    if edge_feature:
+        if type(edge_feature) is not list: edge_feature = [edge_feature]
+        for feature in edge_feature:
+            dict_feature = nx.get_edge_attributes(nx_G, feature)
+            first_ele = next(iter(dict_feature))
+
+            if isinstance(first_ele, numbers.Number):
+                new_column = [dict_feature[edge] for edge in nx_G.edges()]
+            elif type(first_ele) is np.array and first_ele.shape[0] == 1:
+                new_column = [dict_feature[edge][0] for edge in nx_G.edges()]
+            else:
+                print("data associated with", feature, " are not supported")
+                continue
+            df_edges = df.edges.assign(feature=np.array(new_column))
+
+
+    return df_nodes, df_edges
