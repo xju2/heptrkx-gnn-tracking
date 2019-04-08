@@ -9,7 +9,8 @@ from nx_graph import prepare
 from datasets.graph import load_graph
 import multiprocessing as mp
 
-def process_event(evt_id, input_dir, n_sections, saver_fn, bidirection):
+def process_event(evt_id, input_dir, n_sections, output, bidirection):
+    saver_fn = prepare.get_networkx_saver(output)
     for isec in range(n_sections):
         input_name = os.path.join(
             input_dir,
@@ -27,7 +28,7 @@ if __name__ == "__main__":
 
     from graph_nets import utils_np
 
-    from nx_graph.utils_train import load_config
+    from nx_graph.utils_io import load_config
 
     import argparse
 
@@ -59,7 +60,6 @@ if __name__ == "__main__":
     if not os.path.exists(output):
         os.makedirs(output)
 
-    saver = prepare.get_networkx_saver(output)
 
     print("Input directory: {}".format(input_dir))
     print("Output directory: {}".format(output))
@@ -86,7 +86,7 @@ if __name__ == "__main__":
         pp_fn = partial(process_event,
                         input_dir=input_dir,
                         n_sections=n_sections,
-                        saver_fn=saver,
+                        output=output,
                         bidirection=args.bidirection)
         pool.map(pp_fn, evt_ids_split)
 

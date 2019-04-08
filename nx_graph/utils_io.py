@@ -3,6 +3,7 @@
 import numpy as np
 import pandas as pd
 import yaml
+import os
 
 ckpt_name = 'checkpoint_{:05d}.ckpt'
 

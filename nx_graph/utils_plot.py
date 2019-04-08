@@ -33,15 +33,15 @@ def plot_networkx(G, ax=None, only_true=False):
             edge_colors[iedge] = 'r'
             true_edges.append((edge[0], edge[1]))
         else:
-            edge_colors[iedge] = 'grey' 
+            edge_colors[iedge] = 'grey'
 
     Gp = nx.edge_subgraph(G, true_edges) if only_true else G
-    edge_colors = ['r']*len(true_edges) if only_true else edge_colors 
+    edge_colors = ['k']*len(true_edges) if only_true else edge_colors 
 
     pos = get_pos(Gp)
 
     nx.draw(Gp, pos, node_color='#A0CBE2', edge_color=edge_colors,
-       width=0.5, with_labels=False, node_size=1, ax=ax)
+       width=0.5, with_labels=False, node_size=1, ax=ax, arrows=False)
 
 
 

@@ -55,6 +55,7 @@ def summary_on_prediction(G, truth, prediction):
     aa = truth.merge(prediction, on='hit_id', how='inner').sort_values('particle_id')
     ss = aa.groupby('particle_id')[['track_id']].apply(lambda x: len(np.unique(x))) == 1
     wrong_particles = ss[ss == False].index
+    n_total_predictions = len(np.unique(prediction['track_id']))
     correct_particles = ss[ss].index
     n_correct = len(correct_particles)
     n_wrong = len(wrong_particles)
@@ -93,7 +94,8 @@ def summary_on_prediction(G, truth, prediction):
         "broken_pids": broken_pids,
         "connected_pids": connected_pids,
         "correct_pids": correct_particles,
-        "wrong_pids": wrong_particles
+        "wrong_pids": wrong_particles,
+        'total_predictions': n_total_predictions
     }
 
 
