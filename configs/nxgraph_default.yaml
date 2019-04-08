@@ -4,6 +4,8 @@ data:
     name: hitgraphs
     input_hitsgraph_dir: /global/homes/x/xju/atlas/heptrkx/data/hitgraphs_big_000
     output_nxgraph_dir:  /global/cscratch1/sd/xju/heptrkx/data/nxgraphs_big_000
+    input_evt_dir: /global/homes/x/xju/atlas/heptrkx/trackml_inputs/train_all
+    blacklist_dir: /global/homes/x/xju/atlas/heptrkx/trackml_inputs/blacklist
     log_name: data_process.log
 
 model:

@@ -296,7 +296,10 @@ def hitsgraph_to_nx(G, IDs=None, use_digraph=True, bidirection=True):
     return graph
 
 
-def segments_to_nx(hits, segments, sender_name, receiver_name, use_digraph=True, bidirection=True):
+def segments_to_nx(hits, segments,
+                   sender_hitid_name,
+                   receiver_hitid_name,
+                   use_digraph=True, bidirection=True):
     """only pairs with both hits presented in hits are used
     hits: nodes in the graphs
     segments: DataFrame, with columns ['sender_hit_id', 'receiver_hit_id', 'true'], true edge or not
@@ -324,19 +327,19 @@ def segments_to_nx(hits, segments, sender_name, receiver_name, use_digraph=True,
 
     n_edges = segments.shape[0]
     for idx in range(n_edges):
-        in_hit_idx  = int(segments.iloc[idx][sender_name])
-        out_hit_idx = int(segments.iloc[idx][receiver_name])
+        in_hit_idx  = int(segments.iloc[idx][sender_hitid_name])
+        out_hit_idx = int(segments.iloc[idx][receiver_hitid_name])
 
         in_node_idx  = hits_id_dict[in_hit_idx]
         out_node_idx = hits_id_dict[out_hit_idx]
 
-        solution = segments.iloc[idx]['true']
+        solution = segments.iloc[idx]['true'].value
         _add_edge(graph, in_node_idx, out_node_idx, solution, bidirection)
 
     return graph
 
 
-def _add_edge(G, sender, receiver, solution, bidirection, with_edge_features=True):
+def _add_edge(G, sender, receiver, solution, bidirection, edge_features=None):
     f1 = G.node[sender]['pos']   # (r, phi, z)
     f2 = G.node[receiver]['pos']
     if f1[0] > f2[0]:
@@ -345,8 +348,12 @@ def _add_edge(G, sender, receiver, solution, bidirection, with_edge_features=Tru
         sender, receiver = receiver, sender
         f1, f2 = f2, f1
 
-    edge_features = get_edge_features(f1, f2)
-    G.add_edge(sender,  receiver, solution=solution, **edge_features)
+    this_edge_features = get_edge_features(f1, f2)
+    if edge_features is not None:
+        for key,value in edge_features.items():
+            this_edge_features[key] = value
+
+    G.add_edge(sender,  receiver, solution=solution, **this_edge_features)
     if bidirection:
         edge_features = get_edge_features(f2, f1)
         G.add_edge(receiver,  sender, solution=solution, **edge_features)
