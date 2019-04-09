@@ -192,8 +192,6 @@ def is_diff_networkx(G1, G2):
             diff = True
             break
     return diff
-
-
 ## predefined group info
 vlids = [(7,2), (7,4), (7,6), (7,8), (7,10), (7,12), (7,14),
          (8,2), (8,4), (8,6), (8,8),

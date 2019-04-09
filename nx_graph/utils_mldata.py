@@ -12,7 +12,7 @@ import os
 
 def read(data_dir, black_dir, evtid):
     prefix = os.path.join(data_dir, 'event{:09d}'.format(evtid))
-    prefix_bl = os.path.join(black_list_dir, 'event{:09d}-blacklist_'.format(evtid))
+    prefix_bl = os.path.join(black_dir, 'event{:09d}-blacklist_'.format(evtid))
 
     hits_exclude = pd.read_csv(prefix_bl+'hits.csv')
     particles_exclude = pd.read_csv(prefix_bl+'particles.csv')
