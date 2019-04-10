@@ -30,14 +30,17 @@ def pos_transform(r, phi, z):
     eta = -math.log(math.tan(theta*0.5))
     return Pos(x, y, z, eta, phi, theta, r3, r)
 
+
 def dist(x, y):
     return math.sqrt(x**2 + y**2)
+
 
 def wdist(a, d, w):
     pp = a.x*a.x + a.y*a.y + a.z*a.z*w
     pd = a.x*d.x + a.y*d.y + a.z*d.z*w
     dd = d.x*d.x + d.y*d.y + d.z*d.z*w
     return math.sqrt(abs(pp - pd*pd/dd))
+
 
 def wdistr(r1, dr, az, dz, w):
     pp = r1*r1+az*az*w
