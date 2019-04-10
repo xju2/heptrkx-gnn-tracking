@@ -16,6 +16,7 @@ from nx_graph import converters
 from nx_graph import utils_io
 from nx_graph import utils_data
 from postprocess import utils_fit
+from preprocess import utils_mldata
 
 import multiprocessing as mp
 from functools import partial
@@ -25,11 +26,11 @@ def process_event(evt_id, pairs_input_dir, output_dir, n_phi_sections):
     print(os.getppid(),"-->", evt_id)
 
     # full event info
-    evt_file_name = os.path.join(config['input_track_events'], 'event{:09d}')
-    evt_name = evt_file_name.format(evt_id)
+    blacklist_dir = config['input_blacklist']
+    evt_dir = config['input_track_events']
 
-    hits, particles, truth = load_event(
-        evt_name, parts=['hits', 'particles', 'truth'])
+    hits, particles, truth, cells = utils_mldata.read(evt_dir, blacklist_dir, evt_id)
+
     hits = utils_data.merge_truth_info_to_hits(hits, truth, particles)
 
 
@@ -105,11 +106,6 @@ if __name__ == "__main__":
     evt_ids = sorted([int(re.search('pairs_([0-9]*)', os.path.basename(x)).group(1))
                for x in glob.glob(os.path.join(pairs_input_dir, 'pairs_*'))])
 
-    ## check events that are already there
-    #evt_search_pp = 'event00000([0-9]*)_g000_INPUT.npz'
-    #evt_ids_ready = set([int(re.search(evt_search_pp, os.path.basename(x)).group(1))
-    #                 for x in glob.glob(os.path.join(output_dir, 'event*_g000_INPUT.npz'))])
-    #evt_ids = sorted(list(evt_ids.difference(evt_ids_ready)))
     print("events to process:", len(evt_ids))
 
     import time
