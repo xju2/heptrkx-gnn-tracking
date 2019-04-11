@@ -323,7 +323,7 @@ def segments_to_nx(hits, segments,
         graph.add_node(idx,
                        pos=hits.iloc[idx][feature_names].values,
                        hit_id=hit_id,
-                       solution=0.0)
+                       solution=[0.0])
         hits_id_dict[hit_id] = idx
 
     n_edges = segments.shape[0]
@@ -334,7 +334,7 @@ def segments_to_nx(hits, segments,
         in_node_idx  = hits_id_dict[in_hit_idx]
         out_node_idx = hits_id_dict[out_hit_idx]
 
-        solution = segments.iloc[idx]['true'].value
+        solution = [segments.iloc[idx].true]
         _add_edge(graph, in_node_idx, out_node_idx, solution, bidirection)
 
     return graph

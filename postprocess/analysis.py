@@ -47,7 +47,7 @@ def graphs_to_df(nx_graphs):
     return df
 
 
-def summary_on_prediction(G, truth, prediction):
+def summary_on_prediction(G, truth, prediction, do_detail=False):
     """
     truth: DataFrame, contains only good tracks,
     prediction: DataFrame, ['hit_id', 'track_id']
@@ -59,6 +59,14 @@ def summary_on_prediction(G, truth, prediction):
     correct_particles = ss[ss].index
     n_correct = len(correct_particles)
     n_wrong = len(wrong_particles)
+    if not do_detail:
+        return {
+            "n_correct": n_correct,
+            "n_wrong": n_wrong,
+            "correct_pids": correct_particles,
+            "wrong_pids": wrong_particles,
+            'total_predictions': n_total_predictions
+        }
 
     # are wrong particles due to missing edges (i.e they are isolated)
     connected_pids = []
