@@ -7,6 +7,7 @@ import pandas as pd
 import numpy as np
 
 from scipy import optimize
+from nx_graph import transformation
 
 import os
 
@@ -36,7 +37,6 @@ def reconstructable_pids(particles, truth):
 
 
 def create_segments(hits, layer_pairs, gid_keys='layer'):
-    segments = []
     hit_gid_groups = hits.groupby(gid_keys)
 
     def calc_dphi(phi1, phi2):
@@ -47,10 +47,10 @@ def create_segments(hits, layer_pairs, gid_keys='layer'):
         return dphi
 
     def cal_deta(hitpair):
-        r1 = hitpair.r_1
-        r2 = hitpair.r_2
-        z1 = hitpair.z_1
-        z2 = hitpair.z_2
+        r1 = hitpair.r_out
+        r2 = hitpair.r_in
+        z1 = hitpair.z_out
+        z2 = hitpair.z_in
 
         R1 = np.sqrt(r1**2 + z1**2)
         R2 = np.sqrt(r2**2 + z2**2)
@@ -78,20 +78,29 @@ def create_segments(hits, layer_pairs, gid_keys='layer'):
         z0 = hit_pairs.z_in - hit_pairs.r_in * dz / dr
         deta = cal_deta(hit_pairs)
 
+        slopeRZ = np.arctan2(dr, dz)
+
         # Identify the true pairs
         y = (hit_pairs.particle_id_in == hit_pairs.particle_id_out) & (hit_pairs.particle_id_in != 0)
 
         # Put the results in a new dataframe
         df_pairs = hit_pairs[['evtid', 'index_in', 'index_out', 'hit_id_in', 'hit_id_out', 'layer_in', 'layer_out']].assign(dphi=dphi, dz=dz, dr=dr, true=y, phi_slope=phi_slope, z0=z0, deta=deta)
 
-        print('processed:', gid1, gid2, "True edges {} and Fake Edges {}".format(df_pairs[df_pairs['y']==True].shape[0], df_pairs[df_pairs['y']==False].shape[0]))
+
+        n_true_edges = df_pairs[df_pairs['true']==True].shape[0]
+        n_fake_edges = df_pairs[df_pairs['true']==False].shape[0]
+
+        print('processed:', gid1, gid2, "True edges {} and Fake Edges {}, purity {:.3f} %".format(n_true_edges, n_fake_edges, n_true_edges*100/n_fake_edges))
 
         df_pairs = df_pairs.rename(columns={'index_in': 'hit_idx_in', "index_out": 'hit_idx_out'})
+        try:
+            deta1 = hit_pairs.geta_out - hit_pairs.geta_in
+            dphi1 = hit_pairs.gphi_out - hit_pairs.gphi_in
+            df_pairs = df_pairs.assign(deta1=deta1, dphi1=dphi1)
+        except KeyError:
+            pass
 
-        segments.append(df_pairs)
-
-    merged_segments = pd.concat(segments, ignore_index=True)
-    return merged_segments
+        yield df_pairs
 
 
 def get_track_parameters(x, y, z):
@@ -187,3 +196,25 @@ def extract_rotation_matrix(module):
                             [  module.rot_yu.values[0], module.rot_yv.values[0], module.rot_yw.values[0]],
                             [  module.rot_zu.values[0], module.rot_zv.values[0], module.rot_zw.values[0]]])
     return rot_matrix, np.linalg.inv(rot_matrix)
+
+
+def cell_angles(df_hits, module_getter, cells):
+    angles = []
+    for ii in range(df_hits.shape[0]):
+        hit = df_hits.iloc[ii]
+        cell = cells[cells.hit_id == hit.hit_id]
+        module = module_getter(hit.volume_id, hit.layer_id, hit.module_id)
+        l_x, l_y, l_z = local_angle(cell, module)
+
+        module_matrix, module_matrix_inv = extract_rotation_matrix(module)
+        g_matrix = module_matrix * [l_x, l_y, l_z]
+        _, g_theta, g_phi = transformation.cartesion_to_spherical(g_matrix[0][0], g_matrix[1][0], g_matrix[2][0])
+        _, l_theta, l_phi = transformation.cartesion_to_spherical(l_x[0], l_y[0], l_z[0])
+
+        l_eta = transformation.theta_to_eta(l_theta)
+        g_eta = transformation.theta_to_eta(g_theta[0, 0])
+
+        angles.append([int(hit.hit_id), l_eta, l_phi, g_eta, g_phi[0, 0]])
+
+    df_angles = pd.DataFrame(angles, columns=['hit_id', 'leta', 'lphi', 'geta', 'gphi'])
+    return df_angles
