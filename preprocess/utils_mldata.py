@@ -3,8 +3,6 @@ process in Tracking ML data
 """
 from trackml.dataset import load_event
 
-from postprocess import utils_fit
-
 import pandas as pd
 import numpy as np
 
@@ -37,13 +35,33 @@ def reconstructable_pids(particles, truth):
     return np.unique(reconstructable_particles.particle_id)
 
 
-def create_segments(hits, layers, gid_keys='layer'):
+def create_segments(hits, layer_pairs, gid_keys='layer'):
     segments = []
     hit_gid_groups = hits.groupby(gid_keys)
 
+    def calc_dphi(phi1, phi2):
+        """Computes phi2-phi1 given in range [-pi,pi]"""
+        dphi = phi2 - phi1
+        dphi[dphi > np.pi] -= 2*np.pi
+        dphi[dphi < -np.pi] += 2*np.pi
+        return dphi
+
+    def cal_deta(hitpair):
+        r1 = hitpair.r_1
+        r2 = hitpair.r_2
+        z1 = hitpair.z_1
+        z2 = hitpair.z_2
+
+        R1 = np.sqrt(r1**2 + z1**2)
+        R2 = np.sqrt(r2**2 + z2**2)
+        theta1 = np.arccos(z1/R1)
+        theta2 = np.arccos(z2/R2)
+        eta1 = -np.log(np.tan(theta1/2.0))
+        eta2 = -np.log(np.tan(theta2/2.0))
+        return eta1 - eta2
 
     # Loop over geometry ID pairs
-    for gid1, gid2 in utils_fit.pairwise(layers):
+    for gid1, gid2 in layer_pairs:
         hits1 = hit_gid_groups.get_group(gid1)
         hits2 = hit_gid_groups.get_group(gid2)
 
@@ -53,15 +71,15 @@ def create_segments(hits, layers, gid_keys='layer'):
             how='inner', on='evtid', suffixes=('_in', '_out'))
 
         # Calculate coordinate differences
-        dphi = calc_dphi(hit_pairs.phi_1, hit_pairs.phi_2)
-        dz = hit_pairs.z_2 - hit_pairs.z_1
-        dr = hit_pairs.r_2 - hit_pairs.r_1
+        dphi = calc_dphi(hit_pairs.phi_in, hit_pairs.phi_out)
+        dz = hit_pairs.z_out - hit_pairs.z_in
+        dr = hit_pairs.r_out - hit_pairs.r_in
         phi_slope = dphi / dr
-        z0 = hit_pairs.z_1 - hit_pairs.r_1 * dz / dr
+        z0 = hit_pairs.z_in - hit_pairs.r_in * dz / dr
         deta = cal_deta(hit_pairs)
 
         # Identify the true pairs
-        y = (hit_pairs.particle_id_1 == hit_pairs.particle_id_2) & (hit_pairs.particle_id_1 != 0)
+        y = (hit_pairs.particle_id_in == hit_pairs.particle_id_out) & (hit_pairs.particle_id_in != 0)
 
         # Put the results in a new dataframe
         df_pairs = hit_pairs[['evtid', 'index_in', 'index_out', 'hit_id_in', 'hit_id_out', 'layer_in', 'layer_out']].assign(dphi=dphi, dz=dz, dr=dr, true=y, phi_slope=phi_slope, z0=z0, deta=deta)
@@ -148,8 +166,8 @@ def get_track_parameters(x, y, z):
 
 
 def local_angle(cell, module):
-    n_u = max(cell['ch0']) - min(cell['ch0'])
-    n_v = max(cell['ch1']) - min(cell['ch1'])
+    n_u = max(cell['ch0']) - min(cell['ch0']) + 1
+    n_v = max(cell['ch1']) - min(cell['ch1']) + 1
     l_u = n_u * module.pitch_u.values   # x
     l_v = n_v * module.pitch_v.values   # y
     l_w = 2   * module.module_t.values  # z
