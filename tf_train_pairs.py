@@ -10,6 +10,8 @@ if __name__ == "__main__":
     add_arg('file_name',  nargs='?', default='input_pairs/pair000.h5', help='file name for pair candidates')
     add_arg('--batch-size',  type=int, default=64)
     add_arg('--epochs',  type=int, default=1)
+    add_arg('--resume-train',  action='store_true')
+
     args = parser.parse_args()
 
     batch_size = args.batch_size
@@ -35,9 +37,14 @@ if __name__ == "__main__":
             keras.layers.Dense(32, activation=tf.nn.relu),
             keras.layers.Dense(1, activation=tf.nn.sigmoid)])
 
+    if args.resume_train and os.path.exists(checkpoint_path):
+        print("Resume previous training")
+        model.load_weight(checkpoint_path)
+
     model.compile(optimizer='adam',
                   loss='binary_crossentropy',
                   metrics=['accuracy'])
+
 
     import pandas as pd
     import numpy as np
@@ -76,7 +83,7 @@ if __name__ == "__main__":
                         epochs=epochs, batch_size=batch_size,
                         validation_data=(x_val, y_val),
                         callbacks = [cp_callback],
-                        class_weight={0: 0.1, 1: 100},
+                        class_weight={0: 1, 1: n_fake/n_true},
                         verbose=1)
 
     prediction = model.predict(x_test,
