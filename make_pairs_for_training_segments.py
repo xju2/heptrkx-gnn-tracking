@@ -1,5 +1,14 @@
 #!/usr/bin/env python3
 
+def process(input_info, selected_hits_angle):
+    layer_pair, ii = input_info
+    output_pairs_dir = 'input_pairs'
+    segments = list(utils_mldata.create_segments(selected_hits_angle, [layer_pair]))
+
+    with pd.HDFStore(os.path.join(output_pairs_dir, 'pair{:03d}.h5'.format(ii))) as store:
+            store['data'] = segments[0]
+
+
 if __name__ == "__main__":
     data_dir = '/global/homes/x/xju/atlas/heptrkx/trackml_inputs/train_all'
     black_list_dir = '/global/homes/x/xju/atlas/heptrkx/trackml_inputs/blacklist'
@@ -20,7 +29,9 @@ if __name__ == "__main__":
     unique_pids = np.unique(hh['particle_id'])
     print("Number of particles:", unique_pids.shape, reco_pids.shape)
 
-    selected_hits = hh.assign(evtid=evtid)
+    n_pids = 5000
+    selected_pids = np.random.choice(unique_pids, size=n_pids)
+    selected_hits = hh[hh.particle_id.isin(selected_pids)].assign(evtid=evtid)
     all_layers = np.unique(selected_hits.layer)
     print("Total Number of Layers:", len(all_layers))
 
@@ -49,9 +60,21 @@ if __name__ == "__main__":
     det_dir  = '/global/homes/x/xju/atlas/heptrkx/trackml_inputs/detectors.csv'
     module_getter = utils_mldata.module_info(det_dir)
 
+    from functools import partial
+
     local_angles = utils_mldata.cell_angles(selected_hits, module_getter, cells)
     selected_hits_angle = selected_hits.merge(local_angles, on='hit_id', how='left')
 
-    output_pairs_dir = 'input_pairs'
-    for ii,df_seg in enumerate(utils_mldata.create_segments(selected_hits_angle, layer_pairs)):
-        df_seg.to_csv(os.path.join(output_pairs_dir, 'pair{:03d}.csv'.format(ii)))
+    pp_layers_info = [(x, ii) for ii,x in enumerate(layer_pairs)]
+    n_workers = len(layer_pairs)
+    print("Workers:", n_workers)
+
+    import multiprocessing as mp
+    with mp.Pool(processes=n_workers) as pool:
+        pp_func=partial(process, selected_hits_angle=selected_hits_angle)
+        pool.map(pp_func, pp_layers_info)
+
+#    output_pairs_dir = 'input_pairs'
+#    for ii,df_seg in enumerate(utils_mldata.create_segments(selected_hits_angle, layer_pairs)):
+#        with pd.HDFStore(os.path.join(output_pairs_dir, 'pair{:03d}.h5'.format(ii))) as store:
+#            store['data'] = df_seg
