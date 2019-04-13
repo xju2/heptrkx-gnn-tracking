@@ -39,7 +39,7 @@ if __name__ == "__main__":
 
     if args.resume_train and os.path.exists(checkpoint_path+".index"):
         print("Resume previous training")
-        model.load_weight(checkpoint_path)
+        model.load_weights(checkpoint_path)
 
     model.compile(optimizer='adam',
                   loss='binary_crossentropy',
