@@ -37,7 +37,7 @@ if __name__ == "__main__":
             keras.layers.Dense(32, activation=tf.nn.relu),
             keras.layers.Dense(1, activation=tf.nn.sigmoid)])
 
-    if args.resume_train and os.path.exists(checkpoint_path):
+    if args.resume_train and os.path.exists(checkpoint_path+".index"):
         print("Resume previous training")
         model.load_weight(checkpoint_path)
 
