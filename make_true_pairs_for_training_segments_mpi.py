@@ -64,6 +64,7 @@ if __name__ == "__main__":
     import pandas as pd
     from nx_graph import utils_data
 
+    base_output_dir = os.path.join('input_pairs', 'true_pairs')
     if rank == 0:
         all_files = glob.glob(os.path.join(data_dir, '*-hits.csv'))
         evt_ids = np.sort([int(re.search('event00000([0-9]*)-hits.csv',
@@ -71,16 +72,22 @@ if __name__ == "__main__":
                            for x in all_files])
         n_events = len(evt_ids)
         print("Total Events:", n_events)
-        print(evt_ids[0])
+
+        # remove existing ones
+        all_existing_files = glob.glob(os.path.join(base_output_dir, '*'))
+        existing_evt_ids = set([int(os.path.basename(x)[3:]) for x in all_existing_files])
+        set_evt_ids = set(evt_ids.tolist())
+        evt_ids = np.array(list(set_evt_ids.difference(existing_evt_ids)))
+        print("Left Events:", len(evt_ids))
+
+        ## check existing evt-ids
         evt_ids = [x.tolist() for x in np.array_split(evt_ids, size)]
 
     else:
-        n_events = 0
         evt_ids = None
 
     if use_mpi:
         comm.Barrier()
-        n_events = comm.bcast(n_events, root=0)
         evt_ids = comm.scatter(evt_ids, root=0)
     else:
         evt_ids = evt_ids[0]
@@ -97,6 +104,9 @@ if __name__ == "__main__":
     print(rank, "# evts:", len(evt_ids))
 
     for evtid in evt_ids:
+        output_dir = os.path.join(base_output_dir, 'evt{}'.format(evtid))
+        if os.path.exists(output_dir):
+            continue
         hits, particles, truth, cells = utils_mldata.read(data_dir, black_list_dir, evtid)
 
         reco_pids = utils_mldata.reconstructable_pids(particles, truth)
@@ -115,7 +125,6 @@ if __name__ == "__main__":
 
         pp_layers_info = [(x, ii) for ii,x in enumerate(layer_pairs)]
 
-        output_dir = os.path.join('input_pairs', 'true_pairs', 'evt{}'.format(evtid))
         with mp.Pool(processes=n_workers) as pool:
             pp_func=partial(process, selected_hits_angle=selected_hits_angle, output_dir=output_dir)
             segments = pool.map(pp_func, pp_layers_info)

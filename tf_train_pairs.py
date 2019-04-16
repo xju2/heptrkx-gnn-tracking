@@ -91,9 +91,24 @@ if __name__ == "__main__":
     prediction = model.predict(x_test,
                                batch_size=batch_size)
 
+
     from nx_graph.utils_plot import plot_metrics
     from make_pairs_for_training_segments import layer_pairs
     layer_info = dict([(ii, layer_pair) for ii, layer_pair in enumerate(layer_pairs)])
-    pair_info = layer_info[int(pairs_base_name.replace('.h5', '')[4:])]
+    pair_idx = int(pairs_base_name.replace('.h5', '')[4:])
+    pair_info = layer_info[pair_idx]
+
+    output_dir = os.path.join('trained_results', 'doublets')
     plot_metrics(prediction, y_test,
-                 outname='trained_results/doublets/roc_{}-{}.png'.format(*pair_info))
+                 outname=os.path.join(output_dir, 'roc_{}-{}.png'.format(*pair_info)))
+
+    # find a threshold
+    fpr, tpr, thresholds = sklearn.metrics.roc_curve(prediction, y_test)
+    from bisect import bisect
+    ti = bisect(tpr, 0.99)
+    thres = thresholds[ti+1]
+    out = "{} {} {} {th:.4f} {tp:.4f} {fp:.4f} {true} {fake}".format(
+        pair_idx, *pair_info, th=thres, tp=tpr[ti+1], fp=fpr[ti+1],
+        true=n_true, fake=n_fake)
+    with open(os.path.join(output_dir, 'info_{}-{}.txt'.format(*pair_info)), 'a') as f:
+        f.write(out)
