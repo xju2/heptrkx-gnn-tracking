@@ -20,13 +20,17 @@ layer_pairs = [
 ]
 
 
-def process(input_info, selected_hits_angle):
+def process(input_info, selected_hits_angle, output_dir):
     layer_pair, ii = input_info
-    segments = list(utils_mldata.create_segments(selected_hits_angle, [layer_pair]))
-    return segments[0]
+    segments = list(utils_mldata.create_segments(selected_hits_angle, [layer_pair], only_true=True))
+    os.makedirs(output_dir, exist_ok=True)
+
+    with pd.HDFStore(os.path.join(output_dir, 'pair{:03d}.h5'.format(ii))) as store:
+            store['data'] = segments[0]
 
 
-def merge_and_save(all_segments, output_pairs_dir):
+def merge_and_save(all_segments_, output_pairs_dir):
+    all_segments, ii = all_segments_
     merged_segments = pd.concat([x[x.true] for x in all_segments], ignore_index=True)
 
     os.makedirs(output_pairs_dir, exist_ok=True)
@@ -35,6 +39,9 @@ def merge_and_save(all_segments, output_pairs_dir):
 
 
 if __name__ == "__main__":
+    import os
+    import glob
+    import re
 
     try:
         from mpi4py import MPI
@@ -51,25 +58,22 @@ if __name__ == "__main__":
     data_dir = '/global/homes/x/xju/atlas/heptrkx/trackml_inputs/train_all'
     black_list_dir = '/global/homes/x/xju/atlas/heptrkx/trackml_inputs/blacklist'
 
-    import os
     from preprocess import utils_mldata
-    import glob
-    import re
 
     import numpy as np
     import pandas as pd
     from nx_graph import utils_data
 
     if rank == 0:
-        #all_files = glob.glob(os.path.join(data_dir, '*-hits.csv'))
-        #evt_ids = np.sort([int(re.search('event00000([0-9]*)-hits.csv',
-        #                                 os.path.basename(x)).group(1))
-        #                   for x in all_files])
-        evt_ids = [1000, 1001]
+        all_files = glob.glob(os.path.join(data_dir, '*-hits.csv'))
+        evt_ids = np.sort([int(re.search('event00000([0-9]*)-hits.csv',
+                                         os.path.basename(x)).group(1))
+                           for x in all_files])
         n_events = len(evt_ids)
         print("Total Events:", n_events)
         print(evt_ids[0])
         evt_ids = [x.tolist() for x in np.array_split(evt_ids, size)]
+
     else:
         n_events = 0
         evt_ids = None
@@ -92,7 +96,6 @@ if __name__ == "__main__":
     print(rank, "# workers:", n_workers)
     print(rank, "# evts:", len(evt_ids))
 
-    all_segments = []
     for evtid in evt_ids:
         hits, particles, truth, cells = utils_mldata.read(data_dir, black_list_dir, evtid)
 
@@ -112,22 +115,7 @@ if __name__ == "__main__":
 
         pp_layers_info = [(x, ii) for ii,x in enumerate(layer_pairs)]
 
+        output_dir = os.path.join('input_pairs', 'true_pairs', 'evt{}'.format(evtid))
         with mp.Pool(processes=n_workers) as pool:
-            pp_func=partial(process, selected_hits_angle=selected_hits_angle)
+            pp_func=partial(process, selected_hits_angle=selected_hits_angle, output_dir=output_dir)
             segments = pool.map(pp_func, pp_layers_info)
-
-        all_segments.append(segments)
-
-    if use_mpi:
-        comm.Barrier()
-        all_segments = comm.gather(all_segments, root=0)
-
-    if rank == 0:
-        pp_segments = []
-        for ilayer in range(len(layer_pairs)):
-            pp_segments.append([x[ilayer] for x in all_segments])
-
-        ## merge segments of each layer pair in all events
-        with mp.Pool(processes=n_workers) as pool:
-            merge_fnc=partial(merge_and_save, output_pairs_dir=os.path.join('input_pairs', 'all_evts'))
-            pool.map(merge_fnc, pp_segments)
