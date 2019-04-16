@@ -79,10 +79,12 @@ if __name__ == "__main__":
     y_test = all_targets[n_training+n_validating:, :]
 
 
+    early_stop = tf.keras.callbacks.EarlyStopping(monitor='val_acc', min_delta=0.0001)
+
     history = model.fit(inputs, targets,
                         epochs=epochs, batch_size=batch_size,
                         validation_data=(x_val, y_val),
-                        callbacks = [cp_callback],
+                        callbacks = [cp_callback, early_stop],
                         class_weight={0: 1, 1: n_fake/n_true},
                         verbose=1)
 
@@ -90,6 +92,8 @@ if __name__ == "__main__":
                                batch_size=batch_size)
 
     from nx_graph.utils_plot import plot_metrics
+    from make_pairs_for_training_segments import layer_pairs
+    layer_info = dict([(ii, layer_pair) for ii, layer_pair in enumerate(layer_pairs)])
+    pair_info = layer_info[int(pairs_base_name.replace('.h5', '')[4:])]
     plot_metrics(prediction, y_test,
-                 outname='trained_results/doublets/roc_{}'.format(pairs_base_name.replace('h5', 'png')))
-
+                 outname='trained_results/doublets/roc_{}-{}.png'.format(*pair_info))

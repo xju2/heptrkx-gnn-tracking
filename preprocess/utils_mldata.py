@@ -36,7 +36,7 @@ def reconstructable_pids(particles, truth):
     return np.unique(reconstructable_particles.particle_id)
 
 
-def create_segments(hits, layer_pairs, gid_keys='layer'):
+def create_segments(hits, layer_pairs, gid_keys='layer', only_true=False):
     hit_gid_groups = hits.groupby(gid_keys)
 
     def calc_dphi(phi1, phi2):
@@ -70,6 +70,12 @@ def create_segments(hits, layer_pairs, gid_keys='layer'):
             hits1.reset_index(), hits2.reset_index(),
             how='inner', on='evtid', suffixes=('_in', '_out'))
 
+        # Identify the true pairs
+        y = (hit_pairs.particle_id_in == hit_pairs.particle_id_out) & (hit_pairs.particle_id_in != 0)
+
+        if only_true:
+            hit_pairs = hit_pairs[y]
+
         # Calculate coordinate differences
         dphi = calc_dphi(hit_pairs.phi_in, hit_pairs.phi_out)
         dz = hit_pairs.z_out - hit_pairs.z_in
@@ -80,8 +86,6 @@ def create_segments(hits, layer_pairs, gid_keys='layer'):
 
         slopeRZ = np.arctan2(dr, dz)
 
-        # Identify the true pairs
-        y = (hit_pairs.particle_id_in == hit_pairs.particle_id_out) & (hit_pairs.particle_id_in != 0)
 
         # Put the results in a new dataframe
         df_pairs = hit_pairs[['evtid', 'index_in', 'index_out', 'hit_id_in', 'hit_id_out', 'layer_in', 'layer_out']].assign(dphi=dphi, dz=dz, dr=dr, true=y, phi_slope=phi_slope, z0=z0, deta=deta)
@@ -90,7 +94,7 @@ def create_segments(hits, layer_pairs, gid_keys='layer'):
         n_true_edges = df_pairs[df_pairs['true']==True].shape[0]
         n_fake_edges = df_pairs[df_pairs['true']==False].shape[0]
 
-        print('processed:', gid1, gid2, "True edges {} and Fake Edges {}, purity {:.3f} %".format(n_true_edges, n_fake_edges, n_true_edges*100/n_fake_edges))
+        # print('processed:', gid1, gid2, "True edges {} and Fake Edges {}, purity {:.3f} %".format(n_true_edges, n_fake_edges, n_true_edges*100/n_fake_edges))
 
         df_pairs = df_pairs.rename(columns={'index_in': 'hit_idx_in', "index_out": 'hit_idx_out'})
         try:
