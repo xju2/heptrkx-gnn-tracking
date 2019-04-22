@@ -18,6 +18,8 @@ layer_pairs = [
     (17, 33), (17, 32), (17, 31), (16, 31), (16, 30), (15, 30), (15, 29), (14, 29), (14, 28), (13, 29), (13, 28),
     (11, 24), (12, 24), (6, 24), (5, 24), (4, 24)
 ]
+layer_pairs_dict = dict([(ii, layer_pair) for ii, layer_pair in enumerate(layer_pairs)])
+pairs_layer_dict = dict([(layer_pair, ii) for ii, layer_pair in enumerate(layer_pairs)])
 
 
 def process(input_info, selected_hits_angle, output_dir):
@@ -64,7 +66,7 @@ if __name__ == "__main__":
     import pandas as pd
     from nx_graph import utils_data
 
-    base_output_dir = os.path.join('input_pairs', 'true_pairs')
+    base_output_dir = os.path.join('/global/cscratch1/sd/xju/heptrkx/pairs', 'true_pairs')
     if rank == 0:
         all_files = glob.glob(os.path.join(data_dir, '*-hits.csv'))
         evt_ids = np.sort([int(re.search('event00000([0-9]*)-hits.csv',
@@ -127,4 +129,4 @@ if __name__ == "__main__":
 
         with mp.Pool(processes=n_workers) as pool:
             pp_func=partial(process, selected_hits_angle=selected_hits_angle, output_dir=output_dir)
-            segments = pool.map(pp_func, pp_layers_info)
+            pool.map(pp_func, pp_layers_info)

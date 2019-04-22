@@ -18,6 +18,8 @@ layer_pairs = [
     (17, 33), (17, 32), (17, 31), (16, 31), (16, 30), (15, 30), (15, 29), (14, 29), (14, 28), (13, 29), (13, 28),
     (11, 24), (12, 24), (6, 24), (5, 24), (4, 24)
 ]
+layer_pairs_dict = dict([(ii, layer_pair) for ii, layer_pair in enumerate(layer_pairs)])
+pairs_layer_dict = dict([(layer_pair, ii) for ii, layer_pair in enumerate(layer_pairs)])
 
 
 def process(input_info, selected_hits_angle):

@@ -300,10 +300,11 @@ def hitsgraph_to_nx(G, IDs=None, use_digraph=True, bidirection=True):
 def segments_to_nx(hits, segments,
                    sender_hitid_name,
                    receiver_hitid_name,
+                   solution_name,
                    use_digraph=True, bidirection=True):
     """only pairs with both hits presented in hits are used
     hits: nodes in the graphs
-    segments: DataFrame, with columns ['sender_hit_id', 'receiver_hit_id', 'true'], true edge or not
+    segments: DataFrame, with columns ['sender_hit_id', 'receiver_hit_id', 'solution_name'], true edge or not
     """
 
     #h0_edges = pairs[(pairs['hit_id_in'].isin(hits['hit_id'])) & (pairs['hit_id_out'].isin(hits['hit_id']))]
@@ -334,7 +335,7 @@ def segments_to_nx(hits, segments,
         in_node_idx  = hits_id_dict[in_hit_idx]
         out_node_idx = hits_id_dict[out_hit_idx]
 
-        solution = [segments.iloc[idx].true]
+        solution = [segments.iloc[idx][solution_name]]
         _add_edge(graph, in_node_idx, out_node_idx, solution, bidirection)
 
     return graph
@@ -419,3 +420,19 @@ def nx_to_pandas(nx_G, edge_feature=None):
 
 
     return df_nodes, df_edges
+
+
+def split_list(input_list, frac_train=0.8, frac_val=0.1):
+    if type(input_list) is not list:
+        print("input has to be a list")
+        return [None]*3
+
+    n_total = len(input_list)
+    n_train = int(n_total*frac_train)
+    n_val   = int(n_total*frac_val)
+    n_test  = n_total - n_train - n_val
+    return [input_list[:n_train],
+            input_list[n_train:n_train+n_val],
+            input_list[n_train+n_val:]]
+
+
