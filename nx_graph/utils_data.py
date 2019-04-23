@@ -208,14 +208,16 @@ vlids = [(7,2), (7,4), (7,6), (7,8), (7,10), (7,12), (7,14),
 n_det_layers = len(vlids)
 
 def merge_truth_info_to_hits(hits, truth, particles):
-    px = particles.px
-    py = particles.py
-    pt = np.sqrt(px**2 + py**2)
-    particles = particles.assign(pt=pt)
+    if 'pt' not in particles.columns:
+        px = particles.px
+        py = particles.py
+        pt = np.sqrt(px**2 + py**2)
+        particles = particles.assign(pt=pt)
 
-    truth = truth.merge(particles, on='particle_id')
+    hits = hits.merge(truth, on='hit_id', how='left')
+    hits = hits.merge(particles, on='particle_id', how='left')
     ## selective information
-    hits = hits.merge(truth[['hit_id', 'particle_id', 'pt', 'nhits', 'weight']], on='hit_id', how='left')
+    ### noise hits does not have particle info
     hits = hits.fillna(value=0)
 
     # Assign convenient layer number [0-47]
