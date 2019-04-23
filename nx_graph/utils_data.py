@@ -436,3 +436,31 @@ def split_list(input_list, frac_train=0.8, frac_val=0.1):
             input_list[n_train+n_val:]]
 
 
+def segments_to_hitsgraph(hits, segments, feature_names, feature_scale,
+                          in_name='hit_id_in', out_name='hit_id_out'):
+    n_hits = hits.shape[0]
+    hit_ids = hits.hit_id.values
+    segments = segments[segments[in_name].isin(hit_ids) & segments[out_name].isin(hit_ids)]
+    n_edges = segments.shape[0]
+
+    X = (hits[feature_names].values/feature_scale).astype(np.float32)
+    Ri = np.zeros((n_hits, n_edges), dtype=np.uint8)
+    Ro = np.zeros((n_hits, n_edges), dtype=np.uint8)
+    y = np.zeros(n_edges, dtype=np.float32)
+    I = hits['hit_id']
+
+    hit_idx = pd.Series(np.arange(n_hits), index=hits.index)
+    seg_start = hit_idx.loc[segments[in_name]].values
+    seg_end = hit_idx.loc[segments[out_name]].values
+
+    # Now we can fill the association matrices.
+    # Note that Ri maps hits onto their incoming edges,
+    # which are actually segment endings.
+    Ri[seg_end, np.arange(n_edges)] = 1
+    Ro[seg_start, np.arange(n_edges)] = 1
+    # Fill the segment labels
+    pid1 = hits.particle_id.loc[segments[in_name]].values
+    pid2 = hits.particle_id.loc[segments[out_name]].values
+    y[:] = (pid1 == pid2)
+    # Return a tuple of the results
+    return Graph(X, Ri, Ro, y), I
