@@ -2,6 +2,7 @@ import networkx as nx
 import numpy as np
 
 import matplotlib.pyplot as plt
+
 import sklearn.metrics
 
 fontsize=16
@@ -114,7 +115,10 @@ def plot_hits(hits, numb=5, fig=None):
     return fig, axs
 
 
-def plot_metrics(odd, tdd, odd_th=0.5, tdd_th=0.5, outname='roc_graph_nets.eps'):
+def plot_metrics(odd, tdd, odd_th=0.5, tdd_th=0.5, outname='roc_graph_nets.eps', off_interactive=False):
+    if off_interactive:
+        plt.ioff()
+
     y_pred, y_true = (odd > odd_th), (tdd > tdd_th)
     accuracy  = sklearn.metrics.accuracy_score(y_true, y_pred)
     precision = sklearn.metrics.precision_score(y_true, y_pred)
@@ -162,3 +166,5 @@ def plot_metrics(odd, tdd, odd_th=0.5, tdd_th=0.5, outname='roc_graph_nets.eps')
     ax3.tick_params(width=2, grid_alpha=0.5, labelsize=minor_size)
 
     plt.savefig(outname)
+    if off_interactive:
+        plt.close(fig)

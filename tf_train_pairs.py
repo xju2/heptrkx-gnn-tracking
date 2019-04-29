@@ -18,25 +18,28 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='Keras train pairs for each layer-pairs')
     add_arg = parser.add_argument
-    add_arg('file_name',  nargs='?', default='~/atlas/heptrkx/trackml_inputs/doublet_candidates_for_training/all_pairs/evt6600/pair000.h5',
-            help='file name for pair candidates')
-    add_arg('--batch-size',  type=int, default=64)
-    add_arg('--epochs',  type=int, default=1)
+    add_arg('config', nargs='?', default='configs/train_pairs.yaml')
     add_arg('--resume-train',  action='store_true')
-    add_arg('--true-file', type=str, default=None)
     add_arg('--in-eval', action='store_true')
-    add_arg('--eff-cut', type=float, default=0.98, help='threshold that renders such efficiency')
-    #add_arg('--true-file', type=str, default='/global/cscratch1/sd/xju/heptrkx/pairs/merged_true_pairs/training/pair000.h5')
+    add_arg('--file-name', type=str, default=None)
+    add_arg('--truth-file', type=str, default=None)
 
     args = parser.parse_args()
 
-    batch_size = args.batch_size
-    epochs = args.epochs
+    import yaml
+    with open(args.config) as f:
+        config = yaml.load(f)
 
 
-    output_dir = os.path.join('trained_results', 'doublets')
+    batch_size = config['train']['batch_size']
+    epochs = config['train']['epochs']
+    output_dir = config['output_dir']
+    file_name = config['data']['file_name']
+    if args.file_name is not None:
+        file_name = args.file_name
+
     ## save checkpoints
-    pairs_base_name = os.path.basename(args.file_name)
+    pairs_base_name = os.path.basename(file_name)
     checkpoint_path = os.path.join(output_dir, "model{}".format(pairs_base_name.replace('h5', 'ckpt')))
     checkpoint_dir = os.path.dirname(checkpoint_path)
 
@@ -75,24 +78,26 @@ if __name__ == "__main__":
 
     import pandas as pd
     import numpy as np
-    #df_input = pd.read_csv(args.file_name)
-    with pd.HDFStore(args.file_name) as store:
+    with pd.HDFStore(file_name) as store:
         df_input = store['data'].astype(np.float64)
 
 
-    if args.true_file:
+    true_file = config['data']['truth_file']
+    if args.truth_file is not None:
+        true_file = args.true_file
+
+    if true_file is not 'None':
         from sklearn.utils import shuffle
-        with pd.HDFStore(args.true_file) as store:
+        with pd.HDFStore(true_file) as store:
             df_true = store['data'].astype(np.float64)
             df_input = pd.concat([df_input, df_true], ignore_index=True)
             df_input = shuffle(df_input)
-            #df_input = df_input.sample(frac=1).reset_index(drop=True)
 
-    #df_input['true'] = df_input['true'].astype(np.int32)
     df_input = keep_finite(df_input)
+    features = config['data']['features']
 
 
-    all_inputs  = df_input[['dphi', 'dz', 'dr', 'phi_slope', 'z0', 'deta', 'deta1', 'dphi1']].values
+    all_inputs  = df_input[features].values
     all_targets = df_input[['true']].values
     n_total = all_inputs.shape[0]
     n_true = np.sum(all_targets)
@@ -147,8 +152,9 @@ if __name__ == "__main__":
     purity, efficiency, thresholds = precision_recall_curve(y_true, prediction)
     #print(len(purity), len(efficiency), len(thresholds))
 
+    eff_cut = config['prediction']['eff_cut']
     from bisect import bisect
-    ti = bisect(list(reversed(efficiency.tolist())), args.eff_cut)
+    ti = bisect(list(reversed(efficiency.tolist())), eff_cut)
     ti = len(efficiency) - ti
     thres = thresholds[ti]
     out = "{} {} {} {th:.4f} {tp:.4f} {fp:.4f} {true} {fake}".format(
@@ -157,3 +163,8 @@ if __name__ == "__main__":
 
     with open(outname, 'a') as f:
         f.write(out)
+
+
+    # save prediction and test result
+    out_predictions = os.path.join(output_dir, 'test_prediction.npz')
+    np.savez(out_predictions, prediction=prediction, test=y_test)
