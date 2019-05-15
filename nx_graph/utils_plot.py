@@ -168,3 +168,27 @@ def plot_metrics(odd, tdd, odd_th=0.5, tdd_th=0.5, outname='roc_graph_nets.eps',
     plt.savefig(outname)
     if off_interactive:
         plt.close(fig)
+
+
+def pixel_matrix(pixel_cluster, show=False):
+    # cluster size
+    min0 = min(pixel_cluster['ch0'])
+    max0 = max(pixel_cluster['ch0'])
+    min1 = min(pixel_cluster['ch1'])
+    max1 = max(pixel_cluster['ch1'])
+    # the matrix
+    matrix = np.zeros(((max1-min1+3),(max0-min0+3)))
+    for pixel in pixel_cluster.values :
+        i0 = int(pixel[1]-min0+1)
+        i1 = int(pixel[2]-min1+1)
+        value = pixel[3]
+        matrix[i1][i0] = value 
+    # return the matris
+    if show :
+        fig = plt.figure()
+        ax = fig.add_subplot(1,1,1)
+        ax.set_aspect('equal')
+        plt.imshow(matrix, interpolation='nearest', cmap=plt.cm.YlOrRd)
+        plt.colorbar()
+        plt.show()
+    return matrix, max0-min0+1, max1-min1+1

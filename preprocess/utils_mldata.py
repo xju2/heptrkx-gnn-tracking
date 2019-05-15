@@ -15,6 +15,9 @@ def read(data_dir, black_dir, evtid):
     prefix = os.path.join(data_dir, 'event{:09d}'.format(evtid))
     prefix_bl = os.path.join(black_dir, 'event{:09d}-blacklist_'.format(evtid))
 
+    if not os.path.exists( prefix+'-hits.csv'):
+        return None
+
     hits_exclude = pd.read_csv(prefix_bl+'hits.csv')
     particles_exclude = pd.read_csv(prefix_bl+'particles.csv')
 
@@ -88,7 +91,11 @@ def create_segments(hits, layer_pairs, gid_keys='layer', only_true=False):
 
 
         # Put the results in a new dataframe
-        df_pairs = hit_pairs[['evtid', 'index_in', 'index_out', 'hit_id_in', 'hit_id_out', 'layer_in', 'layer_out']].assign(dphi=dphi, dz=dz, dr=dr, true=y, phi_slope=phi_slope, z0=z0, deta=deta)
+        df_pairs = hit_pairs[['evtid', 'index_in', 'index_out',
+                              'hit_id_in', 'hit_id_out',
+                              'x_in', 'x_out', 'y_in', 'y_out', 'z_in', 'z_out',
+                              'layer_in', 'layer_out']].assign(
+                                  dphi=dphi, dz=dz, dr=dr, true=y, phi_slope=phi_slope, z0=z0, deta=deta)
 
 
         n_true_edges = df_pairs[df_pairs['true']==True].shape[0]
@@ -217,8 +224,9 @@ def cell_angles(df_hits, module_getter, cells):
 
         l_eta = transformation.theta_to_eta(l_theta)
         g_eta = transformation.theta_to_eta(g_theta[0, 0])
+        lx, ly, lz = l_x[0], l_y[0], l_z[0]
 
-        angles.append([int(hit.hit_id), l_eta, l_phi, g_eta, g_phi[0, 0]])
+        angles.append([int(hit.hit_id), l_eta, l_phi, lx, ly, lz, g_eta, g_phi[0, 0]])
 
-    df_angles = pd.DataFrame(angles, columns=['hit_id', 'leta', 'lphi', 'geta', 'gphi'])
+    df_angles = pd.DataFrame(angles, columns=['hit_id', 'leta', 'lphi', 'lx', 'ly', 'lz', 'geta', 'gphi'])
     return df_angles

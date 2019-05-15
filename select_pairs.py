@@ -23,7 +23,8 @@ if __name__ == "__main__":
         import yaml
         with open(args.config) as f:
             config = yaml.load(f)
-        pair_basename = os.path.basename(config['data']['file_name']).replace('.h5', '.ckpt')
+        #pair_basename = os.path.basename(config['data']['file_name']).replace('.h5', '.ckpt')
+        pair_basename = os.path.basename(file_name).replace('.h5', '.ckpt')
         model_weight_dir = os.path.join(config['output_dir'], 'model{}'.format(pair_basename))
         features = config['data']['features']
     else:
@@ -72,7 +73,7 @@ if __name__ == "__main__":
 
     all_targets = df_input[['true']].values
     plot_metrics(prediction, all_targets,
-                 outname=os.path.join(output_dir, 'roc{}_{}-{}.png'.format(pair_idx, *pair_info)))
+                 outname=os.path.join(output_dir, 'roc{:03d}_{}-{}.png'.format(pair_idx, *pair_info)))
 
     df_input = df_input.assign(prediction=prediction, selected=(prediction > cut))
 

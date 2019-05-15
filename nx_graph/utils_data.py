@@ -216,8 +216,8 @@ def merge_truth_info_to_hits(hits, truth, particles):
 
     hits = hits.merge(truth, on='hit_id', how='left')
     hits = hits.merge(particles, on='particle_id', how='left')
-    ## selective information
-    ### noise hits does not have particle info
+    # selective information
+    # noise hits does not have particle info
     hits = hits.fillna(value=0)
 
     # Assign convenient layer number [0-47]
@@ -235,7 +235,12 @@ def merge_truth_info_to_hits(hits, truth, particles):
     phi = np.arctan2(hits.y, hits.x)
     theta = np.arccos(z/r3)
     eta = -np.log(np.tan(theta/2.))
-    hits = hits.assign(r=r, phi=phi, eta=eta, r3=r3, absZ=absz)
+
+    tpx = hits.tpx
+    tpy = hits.tpy
+    tpt = np.sqrt(tpx**2 + tpy**2)
+
+    hits = hits.assign(r=r, phi=phi, eta=eta, r3=r3, absZ=absz, tpt=tpt)
 
     # add hit indexes to column hit_idx
     hits = hits.rename_axis('hit_idx').reset_index()

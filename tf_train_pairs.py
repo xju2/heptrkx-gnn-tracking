@@ -51,8 +51,9 @@ if __name__ == "__main__":
     pair_info = layer_info[pair_idx]
 
     outname = os.path.join(output_dir, 'info{:03d}-{}-{}.txt'.format(pair_idx, *pair_info))
+    out_predictions = os.path.join(output_dir, 'test_prediction.h5')
 
-    if os.path.exists(checkpoint_path+".index") and not args.resume_train and os.path.exists(outname):
+    if os.path.exists(checkpoint_path+".index") and not args.resume_train and os.path.exists(outname) and os.path.exists(out_predictions):
         print("model is trained and evaluated")
         exit()
 
@@ -84,14 +85,14 @@ if __name__ == "__main__":
 
     true_file = config['data']['truth_file']
     if args.truth_file is not None:
-        true_file = args.true_file
+        true_file = args.truth_file
 
     if true_file is not 'None':
         from sklearn.utils import shuffle
         with pd.HDFStore(true_file) as store:
             df_true = store['data'].astype(np.float64)
             df_input = pd.concat([df_input, df_true], ignore_index=True)
-            df_input = shuffle(df_input)
+            df_input = shuffle(df_input, random_state=10)
 
     df_input = keep_finite(df_input)
     features = config['data']['features']
@@ -112,16 +113,17 @@ if __name__ == "__main__":
     # transform all inputs
     from sklearn.preprocessing import StandardScaler
     scaler = StandardScaler()
-    all_inputs = scaler.fit_transform(all_inputs)
+    all_inputs_normed = scaler.fit_transform(all_inputs)
 
-    inputs = all_inputs[:n_training, :]
+    inputs = all_inputs_normed[:n_training, :]
     targets = all_targets[:n_training, :]
 
-    x_val = all_inputs [n_training:n_training+n_validating, :]
+    x_val = all_inputs_normed[n_training:n_training+n_validating, :]
     y_val = all_targets[n_training:n_training+n_validating, :]
 
-    x_test = all_inputs[n_training+n_validating:, :]
+    x_test = all_inputs_normed[n_training+n_validating:, :]
     y_test = all_targets[n_training+n_validating:, :]
+
 
 
     if not args.in_eval:
@@ -140,6 +142,9 @@ if __name__ == "__main__":
     prediction = model.predict(x_test,
                                batch_size=batch_size)
 
+    test_inputs = df_input[n_training+n_validating:]
+    test_inputs = test_inputs.assign(prediction=prediction)
+
 
     from nx_graph.utils_plot import plot_metrics
 
@@ -157,7 +162,7 @@ if __name__ == "__main__":
     ti = bisect(list(reversed(efficiency.tolist())), eff_cut)
     ti = len(efficiency) - ti
     thres = thresholds[ti]
-    out = "{} {} {} {th:.4f} {tp:.4f} {fp:.4f} {true} {fake}".format(
+    out = "{} {} {} {th:.4f} {tp:.4f} {fp:.4f} {true} {fake}\n".format(
         pair_idx, *pair_info, th=thres, tp=efficiency[ti], fp=purity[ti],
         true=n_true, fake=n_fake)
 
@@ -166,5 +171,5 @@ if __name__ == "__main__":
 
 
     # save prediction and test result
-    out_predictions = os.path.join(output_dir, 'test_prediction.npz')
-    np.savez(out_predictions, prediction=prediction, test=y_test)
+    with pd.HDFStore(out_predictions) as store:
+        store['data'] = test_inputs
