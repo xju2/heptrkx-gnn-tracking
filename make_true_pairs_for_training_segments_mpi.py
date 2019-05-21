@@ -18,6 +18,12 @@ layer_pairs = [
     (17, 33), (17, 32), (17, 31), (16, 31), (16, 30), (15, 30), (15, 29), (14, 29), (14, 28), (13, 29), (13, 28),
     (11, 24), (12, 24), (6, 24), (5, 24), (4, 24)
 ]
+
+bad_layer_pairs = [
+    (8, 6), (7, 6)
+]
+layer_pairs = bad_layer_pairs
+
 layer_pairs_dict = dict([(ii, layer_pair) for ii, layer_pair in enumerate(layer_pairs)])
 pairs_layer_dict = dict([(layer_pair, ii) for ii, layer_pair in enumerate(layer_pairs)])
 
@@ -29,15 +35,6 @@ def process(input_info, selected_hits_angle, output_dir):
 
     with pd.HDFStore(os.path.join(output_dir, 'pair{:03d}.h5'.format(ii))) as store:
             store['data'] = segments[0]
-
-
-def merge_and_save(all_segments_, output_pairs_dir):
-    all_segments, ii = all_segments_
-    merged_segments = pd.concat([x[x.true] for x in all_segments], ignore_index=True)
-
-    os.makedirs(output_pairs_dir, exist_ok=True)
-    with pd.HDFStore(os.path.join(output_pairs_dir, 'pair{:03d}.h5'.format(ii))) as store:
-            store['data'] = merged_segments
 
 
 if __name__ == "__main__":
@@ -66,7 +63,7 @@ if __name__ == "__main__":
     import pandas as pd
     from nx_graph import utils_data
 
-    base_output_dir = os.path.join('/global/cscratch1/sd/xju/heptrkx/pairs', 'true_pairs')
+    base_output_dir = os.path.join('/global/cscratch1/sd/xju/heptrkx/pairs', 'true_pairs_moreVars')
     if rank == 0:
         all_files = glob.glob(os.path.join(data_dir, '*-hits.csv'))
         evt_ids = np.sort([int(re.search('event00000([0-9]*)-hits.csv',

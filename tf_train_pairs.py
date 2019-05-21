@@ -46,7 +46,7 @@ if __name__ == "__main__":
     # information output
     pair_idx = int(pairs_base_name.replace('.h5', '')[4:])
 
-    from make_pairs_for_training_segments import layer_pairs
+    from make_true_pairs_for_training_segments_mpi import layer_pairs
     layer_info = dict([(ii, layer_pair) for ii, layer_pair in enumerate(layer_pairs)])
     pair_info = layer_info[pair_idx]
 
