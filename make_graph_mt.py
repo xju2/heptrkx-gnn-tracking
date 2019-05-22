@@ -43,7 +43,7 @@ if __name__ == "__main__":
     #print('results', ck_code)
     #exit()
 
-    from make_pairs_for_training_segments import layer_pairs
+    from make_pairs_for_training_segments_mpi import layer_pairs
 
     selected_pairs_dir = os.path.join(output_dir, 'selected_pairs', 'evt{}'.format(evtid))
     for ii, layer_pair in enumerate(layer_pairs):

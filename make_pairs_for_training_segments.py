@@ -21,24 +21,26 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='make pairs for given evtid')
     add_arg = parser.add_argument
-    add_arg('data_dir', type=str, help='event directory',
-            default='/global/homes/x/xju/atlas/heptrkx/trackml_inputs/train_all')
-    add_arg('blacklist_dir', type=str, help='blacklist directory',
-           default='/global/homes/x/xju/atlas/heptrkx/trackml_inputs/blacklist')
+    add_arg('config', type=str, help='data configuration, configs/data.yaml')
     add_arg('evtid', type=int, help='event id')
-    add_arg('output_dir', type=str, help='save created pairs')
     add_arg('--n-pids', type=int, help='how many particles should be used',
             default=-1)
-    add_arg('--det-dir', type=str, help='detector description',
-            default='/global/homes/x/xju/atlas/heptrkx/trackml_inputs/detectors.csv')
     args = parser.parse_args()
 
-    data_dir = args.data_dir
-    black_list_dir = args.blacklist_dir
+    import yaml
+    assert(os.path.exists(args.config))
+    with open(args.config) as f:
+        config = yaml.load(f)
+
+    data_dir = config['track_ml']['dir']
+    black_list_dir = config['track_ml']['blacklist_dir']
+    det_dir  = config['track_ml']['detector']
+    base_dir = config['doublets_for_training']['base_dir']
+    output_dir = os.path.join(base_dir, config['doublets_for_training']['all_pairs'])
+
+
     evtid = args.evtid
     n_pids = args.n_pids
-    det_dir  = args.det_dir
-    output_dir = args.output_dir
 
     from preprocess import utils_mldata
     hits, particles, truth, cells = utils_mldata.read(data_dir, black_list_dir, evtid)

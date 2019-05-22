@@ -6,32 +6,40 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='Keras train pairs for each layer-pairs')
     add_arg = parser.add_argument
-    add_arg('file_name', type=str, help='file name for pair candidates')
+    add_arg('config', type=str, help='configs/data.yaml')
+    add_arg('pair_idx', nargs='?', type=int, help='pair idx', default=0)
     add_arg('cut_on_score', type=float, help='selection criteria')
+
     add_arg('output_dir',   type=str, help='save selected pairs')
     add_arg('--batch-size', type=int, default=64)
     add_arg('--config',       type=str, default=None, help='config of training')
+
     add_arg('--model-weight', type=str, default=None, help='model weight')
 
     args = parser.parse_args()
 
-    cut = args.cut_on_score
-    file_name = args.file_name
-    output_dir = args.output_dir
-    # check if there is a config
-    if args.config is not None:
-        import yaml
-        with open(args.config) as f:
-            config = yaml.load(f)
-        #pair_basename = os.path.basename(config['data']['file_name']).replace('.h5', '.ckpt')
-        pair_basename = os.path.basename(file_name).replace('.h5', '.ckpt')
-        model_weight_dir = os.path.join(config['output_dir'], 'model{}'.format(pair_basename))
-        features = config['data']['features']
-    else:
-        features = ['dphi', 'dz', 'dr', 'phi_slope', 'z0', 'deta', 'deta1', 'dphi1']
+    assert(os.path.exists(args.config))
+    import yaml
+    with open(args.config) as f:
+        config = yaml.load(f)
 
-    if args.model_weight is not None:
-        model_weight_dir = args.model_weight
+    cfg = config['doublets_for_graph']
+
+    cut = args.cut_on_score
+
+    pair_idx = args.pair_idx
+    file_name = os.path.join(
+        config['doublets_for_training']['base_dir'],
+        config['doublets_for_training']['all_pairs'],
+        'evt{}'.format(cfg['evtid']),
+        'pair{:03d}.h5'.format(pair_idx))
+    output_dir = cfg['selected']
+
+    train_cfg = config['doublet_training']
+    model_weight_base_dir = train_cfg['model_output_dir']
+    pair_basename = os.path.basename(file_name).replace('.h5', '.ckpt')
+    model_weight_dir = os.path.join(model_weight_base_dir, 'model{}'.format(pair_basename))
+    features = train_cfg['features']
 
     print("model weight:", model_weight_dir)
     print("Features:", features)

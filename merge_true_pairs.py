@@ -40,12 +40,20 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="merge true pairs")
     add_arg = parser.add_argument
-    add_arg('pairs_dir', nargs='?', default='/global/cscratch1/sd/xju/heptrkx/pairs/true_pairs')
-    add_arg('output_dir', nargs='?', default='/global/cscratch1/sd/xju/heptrkx/pairs/merged_true_pairs')
+    add_arg('config', help='data configuration')
 
     args = parser.parse_args()
-    path = args.pairs_dir
-    output_dir = args.output_dir
+
+
+    import yaml
+    assert(os.path.exists(args.config))
+    with open(args.config) as f:
+        config = yaml.load(f)
+
+
+    path = config['true_hits']['dir']
+    base_dir = config['doublets_for_training']['base_dir']
+    output_dir = os.path.join(base_dir, config['doublets_for_training']['true_pairs'])
 
     import glob
     evt_ids = glob.glob(os.path.join(path, '*'))

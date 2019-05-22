@@ -18,33 +18,45 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='Keras train pairs for each layer-pairs')
     add_arg = parser.add_argument
-    add_arg('config', nargs='?', default='configs/train_pairs.yaml')
+    add_arg('config', nargs='?', default='configs/data.yaml')
+    add_arg('pair_idx', nargs='?', type=int, default=0)
     add_arg('--resume-train',  action='store_true')
     add_arg('--in-eval', action='store_true')
-    add_arg('--file-name', type=str, default=None)
-    add_arg('--truth-file', type=str, default=None)
 
     args = parser.parse_args()
 
+    assert(os.path.exists(args.config))
     import yaml
     with open(args.config) as f:
         config = yaml.load(f)
+    train_cfg = config['doublet_training']
 
+    batch_size = train_cfg['batch_size']
+    epochs = train_cfg['epochs']
+    output_dir = train_cfg['model_output_dir']
+    pair_idx = args.pair_idx
 
-    batch_size = config['train']['batch_size']
-    epochs = config['train']['epochs']
-    output_dir = config['output_dir']
-    file_name = config['data']['file_name']
-    if args.file_name is not None:
-        file_name = args.file_name
+    file_name = os.path.join(
+        config['doublets_for_training']['base_dir'],
+        config['doublets_for_training']['all_pairs'],
+        'evt{}'.format(train_cfg['bkg_from_evtid']),
+        'pair{:03d}.h5'.format(pair_idx))
+    print("Training File Name: {}".format(file_name))
+
+    true_file = os.path.join(
+        config['doublets_for_training']['base_dir'],
+        config['doublets_for_training']['true_pairs'],
+        'pair{:03d}.h5'.format(pair_idx))
+    if not os.path.exists(true_file):
+        true_file = None
+        print("No additional True Files")
+    else:
+        print("True Files: {}".format(true_file))
 
     ## save checkpoints
     pairs_base_name = os.path.basename(file_name)
     checkpoint_path = os.path.join(output_dir, "model{}".format(pairs_base_name.replace('h5', 'ckpt')))
     checkpoint_dir = os.path.dirname(checkpoint_path)
-
-    # information output
-    pair_idx = int(pairs_base_name.replace('.h5', '')[4:])
 
     from make_true_pairs_for_training_segments_mpi import layer_pairs
     layer_info = dict([(ii, layer_pair) for ii, layer_pair in enumerate(layer_pairs)])
@@ -83,9 +95,6 @@ if __name__ == "__main__":
         df_input = store['data'].astype(np.float64)
 
 
-    true_file = config['data']['truth_file']
-    if args.truth_file is not None:
-        true_file = args.truth_file
 
     if true_file is not 'None':
         from sklearn.utils import shuffle
@@ -95,7 +104,7 @@ if __name__ == "__main__":
             df_input = shuffle(df_input, random_state=10)
 
     df_input = keep_finite(df_input)
-    features = config['data']['features']
+    features = train_cfg['features']
 
 
     all_inputs  = df_input[features].values
@@ -157,7 +166,7 @@ if __name__ == "__main__":
     purity, efficiency, thresholds = precision_recall_curve(y_true, prediction)
     #print(len(purity), len(efficiency), len(thresholds))
 
-    eff_cut = config['prediction']['eff_cut']
+    eff_cut = train_cfg['eff_cut']
     from bisect import bisect
     ti = bisect(list(reversed(efficiency.tolist())), eff_cut)
     ti = len(efficiency) - ti

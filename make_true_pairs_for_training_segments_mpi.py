@@ -19,10 +19,10 @@ layer_pairs = [
     (11, 24), (12, 24), (6, 24), (5, 24), (4, 24)
 ]
 
-bad_layer_pairs = [
-    (8, 6), (7, 6)
-]
-layer_pairs = bad_layer_pairs
+# bad_layer_pairs = [
+#     (8, 6), (7, 6)
+# ]
+# layer_pairs = bad_layer_pairs
 
 layer_pairs_dict = dict([(ii, layer_pair) for ii, layer_pair in enumerate(layer_pairs)])
 pairs_layer_dict = dict([(layer_pair, ii) for ii, layer_pair in enumerate(layer_pairs)])
@@ -41,6 +41,24 @@ if __name__ == "__main__":
     import os
     import glob
     import re
+    import yaml
+
+    import argparse
+
+    parser = argparse.ArgumentParser(description='produce true pairs using MPI')
+    add_arg = parser.add_argument
+    add_arg('config', type=str, help='data configuration, configs/data.yaml')
+
+    args = parser.parse_args()
+
+    assert(os.path.exists(args.config))
+    with open(args.config) as f:
+        config = yaml.load(f)
+
+    data_dir = config['track_ml']['dir']
+    black_list_dir = config['track_ml']['blacklist_dir']
+    det_dir  = config['track_ml']['detector']
+    base_output_dir = config['true_hits']['dir']
 
     try:
         from mpi4py import MPI
@@ -54,16 +72,11 @@ if __name__ == "__main__":
         size = 1
         use_mpi = False
 
-    data_dir = '/global/homes/x/xju/atlas/heptrkx/trackml_inputs/train_all'
-    black_list_dir = '/global/homes/x/xju/atlas/heptrkx/trackml_inputs/blacklist'
-
     from preprocess import utils_mldata
-
     import numpy as np
     import pandas as pd
     from nx_graph import utils_data
 
-    base_output_dir = os.path.join('/global/cscratch1/sd/xju/heptrkx/pairs', 'true_pairs_moreVars2')
     if rank == 0:
         all_files = glob.glob(os.path.join(data_dir, '*-hits.csv'))
         evt_ids = np.sort([int(re.search('event00000([0-9]*)-hits.csv',
@@ -92,13 +105,16 @@ if __name__ == "__main__":
         evt_ids = evt_ids[0]
 
     from nx_graph import transformation
-    det_dir  = '/global/homes/x/xju/atlas/heptrkx/trackml_inputs/detectors.csv'
     module_getter = utils_mldata.module_info(det_dir)
 
     from functools import partial
     import multiprocessing as mp
 
-    n_workers = int(os.getenv('SLURM_CPUS_PER_TASK'))
+    try:
+        n_workers = int(os.getenv('SLURM_CPUS_PER_TASK'))
+    except (ValueError, TypeError):
+        n_workers = 1
+
     print(rank, "# workers:", n_workers)
     print(rank, "# evts:", len(evt_ids))
 

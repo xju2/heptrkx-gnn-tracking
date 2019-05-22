@@ -1,0 +1,25 @@
+track_ml:
+    dir: /global/homes/x/xju/atlas/heptrkx/trackml_inputs/train_all
+    blacklist_dir: /global/homes/x/xju/atlas/heptrkx/trackml_inputs/blacklist
+    detector: /global/homes/x/xju/atlas/heptrkx/trackml_inputs/detectors.csv
+
+true_hits:
+    dir: /global/cscratch1/sd/xju/heptrkx/pairs/true_pairs_moreVars3
+
+doublets_for_training:
+    base_dir: /global/cscratch1/sd/xju/heptrkx/pairs
+    true_pairs: merged_true_pairs/training # relative to base_dir
+    all_pairs: all_pairs_moreVars          # relative to base_dir
+
+
+doublet_training:
+    batch_size: 512
+    epochs: 6
+    eff_cut: 0.98
+    model_output_dir: trained_results/doublets_moreVars
+    features: ['x_in', 'x_out', 'y_in', 'y_out', 'z_in', 'z_out', 'lx_in', 'lx_out', 'ly_in', 'ly_out', 'lz_in', 'lz_out']
+    bkg_from_evtid: 6600
+
+doublets_for_graph:
+    evtid: 6700
+    selected: /global/cscratch1/sd/xju/heptrkx/output_graphs_moreVar2/selected_pairs
