@@ -124,9 +124,9 @@ def plot_metrics(odd, tdd, odd_th=0.5, tdd_th=0.5, outname='roc_graph_nets.eps',
     precision = sklearn.metrics.precision_score(y_true, y_pred)
     recall    = sklearn.metrics.recall_score(y_true, y_pred)
 
-    print('Accuracy:            %.4f' % accuracy)
-    print('Precision (purity):  %.4f' % precision)
-    print('Recall (efficiency): %.4f' % recall)
+    print('Accuracy:            %.6f' % accuracy)
+    print('Precision (purity):  %.6f' % precision)
+    print('Recall (efficiency): %.6f' % recall)
 
     fpr, tpr, _ = sklearn.metrics.roc_curve(y_true, odd)
 

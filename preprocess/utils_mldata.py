@@ -94,8 +94,10 @@ def create_segments(hits, layer_pairs, gid_keys='layer', only_true=False):
         df_pairs = hit_pairs[['evtid', 'index_in', 'index_out',
                               'hit_id_in', 'hit_id_out',
                               'x_in', 'x_out', 'y_in', 'y_out', 'z_in', 'z_out',
+                              'lx_in', 'lx_out', 'ly_in', 'ly_out', 'lz_in', 'lz_out',
                               'layer_in', 'layer_out']].assign(
                                   dphi=dphi, dz=dz, dr=dr, true=y, phi_slope=phi_slope, z0=z0, deta=deta)
+        #df_pairs = hit_pairs.assign(dphi=dphi, dz=dz, dr=dr, true=y, phi_slope=phi_slope, z0=z0, deta=deta)
 
 
         n_true_edges = df_pairs[df_pairs['true']==True].shape[0]
@@ -110,6 +112,8 @@ def create_segments(hits, layer_pairs, gid_keys='layer', only_true=False):
             df_pairs = df_pairs.assign(deta1=deta1, dphi1=dphi1)
         except KeyError:
             pass
+
+#        print(df_pairs.columns)
 
         yield df_pairs
 

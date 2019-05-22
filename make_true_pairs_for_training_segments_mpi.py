@@ -63,7 +63,7 @@ if __name__ == "__main__":
     import pandas as pd
     from nx_graph import utils_data
 
-    base_output_dir = os.path.join('/global/cscratch1/sd/xju/heptrkx/pairs', 'true_pairs_moreVars')
+    base_output_dir = os.path.join('/global/cscratch1/sd/xju/heptrkx/pairs', 'true_pairs_moreVars2')
     if rank == 0:
         all_files = glob.glob(os.path.join(data_dir, '*-hits.csv'))
         evt_ids = np.sort([int(re.search('event00000([0-9]*)-hits.csv',

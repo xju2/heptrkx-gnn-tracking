@@ -1,11 +1,17 @@
 #!/usr/bin/env python3
 
+import os
+import sys
+
 def read_pairs(pairs_path):
+    if not os.path.exists(pairs_path):
+        return None
+
     with pd.HDFStore(pairs_path) as store:
         try:
             df_input = store['data']
-        except KeyError:
-            print(pairs_path)
+        except (KeyError, AttributeError):
+            # print(pairs_path, "has problem!")
             return None
 
     return df_input
@@ -25,12 +31,10 @@ def process(pair_idx, evt_id_list, output_dir):
         with pd.HDFStore(out_name) as store:
             store['data'] = out_df
     else:
-        print(pair_name)
+        print(pair_name, 'does not have inputs')
 
 
 if __name__ == "__main__":
-    import os
-    import sys
     import argparse
     import subprocess
 
@@ -65,13 +69,16 @@ if __name__ == "__main__":
 
     import pandas as pd
 
-    from make_true_pairs_for_training_segments import layer_pairs
+    from make_true_pairs_for_training_segments_mpi import layer_pairs
 
     from functools import partial
     import multiprocessing as mp
 
     pp_layers_info = list(range(len(layer_pairs)))
-    n_workers = int(os.getenv('SLURM_CPUS_PER_TASK'))
+    try:
+        n_workers = int(os.getenv('SLURM_CPUS_PER_TASK'))
+    except (ValueError, TypeError):
+        n_workers = 1
     print("# workers:", n_workers)
     print(evt_ids_tr[0])
     print(pp_layers_info[0])

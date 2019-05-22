@@ -73,7 +73,10 @@ if __name__ == "__main__":
 
     pp_layers_info = [(x, ii) for ii,x in enumerate(layer_pairs)]
 
-    n_workers = int(os.getenv('SLURM_CPUS_PER_TASK'))
+    try:
+        n_workers = int(os.getenv('SLURM_CPUS_PER_TASK'))
+    except (ValueError, TypeError):
+        n_workers = 1
     print("Workers:", n_workers)
 
     import multiprocessing as mp
