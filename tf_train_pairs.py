@@ -46,12 +46,12 @@ if __name__ == "__main__":
     true_file = os.path.join(
         config['doublets_for_training']['base_dir'],
         config['doublets_for_training']['true_pairs'],
+        'training',
         'pair{:03d}.h5'.format(pair_idx))
+    print("True Files: {}".format(true_file))
     if not os.path.exists(true_file):
         true_file = None
         print("No additional True Files")
-    else:
-        print("True Files: {}".format(true_file))
 
     ## save checkpoints
     pairs_base_name = os.path.basename(file_name)
