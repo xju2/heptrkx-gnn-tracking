@@ -17,9 +17,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.torch:
-        from postprocess.evaluate_torch import create_evaluator
+        from heptrkx.postprocess.evaluate_torch import create_evaluator
     else:
-        from postprocess.evaluate_tf import create_evaluator
+        from heptrkx.postprocess.evaluate_tf import create_evaluator
 
 
 
@@ -28,8 +28,8 @@ if __name__ == "__main__":
 
     from graph_nets import utils_np, utils_tf
     from trackml.dataset import load_event
-    from nx_graph import utils_plot, utils_data, utils_train, prepare, utils_test
-    from postprocess import wrangler, analysis
+    from heptrkx.nx_graph import utils_plot, utils_data, utils_train, prepare, utils_test
+    from heptrkx.postprocess import wrangler, analysis
 
 
     import os

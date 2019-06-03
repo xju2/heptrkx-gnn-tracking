@@ -50,5 +50,10 @@ setup(
         'bin/tf_train_pairs',
         'bin/tf_train_pairs_all',
         'bin/train_nx_graph',
+        'bin/evaluate_gnn_models',
+        'bin/hits_graph_to_tuple',
+        'bin/make_graphs_from_pair_NNs',
+        'bin/pairs_to_nx_graph',
+        'bin/get_total_segments',
     ],
 )
