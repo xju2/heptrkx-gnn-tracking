@@ -7,7 +7,7 @@ import pandas as pd
 import numpy as np
 
 from scipy import optimize
-from nx_graph import transformation
+from ..nx_graph import transformation
 
 import os
 

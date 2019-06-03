@@ -21,3 +21,7 @@ on Cori at NERSC.
 [datasets/hitgraphs.py](datasets/hitgraphs.py).
 - The main trainer code for the GNN segment classifier lives in
 [trainers/gnn.py](trainers/gnn.py).
+
+
+## Installation
+```pip install . --process-dependency-links```

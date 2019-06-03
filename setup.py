@@ -20,6 +20,7 @@ setup(
     packages=find_packages(),
     install_requires=[
         "graph_nets==1.0.2",
+        'tensorflow==1.12.0',
         "future",
         "networkx",
         "numpy",
@@ -41,4 +42,10 @@ setup(
         "Topic :: Scientific/Engineering :: Artificial Intelligence",
     ],
     dependency_links=['https://github.com/LAL/trackml-library/tarball/master#egg=trackml-3'],
+    scripts=[
+        'bin/make_true_pairs_for_training_segments_mpi',
+        'bin/merge_true_pairs',
+        'bin/make_pairs_for_training_segments',
+        'bin/select_pairs',
+    ],
 )
