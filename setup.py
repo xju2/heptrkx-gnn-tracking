@@ -47,5 +47,8 @@ setup(
         'bin/merge_true_pairs',
         'bin/make_pairs_for_training_segments',
         'bin/select_pairs',
+        'bin/tf_train_pairs',
+        'bin/tf_train_pairs_all',
+        'bin/train_nx_graph',
     ],
 )

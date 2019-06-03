@@ -6,5 +6,5 @@ export QT_QPA_PLATFORM='offscreen'
 for ((i=0; i < 90; i++))
 do
 	echo $i
-	python tf_train_pairs.py configs/data.yaml $i
+	tf_train_pairs configs/data.yaml $i
 done

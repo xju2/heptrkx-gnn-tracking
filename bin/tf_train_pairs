@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 import numpy as np
 
@@ -58,7 +58,7 @@ if __name__ == "__main__":
     checkpoint_path = os.path.join(output_dir, "model{}".format(pairs_base_name.replace('h5', 'ckpt')))
     checkpoint_dir = os.path.dirname(checkpoint_path)
 
-    from make_true_pairs_for_training_segments_mpi import layer_pairs
+    from heptrkx import layer_pairs
     layer_info = dict([(ii, layer_pair) for ii, layer_pair in enumerate(layer_pairs)])
     pair_info = layer_info[pair_idx]
 
@@ -155,7 +155,7 @@ if __name__ == "__main__":
     test_inputs = test_inputs.assign(prediction=prediction)
 
 
-    from nx_graph.utils_plot import plot_metrics
+    from heptrkx.nx_graph.utils_plot import plot_metrics
 
     plot_metrics(prediction, y_test,
                  outname=os.path.join(output_dir, 'roc_{}-{}.png'.format(*pair_info)))

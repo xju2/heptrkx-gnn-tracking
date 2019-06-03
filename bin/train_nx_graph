@@ -8,7 +8,7 @@ import tensorflow as tf
 from graph_nets import utils_tf
 from graph_nets import utils_np
 
-from nx_graph import utils_train
+from heptrkx.nx_graph import utils_train
 
 if __name__ == "__main__":
     import sys
@@ -41,7 +41,7 @@ if __name__ == "__main__":
     ])
     print("last iteration:", last_iteration)
 
-    from nx_graph.prepare import inputs_generator
+    from heptrkx.nx_graph.prepare import inputs_generator
     # default 2/3 for training and 1/3 for testing
     generate_input_target = inputs_generator(config['data']['output_nxgraph_dir'], n_train_fraction=0.8)
 
@@ -62,7 +62,7 @@ if __name__ == "__main__":
 
     #from nx_graph.model_mlp import SegmentClassifier
     #model = SegmentClassifier()
-    from nx_graph import get_model
+    from heptrkx.nx_graph import get_model
     model = get_model(config['model']['name'])
 
     input_graphs, target_graphs = generate_input_target(n_graphs)
