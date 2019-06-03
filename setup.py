@@ -9,7 +9,7 @@ from setuptools import setup
 description="Use Graph Network to reconstruct tracks"
 
 setup(
-    name="gnn_track",
+    name="heptrkx",
     version="0.0.1",
     description="Library for building tracks with Graph Nural Networks.",
     long_description=description,
@@ -19,8 +19,7 @@ setup(
     url="https://github.com/xju2/hep-gnn-tracking",
     packages=find_packages(),
     install_requires=[
-        "graph_nets",
-        "tensorflow==1.12",
+        "graph_nets==1.0.2",
         "future",
         "networkx",
         "numpy",
@@ -28,23 +27,18 @@ setup(
         "pandas",
         "setuptools",
         "six",
-        "dm-sonnet==1.23",
         "matplotlib",
         "sklearn",
-        "torch",
-        "torchvision"
+        "torch==1.0.1",
+        "torchvision==0.2.1",
+        'sklearn',
+        'pyyaml',
+        'trackml==3'
     ],
+    setup_requires=['trackml'],
     classifiers=[
-        "Development Status :: 4 - Beta",
-        "Intended Audience :: Developers",
-        "Intended Audience :: Education",
-        "Intended Audience :: Science/Research",
-        "License :: OSI Approved :: Apache Software License",
-        "Operating System :: POSIX :: Linux",
-        "Operating System :: Microsoft :: Windows",
-        "Operating System :: MacOS :: MacOS X",
-        "Programming Language :: Python :: 2.7",
-        "Programming Language :: Python :: 3.4",
+        "Programming Language :: Python :: 3.6",
         "Topic :: Scientific/Engineering :: Artificial Intelligence",
     ],
+    dependency_links=['https://github.com/LAL/trackml-library/tarball/master#egg=trackml-3'],
 )
