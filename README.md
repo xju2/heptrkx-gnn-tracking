@@ -24,4 +24,4 @@ on Cori at NERSC.
 
 
 ## Installation
-```pip install . --process-dependency-links```
+```pip install -e .```

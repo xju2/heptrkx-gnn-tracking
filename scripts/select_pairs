@@ -10,12 +10,6 @@ if __name__ == "__main__":
     add_arg('pair_idx', nargs='?', type=int, help='pair idx', default=0)
     add_arg('cut_on_score', type=float, help='selection criteria')
 
-    add_arg('output_dir',   type=str, help='save selected pairs')
-    add_arg('--batch-size', type=int, default=64)
-    add_arg('--config',       type=str, default=None, help='config of training')
-
-    add_arg('--model-weight', type=str, default=None, help='model weight')
-
     args = parser.parse_args()
 
     assert(os.path.exists(args.config))
@@ -40,6 +34,7 @@ if __name__ == "__main__":
     pair_basename = os.path.basename(file_name).replace('.h5', '.ckpt')
     model_weight_dir = os.path.join(model_weight_base_dir, 'model{}'.format(pair_basename))
     features = train_cfg['features']
+    batch_size = train_cfg['batch_size']
 
     print("model weight:", model_weight_dir)
     print("Features:", features)

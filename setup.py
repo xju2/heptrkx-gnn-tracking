@@ -34,14 +34,14 @@ setup(
         "torchvision==0.2.1",
         'sklearn',
         'pyyaml',
-        'trackml==3'
+        'trackml@ https://github.com/LAL/trackml-library.git@v3'
     ],
     setup_requires=['trackml'],
     classifiers=[
         "Programming Language :: Python :: 3.6",
         "Topic :: Scientific/Engineering :: Artificial Intelligence",
     ],
-    dependency_links=['https://github.com/LAL/trackml-library/tarball/master#egg=trackml-3'],
+    #dependency_links=['https://github.com/LAL/trackml-library/tarball/master#egg=trackml-3'],
     scripts=[
         'scripts/make_true_pairs_for_training_segments_mpi',
         'scripts/merge_true_pairs',

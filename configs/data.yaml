@@ -16,10 +16,11 @@ doublet_training:
     batch_size: 512
     epochs: 6
     eff_cut: 0.98
-    model_output_dir: trained_results/doublets_moreVars2
+    model_output_dir: /global/cscratch1/sd/xju/heptrkx/trained_models/doublet_moreVar
     features: ['x_in', 'x_out', 'y_in', 'y_out', 'z_in', 'z_out', 'lx_in', 'lx_out', 'ly_in', 'ly_out', 'lz_in', 'lz_out']
     bkg_from_evtid: 6600
 
 doublets_for_graph:
     evtid: 6700
     selected: /global/cscratch1/sd/xju/heptrkx/output_graphs_moreVar2/selected_pairs
+    threshold: /global/cscratch1/sd/xju/heptrkx/trained_models/doublet_moreVar/merged_info.txt 
