@@ -51,9 +51,9 @@ if __name__ == "__main__":
         config = yaml.load(f)
 
 
-    path = config['true_hits']['dir']
-    base_dir = config['doublets_for_training']['base_dir']
-    output_dir = os.path.join(base_dir, config['doublets_for_training']['true_pairs'])
+    path = os.path.expandvars(config['true_hits']['dir'])
+    base_dir = os.path.expandvars(config['doublets_for_training']['base_dir'])
+    output_dir = os.path.join(base_dir, os.path.expandvars(config['doublets_for_training']['true_pairs']))
 
     import glob
     evt_ids = glob.glob(os.path.join(path, '*'))

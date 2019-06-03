@@ -55,10 +55,10 @@ if __name__ == "__main__":
     with open(args.config) as f:
         config = yaml.load(f)
 
-    data_dir = config['track_ml']['dir']
-    black_list_dir = config['track_ml']['blacklist_dir']
-    det_dir  = config['track_ml']['detector']
-    base_output_dir = config['true_hits']['dir']
+    data_dir = os.path.expandvars(config['track_ml']['dir'])
+    black_list_dir = os.path.expandvars(config['track_ml']['blacklist_dir'])
+    det_dir  = os.path.expandvars(config['track_ml']['detector'])
+    base_output_dir = os.path.expandvars(config['true_hits']['dir'])
 
     try:
         from mpi4py import MPI

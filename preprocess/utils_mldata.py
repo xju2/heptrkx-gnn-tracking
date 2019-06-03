@@ -12,8 +12,8 @@ from nx_graph import transformation
 import os
 
 def read(data_dir, black_dir, evtid):
-    prefix = os.path.join(data_dir, 'event{:09d}'.format(evtid))
-    prefix_bl = os.path.join(black_dir, 'event{:09d}-blacklist_'.format(evtid))
+    prefix = os.path.join(os.path.expandvars(data_dir), 'event{:09d}'.format(evtid))
+    prefix_bl = os.path.join(os.path.expandvars(black_dir), 'event{:09d}-blacklist_'.format(evtid))
 
     if not os.path.exists( prefix+'-hits.csv'):
         return None
@@ -199,7 +199,7 @@ def local_angle(cell, module):
 
 
 def module_info(detector_dir):
-    detector = pd.read_csv(detector_dir)
+    detector = pd.read_csv(os.path.expandvars(detector_dir))
 
     def get_fnc(volume_id, layer_id, module_id):
         return detector[ (detector.volume_id == volume_id) & (detector.layer_id == layer_id) & (detector.module_id == module_id) ]

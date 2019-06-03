@@ -29,14 +29,14 @@ if __name__ == "__main__":
 
     pair_idx = args.pair_idx
     file_name = os.path.join(
-        config['doublets_for_training']['base_dir'],
+        os.path.expandvars(config['doublets_for_training']['base_dir']),
         config['doublets_for_training']['all_pairs'],
         'evt{}'.format(cfg['evtid']),
         'pair{:03d}.h5'.format(pair_idx))
     output_dir = cfg['selected']
 
     train_cfg = config['doublet_training']
-    model_weight_base_dir = train_cfg['model_output_dir']
+    model_weight_base_dir = os.path.expandvars(train_cfg['model_output_dir'])
     pair_basename = os.path.basename(file_name).replace('.h5', '.ckpt')
     model_weight_dir = os.path.join(model_weight_base_dir, 'model{}'.format(pair_basename))
     features = train_cfg['features']
