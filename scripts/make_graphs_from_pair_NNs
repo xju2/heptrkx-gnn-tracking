@@ -42,8 +42,11 @@ if __name__ == "__main__":
     selected_pairs_dir = os.path.join(output_dir, 'selected_pairs', 'evt{}'.format(evtid))
     for ii, layer_pair in enumerate(layer_pairs):
         file_name = os.path.join(raw_pairs_dir, 'evt{}'.format(evtid), 'pair{:03d}.h5'.format(ii))
-        cmd_sel_pairs =['select_pairs', config_dir, ii,
-                        str(df_threshold[df_threshold.idx == ii]['cut'].values[0])]
-        print(" ".join(cmd_sel_pairs))
+        try:
+            cmd_sel_pairs =['select_pairs', config_dir, str(ii),
+                            str(df_threshold[df_threshold.idx == ii]['cut'].values[0])]
+            print(" ".join(cmd_sel_pairs))
+        except IndexError:
+            print("pair {}-{}-{} is missing MODEL".format(ii, *layer_pair))
         #ck_code = subprocess.call(cmd_sel_pairs)
         #print("pair selection:", ck_code)
