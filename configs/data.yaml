@@ -16,7 +16,7 @@ doublet_training:
     batch_size: 512
     epochs: 6
     eff_cut: 0.98
-    model_output_dir: trained_results/doublets_moreVars
+    model_output_dir: trained_results/doublets_moreVars2
     features: ['x_in', 'x_out', 'y_in', 'y_out', 'z_in', 'z_out', 'lx_in', 'lx_out', 'ly_in', 'ly_out', 'lz_in', 'lz_out']
     bkg_from_evtid: 6600
 
