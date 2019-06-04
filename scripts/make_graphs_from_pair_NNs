@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 if __name__ == "__main__":
     import os
@@ -30,9 +30,8 @@ if __name__ == "__main__":
     output_dir = os.path.expandvars(mk_cfg['selected'])
     os.makedirs(output_dir, exist_ok=True)
 
-    srun_cmd_base = ['srun', '-n', '1', '-c', '32']
     raw_pairs_dir = os.path.join(output_dir, 'raw_pairs')
-    cmd_raw_pairs = srun_cmd_base + ['make_pairs_for_training_segments', config_dir, str(evtid)]
+    cmd_raw_pairs = ['make_pairs_for_training_segments', config_dir, str(evtid)]
     print(" ".join(cmd_raw_pairs))
     #ck_code = subprocess.call(cmd_raw_pairs)
     #print('results', ck_code)
@@ -48,5 +47,5 @@ if __name__ == "__main__":
             print(" ".join(cmd_sel_pairs))
         except IndexError:
             print("pair {}-{}-{} is missing MODEL".format(ii, *layer_pair))
-        #ck_code = subprocess.call(cmd_sel_pairs)
-        #print("pair selection:", ck_code)
+        ck_code = subprocess.call(cmd_sel_pairs)
+        print("pair selection:", ck_code)

@@ -5,12 +5,14 @@ def load_seg(file_name):
         return store.get('data')
 
 if __name__ == "__main__":
+    import os
+    import argparse
+    import numpy as np
+    import pandas as pd
+
     evtid = 6600
     selected_pairs_dir = '/global/cscratch1/sd/xju/heptrkx/output_graphs/selected_pairs/evt{}'.format(evtid)
 
-    import os
-    import glob
-    import pandas as pd
 
 
     from make_true_pairs_for_training_segments_mpi import layer_pairs
