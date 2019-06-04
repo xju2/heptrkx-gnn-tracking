@@ -34,7 +34,9 @@ setup(
         "torchvision==0.2.1",
         'sklearn',
         'pyyaml',
-        'trackml@ https://github.com/LAL/trackml-library.git@v3'
+        'trackml@ https://github.com/LAL/trackml-library.git@v3',
+        'tables==3.4.4',
+        'h5py==2.8.0',
     ],
     setup_requires=['trackml'],
     classifiers=[

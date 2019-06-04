@@ -158,7 +158,8 @@ if __name__ == "__main__":
     from heptrkx.nx_graph.utils_plot import plot_metrics
 
     plot_metrics(prediction, y_test,
-                 outname=os.path.join(output_dir, 'roc{:.03d}_{}-{}.png'.format(pair_idx, *pair_info)))
+                 outname=os.path.join(output_dir, 'roc{:03d}_{}-{}.pdf'.format(pair_idx, *pair_info)),
+                 off_interactive=True)
 
     # find a threshold
     from sklearn.metrics import precision_recall_curve
