@@ -39,7 +39,7 @@ if __name__ == "__main__":
     print("model weight:", model_weight_dir)
     print("Features:", features)
     print("output:", output_dir)
-    print("input:", file_name)
+    print("input:",  file_name)
 
     os.makedirs(output_dir, exist_ok=True)
 
@@ -67,7 +67,7 @@ if __name__ == "__main__":
     print("Before selection:", df_input.shape)
     all_inputs = df_input[features].values
     all_inputs = scaler.fit_transform(all_inputs)
-    prediction = model.predict(all_inputs, batch_size=args.batch_size)
+    prediction = model.predict(all_inputs)
 
     from heptrkx.nx_graph.utils_plot import plot_metrics
     from heptrkx import layer_pairs_dict
