@@ -26,3 +26,15 @@ layer_pairs = [
 
 layer_pairs_dict = dict([(ii, layer_pair) for ii, layer_pair in enumerate(layer_pairs)])
 pairs_layer_dict = dict([(layer_pair, ii) for ii, layer_pair in enumerate(layer_pairs)])
+
+import numpy as np
+def keep_finite(df):
+    bad_list = []
+    for column in df.columns:
+        if not np.all(np.isfinite(df[column])):
+            ss = df[column]
+            bad_list += ss.loc[~np.isfinite(ss)].index.values.tolist()
+
+    bad_list = list(set(bad_list))
+    return df.drop(bad_list)
+

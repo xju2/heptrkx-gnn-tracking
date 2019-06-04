@@ -39,6 +39,7 @@ if __name__ == "__main__":
     print("model weight:", model_weight_dir)
     print("Features:", features)
     print("output:", output_dir)
+    print("input:", file_name)
 
     os.makedirs(output_dir, exist_ok=True)
 
@@ -61,7 +62,7 @@ if __name__ == "__main__":
     from sklearn.preprocessing import StandardScaler
     scaler = StandardScaler()
 
-    from heptrkx.tf_train_pairs import keep_finite
+    from heptrkx import keep_finite
     df_input = keep_finite(df_input)
     print("Before selection:", df_input.shape)
     all_inputs = df_input[features].values

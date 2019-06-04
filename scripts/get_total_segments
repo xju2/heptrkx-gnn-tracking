@@ -10,12 +10,24 @@ if __name__ == "__main__":
     import numpy as np
     import pandas as pd
 
-    evtid = 6600
-    selected_pairs_dir = '/global/cscratch1/sd/xju/heptrkx/output_graphs/selected_pairs/evt{}'.format(evtid)
+    parser = argparse.ArgumentParser(description='Keras train pairs for each layer-pairs')
+    add_arg = parser.add_argument
+    add_arg('config', type=str, help='data configuration, configs/data.yaml')
 
+    args = parser.parse_args()
+    config_dir = args.config
 
+    import yaml
+    assert(os.path.exists(config_dir))
+    with open(config_dir) as f:
+        config = yaml.load(f)
 
-    from make_true_pairs_for_training_segments_mpi import layer_pairs
+    mk_cfg = config['doublets_for_graph']
+    evtid = mk_cfg['evtid']
+    output_dir = os.path.expandvars(mk_cfg['selected'])
+    selected_pairs_dir = os.path.join(output_dir, 'selected_pairs', 'evt{}'.format(evtid))
+
+    from heptrkx import layer_pairs
 
     all_segments = []
 
@@ -39,6 +51,6 @@ if __name__ == "__main__":
     sum_segments = sum(all_segments)
     print(sum_segments)
 
-    with open("log.segments_660", 'w') as f:
+    with open("log.segments_evt{}".format(evtid), 'w') as f:
         f.write(out)
 
