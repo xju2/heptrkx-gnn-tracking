@@ -3,16 +3,32 @@
 import numpy as np
 import pandas as pd
 
+def list_from_str(input_str):
+    items = input_str.split(',')
+    out = []
+    for item in items:
+        try:
+            value = int(item)
+            out.append(value)
+        except ValueError:
+            start, end = item.split('-')
+            try:
+                start, end = int(start), int(end)
+                out += list(range(start, end+1))
+            except ValueError:
+                pass
+    return out
+
+
 def process(evtid, threshold_file, output_dir):
     df_threshold = pd.read_csv(threshold_file, sep=' ', header=None,
                                names=["idx", "in", "out", "cut", "eff", "purity", "n_true", "n_fake"])
-    print(df_threshold.shape)
-
+    #print(df_threshold.shape)
 
     cmd_raw_pairs = ['make_pairs_for_training_segments', config_dir, str(evtid)]
-    print(" ".join(cmd_raw_pairs))
+    #print(" ".join(cmd_raw_pairs))
     ck_code = subprocess.call(cmd_raw_pairs)
-    print('results', ck_code)
+    #print('results', ck_code)
 
     from heptrkx import layer_pairs, select_pair_layers
     sel_layer_id = select_pair_layers(layers)
@@ -22,11 +38,11 @@ def process(evtid, threshold_file, output_dir):
         try:
             cmd_sel_pairs =['select_pairs', config_dir, str(ii),
                             str(df_threshold[df_threshold.idx == ii]['cut'].values[0])]
-            print(" ".join(cmd_sel_pairs))
+            #print(" ".join(cmd_sel_pairs))
         except IndexError:
             print("pair {}-{}-{} is missing MODEL".format(ii, *layer_pair))
         ck_code = subprocess.call(cmd_sel_pairs)
-        print("pair selection:", ck_code)
+        #print("pair selection:", ck_code)
 
 if __name__ == "__main__":
     import os
@@ -49,9 +65,11 @@ if __name__ == "__main__":
 
 
     mk_cfg = config['doublets_for_graph']
-    evtid = mk_cfg['evtid']
-    print(evtid)
-    exit()
+    evtids = mk_cfg['evtid']
+    if type(evtids) is str:
+        evtids = list_from_str(evtids)
+    else:
+        evtids = [evtids]
 
     threshold_file = os.path.expandvars(mk_cfg['threshold'])
     output_dir = os.path.expandvars(mk_cfg['selected'])

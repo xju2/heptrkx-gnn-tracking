@@ -40,7 +40,7 @@ def graph_to_input_target(graph, no_edge_feature=False):
 
     for sender, receiver, features in graph.edges(data=True):
         if no_edge_feature:
-            input_graph.add_edge(sender, receiver)
+            input_graph.add_edge(sender, receiver, features=np.array([0.]))
         else:
             input_graph.add_edge(
                 sender, receiver, features=create_feature(features, input_edge_fields)
