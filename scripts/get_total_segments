@@ -25,17 +25,24 @@ if __name__ == "__main__":
     mk_cfg = config['doublets_for_graph']
     evtid = mk_cfg['evtid']
     output_dir = os.path.expandvars(mk_cfg['selected'])
-    selected_pairs_dir = os.path.join(output_dir, 'selected_pairs', 'evt{}'.format(evtid))
+    selected_pairs_dir = os.path.join(output_dir, 'evt{}'.format(evtid))
 
     from heptrkx import layer_pairs
 
     all_segments = []
 
-    selected_pairs_files = [os.path.join(selected_pairs_dir, 'selected_pair{:03d}.h5'.format(x)) for x in range(90)]
+    selected_pairs_files = [os.path.join(selected_pairs_dir, 'pair{:03d}.h5'.format(x)) for x in range(90)]
 
     out = ''
     for ii, file_name in enumerate(selected_pairs_files):
-        segment = load_seg(file_name)
+        if not os.path.exists(file_name):
+            print(file_name)
+            continue
+        try:
+            segment = load_seg(file_name)
+        except KeyError:
+            print(file_name)
+            continue
 
         df_selected = segment[segment.selected]
         n_selected = df_selected.shape[0]

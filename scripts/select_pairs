@@ -27,7 +27,7 @@ if __name__ == "__main__":
         config['doublets_for_training']['all_pairs'],
         'evt{}'.format(cfg['evtid']),
         'pair{:03d}.h5'.format(pair_idx))
-    output_dir = cfg['selected']
+    output_dir = os.path.join(cfg['selected'], 'evt{}'.format(pair_idx))
 
     train_cfg = config['doublet_training']
     model_weight_base_dir = os.path.expandvars(train_cfg['model_output_dir'])

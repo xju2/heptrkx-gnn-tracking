@@ -207,7 +207,7 @@ vlids = [(7,2), (7,4), (7,6), (7,8), (7,10), (7,12), (7,14),
          (18,2), (18,4), (18,6), (18,8), (18,10), (18,12)]
 n_det_layers = len(vlids)
 
-def merge_truth_info_to_hits(hits, truth, particles):
+def merge_truth_info_to_hits(hits, particles, truth):
     if 'pt' not in particles.columns:
         px = particles.px
         py = particles.py

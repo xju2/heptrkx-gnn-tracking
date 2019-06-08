@@ -5,6 +5,8 @@ import pandas as pd
 import yaml
 import os
 
+from graph_nets import utils_np
+
 ckpt_name = 'checkpoint_{:05d}.ckpt'
 
 def load_config(config_file):
@@ -37,3 +39,11 @@ def load_input_target_data_dicts(path, evtid, isec):
     input_dd = load_data_dicts(base_name.format(evtid, isec, "INPUT"))
     target_dd = load_data_dicts(base_name.format(evtid, isec, "TARGET"))
     return input_dd, target_dd
+
+
+def save_networkx(graph, output_name):
+    if os.path.exists(output_data_name):
+        print(output_data_name, "is there")
+
+    data_dict = utils_np.networkx_to_data_dict(graph)
+    np.savez(output_name, **data_dict)

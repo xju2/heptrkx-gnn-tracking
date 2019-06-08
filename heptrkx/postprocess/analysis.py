@@ -220,3 +220,28 @@ def fake_edges(graph):
     n_edges = len(graph.edges())
     n_fake_edges = len([edge for edge in graph.edges() if graph.edges[edge]['solution'] == 1])
     return n_fake_edges, n_fake_edges/n_edges, n_edges
+
+
+def inspect_events(hits, particles, truth, min_hits=3):
+    n_hits = hits.shape[0]
+    n_p = particles.shape[0]
+    hits_truth = hits.merge(truth, on='hit_id', how='left')
+    n_noise_hits = hits_truth[hits_truth.particle_id == 0].shape[0]
+
+    # number of detectable particles
+    particle_hits = particles.merge(hits_truth, on='particle_id', how='left')
+    n_dp = particle_hits[np.isnan(particle_hits.hit_id)].shape[0]
+
+    # number of particles with at least three hits
+    dp =  particle_hits[~np.isnan(particle_hits.hit_id)]
+    good_particles = dp.groupby('particle_id')['hit_id'].count() > min_hits-1
+    n_good_p = np.sum(good_particles)
+
+    def pp():
+        print("# of hits: ", n_hits)
+        print("# of noise hits: {} ({:.1f}%)".format(n_noise_hits, 100.*n_noise_hits/n_hits))
+        print("# of particles: {}".format(n_p))
+        print("# of detectable particles: {} ({:.1f}%)".format(n_dp, 100.*n_dp/n_p))
+        print("# of good particles: {} ({:.1f}%)".format(n_good_p, 100.*n_good_p/n_p))
+
+    return n_hits, n_noise_hits, n_p, n_dp, n_good_p, good_particles.index.to_numpy(), pp

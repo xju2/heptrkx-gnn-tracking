@@ -32,6 +32,15 @@ def read(data_dir, black_dir, evtid):
 
     return hits, particles, truth, cells
 
+import yaml
+def read_event(evtid, config):
+    with open(config) as f:
+        config = yaml.load(f)
+
+    data_dir = config['track_ml']['dir']
+    black_dir = config['track_ml']['blacklist_dir']
+    return read(data_dir, black_dir, evtid)
+
 
 def reconstructable_pids(particles, truth):
     truth_particles = particles.merge(truth, on='particle_id', how='left')

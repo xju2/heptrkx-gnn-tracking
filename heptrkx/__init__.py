@@ -19,11 +19,6 @@ layer_pairs = [
     (11, 24), (12, 24), (6, 24), (5, 24), (4, 24)
 ]
 
-# bad_layer_pairs = [
-#     (8, 6), (7, 6)
-# ]
-# layer_pairs = bad_layer_pairs
-
 layer_pairs_dict = dict([(ii, layer_pair) for ii, layer_pair in enumerate(layer_pairs)])
 pairs_layer_dict = dict([(layer_pair, ii) for ii, layer_pair in enumerate(layer_pairs)])
 

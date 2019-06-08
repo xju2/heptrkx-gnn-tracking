@@ -24,3 +24,6 @@ doublets_for_graph:
     evtid: 6700
     selected: /global/cscratch1/sd/xju/heptrkx/output_graphs_moreVar2/selected_pairs
     threshold: /global/cscratch1/sd/xju/heptrkx/trained_models/doublet_moreVar/merged_info.txt 
+    layers: [7, 8, 9, 10, 24, 25, 26, 27, 40, 41]
+    min_hits: 3
+    out_graph: /global/cscratch1/sd/xju/heptrkx/output_graphs_moreVar2/barrel_graphs
