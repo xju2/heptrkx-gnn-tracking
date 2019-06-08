@@ -4,10 +4,9 @@ convert hitgraphs to network-x and prepare graphs for graph-nets
 import numpy as np
 
 from ..datasets.graph import load_graph
-import networkx as nx
 
+import networkx as nx
 from graph_nets import utils_np
-from .utils_io import load_data_dicts
 
 import os
 import glob
@@ -15,6 +14,9 @@ import re
 import random
 
 
+def load_data_dicts(file_name):
+    with np.load(file_name) as f:
+        return dict(f.items())
 
 def graph_to_input_target(graph, no_edge_feature=False):
     def create_feature(attr, fields):
