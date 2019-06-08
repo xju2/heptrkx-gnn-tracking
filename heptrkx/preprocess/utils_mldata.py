@@ -11,7 +11,7 @@ from ..nx_graph import transformation
 
 import os
 
-def read(data_dir, black_dir, evtid):
+def read(data_dir, black_dir, evtid, info=False):
     prefix = os.path.join(os.path.expandvars(data_dir), 'event{:09d}'.format(evtid))
     prefix_bl = os.path.join(os.path.expandvars(black_dir), 'event{:09d}-blacklist_'.format(evtid))
 
@@ -30,16 +30,20 @@ def read(data_dir, black_dir, evtid):
     pt = np.sqrt(px**2 + py**2)
     particles = particles.assign(pt=pt)
 
+    if info:
+        print("# of hits: ", hits.shape[0])
+        print("# of particles: ", particles.shape[0])
+
     return hits, particles, truth, cells
 
 import yaml
-def read_event(evtid, config):
+def read_event(evtid, config, info=False):
     with open(config) as f:
         config = yaml.load(f)
 
     data_dir = config['track_ml']['dir']
     black_dir = config['track_ml']['blacklist_dir']
-    return read(data_dir, black_dir, evtid)
+    return read(data_dir, black_dir, evtid, info)
 
 
 def reconstructable_pids(particles, truth):

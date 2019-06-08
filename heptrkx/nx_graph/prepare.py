@@ -2,11 +2,12 @@
 convert hitgraphs to network-x and prepare graphs for graph-nets
 """
 import numpy as np
-from datasets.graph import load_graph
+
+from ..datasets.graph import load_graph
 import networkx as nx
 
 from graph_nets import utils_np
-from . import utils_io
+from .utils_io import load_data_dicts
 
 import os
 import glob
@@ -15,7 +16,7 @@ import random
 
 
 
-def graph_to_input_target(graph):
+def graph_to_input_target(graph, no_edge_feature=False):
     def create_feature(attr, fields):
         return np.hstack([np.array(attr[field], dtype=float) for field in fields])
 
@@ -36,9 +37,12 @@ def graph_to_input_target(graph):
         )
 
     for sender, receiver, features in graph.edges(data=True):
-        input_graph.add_edge(
-            sender, receiver, features=create_feature(features, input_edge_fields)
-        )
+        if no_edge_feature:
+            input_graph.add_edge(sender, receiver)
+        else:
+            input_graph.add_edge(
+                sender, receiver, features=create_feature(features, input_edge_fields)
+            )
         target_graph.add_edge(
             sender, receiver, features=create_feature(features, target_edge_fields)
         )
@@ -134,8 +138,8 @@ def inputs_generator(base_dir_, n_train_fraction=-1):
             if not os.path.exists(file_name):
                 continue
 
-            input_graphs.append(utils_io.load_data_dicts(file_name))
-            target_graphs.append(utils_io.load_data_dicts(file_name.replace("INPUT", "TARGET")))
+            input_graphs.append(load_data_dicts(file_name))
+            target_graphs.append(load_data_dicts(file_name.replace("INPUT", "TARGET")))
 
             igraphs += 1
 

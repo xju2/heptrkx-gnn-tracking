@@ -8,8 +8,8 @@ true_hits:
 
 doublets_for_training:
     base_dir: /global/cscratch1/sd/xju/heptrkx/pairs
-    true_pairs: merged_true_pairs # relative to base_dir
-    all_pairs: all_pairs_moreVars # relative to base_dir
+    true_pairs: merged_true_pairs # only true pairs
+    all_pairs: all_pairs_moreVars # all pairs, used for training, testing, for Graph
 
 
 doublet_training:
@@ -20,7 +20,7 @@ doublet_training:
     features: ['x_in', 'x_out', 'y_in', 'y_out', 'z_in', 'z_out', 'lx_in', 'lx_out', 'ly_in', 'ly_out', 'lz_in', 'lz_out']
     bkg_from_evtid: 6600
 
-doublets_for_graph:
+doublets_for_graph: ## input pairs from all_pairs
     evtid: 6700
     selected: /global/cscratch1/sd/xju/heptrkx/output_graphs_moreVar2/selected_pairs
     threshold: /global/cscratch1/sd/xju/heptrkx/trained_models/doublet_moreVar/merged_info.txt 

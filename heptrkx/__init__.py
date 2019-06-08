@@ -33,3 +33,6 @@ def keep_finite(df):
     bad_list = list(set(bad_list))
     return df.drop(bad_list)
 
+
+def select_pair_layers(layers):
+    return [ii for ii, layer_pair in enumerate(layer_pairs) if layer_pair[0] in layers and layer_pair[1] in layers]

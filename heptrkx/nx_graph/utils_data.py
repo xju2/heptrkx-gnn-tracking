@@ -303,7 +303,6 @@ def hitsgraph_to_nx(G, IDs=None, use_digraph=True, bidirection=True):
     graph.graph['features'] = np.array([0.])
     return graph
 
-
 def segments_to_nx(hits, segments,
                    sender_hitid_name,
                    receiver_hitid_name,
@@ -313,12 +312,6 @@ def segments_to_nx(hits, segments,
     hits: nodes in the graphs
     segments: DataFrame, with columns ['sender_hit_id', 'receiver_hit_id', 'solution_name'], true edge or not
     """
-
-    #h0_edges = pairs[(pairs['hit_id_in'].isin(hits['hit_id'])) & (pairs['hit_id_out'].isin(hits['hit_id']))]
-    # hits from consecutive layers
-    #layer_diff = [1, 14, 13, -1, -14, -13]
-    #edges = h0_edges[ (h0_edges['layer_out']-h0_edges['layer_in']).isin(layer_diff)]
-
     graph = nx.DiGraph() if use_digraph else nx.Graph()
     graph.graph['features'] = np.array([0.])
 
@@ -343,7 +336,10 @@ def segments_to_nx(hits, segments,
         out_node_idx = hits_id_dict[out_hit_idx]
 
         solution = [segments.iloc[idx][solution_name]]
-        _add_edge(graph, in_node_idx, out_node_idx, solution, bidirection)
+        ## just add edge, not features
+        ###_add_edge(graph, in_node_idx, out_node_idx, solution, bidirection)
+        graph.add_edge(in_node_idx, out_node_idx, solution=solution)
+
 
     return graph
 

@@ -51,7 +51,7 @@ if __name__ == "__main__":
     import pandas as pd
 
     # noise included!
-    hh = utils_data.merge_truth_info_to_hits(hits, truth, particles)
+    hh = utils_data.merge_truth_info_to_hits(hits, particles, truth)
     unique_pids = np.unique(hh['particle_id'])
     print("Number of particles:", unique_pids.shape, reco_pids.shape)
 

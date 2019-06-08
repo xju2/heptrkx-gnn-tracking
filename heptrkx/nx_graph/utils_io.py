@@ -6,6 +6,7 @@ import yaml
 import os
 
 from graph_nets import utils_np
+from . import prepare
 
 ckpt_name = 'checkpoint_{:05d}.ckpt'
 
@@ -41,9 +42,16 @@ def load_input_target_data_dicts(path, evtid, isec):
     return input_dd, target_dd
 
 
+INPUT_NAME = "INPUT"
+TARGET_NAME = "TARGET"
 def save_networkx(graph, output_name):
+    output_data_name = os.path.join(output_name, '_{}.npz'.format(INPUT_NAME))
     if os.path.exists(output_data_name):
         print(output_data_name, "is there")
 
-    data_dict = utils_np.networkx_to_data_dict(graph)
-    np.savez(output_name, **data_dict)
+    input_graph, target_graph = prepare.graph_to_input_target(graph, no_edge_feature=True)
+    output_data = utils_np.networkx_to_data_dict(input_graph)
+    target_data = utils_np.networkx_to_data_dict(target_graph)
+
+    np.savez( output_data_name, **output_data)
+    np.savez( output_data_name.replace(INPUT_NAME, TARGET_NAME), **target_data)

@@ -1,18 +1,46 @@
 #!/usr/bin/env python
 
+import numpy as np
+import pandas as pd
+
+def process(evtid, threshold_file, output_dir):
+    df_threshold = pd.read_csv(threshold_file, sep=' ', header=None,
+                               names=["idx", "in", "out", "cut", "eff", "purity", "n_true", "n_fake"])
+    print(df_threshold.shape)
+
+
+    cmd_raw_pairs = ['make_pairs_for_training_segments', config_dir, str(evtid)]
+    print(" ".join(cmd_raw_pairs))
+    ck_code = subprocess.call(cmd_raw_pairs)
+    print('results', ck_code)
+
+    from heptrkx import layer_pairs, select_pair_layers
+    sel_layer_id = select_pair_layers(layers)
+
+    for ii in sel_layer_id:
+        layer_pair = layer_pairs[ii]
+        try:
+            cmd_sel_pairs =['select_pairs', config_dir, str(ii),
+                            str(df_threshold[df_threshold.idx == ii]['cut'].values[0])]
+            print(" ".join(cmd_sel_pairs))
+        except IndexError:
+            print("pair {}-{}-{} is missing MODEL".format(ii, *layer_pair))
+        ck_code = subprocess.call(cmd_sel_pairs)
+        print("pair selection:", ck_code)
+
 if __name__ == "__main__":
     import os
     import argparse
-    import numpy as np
-    import pandas as pd
     import subprocess
 
     parser = argparse.ArgumentParser(description='Keras train pairs for each layer-pairs')
     add_arg = parser.add_argument
     add_arg('config', type=str, help='data configuration, configs/data.yaml')
+    add_arg('--workers', type=int, help='workers', default=1)
 
     args = parser.parse_args()
     config_dir = args.config
+    n_workers = args.workers
 
     import yaml
     assert(os.path.exists(config_dir))
@@ -22,30 +50,17 @@ if __name__ == "__main__":
 
     mk_cfg = config['doublets_for_graph']
     evtid = mk_cfg['evtid']
-    threshold_file = os.path.expandvars(mk_cfg['threshold'])
-    df_threshold = pd.read_csv(threshold_file, sep=' ', header=None,
-                               names=["idx", "in", "out", "cut", "eff", "purity", "n_true", "n_fake"])
-    print(df_threshold.shape)
+    print(evtid)
+    exit()
 
+    threshold_file = os.path.expandvars(mk_cfg['threshold'])
     output_dir = os.path.expandvars(mk_cfg['selected'])
     os.makedirs(output_dir, exist_ok=True)
 
-    raw_pairs_dir = os.path.join(output_dir, 'raw_pairs')
-    cmd_raw_pairs = ['make_pairs_for_training_segments', config_dir, str(evtid)]
-    print(" ".join(cmd_raw_pairs))
-    #ck_code = subprocess.call(cmd_raw_pairs)
-    #print('results', ck_code)
-    #exit()
+    import multiprocessing as mp
+    from functools import partial
+    print("workers: {}".format(n_workers))
 
-    from heptrkx import layer_pairs
-    selected_pairs_dir = os.path.join(output_dir, 'selected_pairs', 'evt{}'.format(evtid))
-    for ii, layer_pair in enumerate(layer_pairs):
-        file_name = os.path.join(raw_pairs_dir, 'evt{}'.format(evtid), 'pair{:03d}.h5'.format(ii))
-        try:
-            cmd_sel_pairs =['select_pairs', config_dir, str(ii),
-                            str(df_threshold[df_threshold.idx == ii]['cut'].values[0])]
-            print(" ".join(cmd_sel_pairs))
-        except IndexError:
-            print("pair {}-{}-{} is missing MODEL".format(ii, *layer_pair))
-        ck_code = subprocess.call(cmd_sel_pairs)
-        print("pair selection:", ck_code)
+    with  mp.Pool(processes=n_workers) as pool:
+        pp_func = partial(process, threshold_file=threshold_file, output_dir=output_dir)
+        pool.map(pp_func, evtids)

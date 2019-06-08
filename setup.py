@@ -54,8 +54,9 @@ setup(
         'scripts/train_nx_graph',
         'scripts/evaluate_gnn_models',
         'scripts/hits_graph_to_tuple',
-        'scripts/make_graphs_from_pair_NNs',
+        'scripts/make_doublets_from_NNs',
         'scripts/pairs_to_nx_graph',
         'scripts/get_total_segments',
+        'scripts/make_graph',
     ],
 )
