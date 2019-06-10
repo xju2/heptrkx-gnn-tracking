@@ -87,5 +87,5 @@ if __name__ == "__main__":
         receiver_hitid_name='hit_id_out',
         solution_name='true', use_digraph=True, bidirection=args.bidirection)
 
-    out_name = os.path.join(output_dir, 'evt{}.h5'.format(evtid))
+    out_name = os.path.join(output_dir, 'evt{}'.format(evtid))
     utils_io.save_networkx(graph, out_name)

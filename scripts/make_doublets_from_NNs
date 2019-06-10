@@ -20,7 +20,7 @@ def list_from_str(input_str):
     return out
 
 
-def process(evtid, threshold_file, output_dir):
+def process(evtid, threshold_file, output_dir, layers):
     df_threshold = pd.read_csv(threshold_file, sep=' ', header=None,
                                names=["idx", "in", "out", "cut", "eff", "purity", "n_true", "n_fake"])
     #print(df_threshold.shape)
@@ -37,7 +37,8 @@ def process(evtid, threshold_file, output_dir):
         layer_pair = layer_pairs[ii]
         try:
             cmd_sel_pairs =['select_pairs', config_dir, str(ii),
-                            str(df_threshold[df_threshold.idx == ii]['cut'].values[0])]
+                            str(df_threshold[df_threshold.idx == ii]['cut'].values[0]),
+                           str(evtid)]
             #print(" ".join(cmd_sel_pairs))
         except IndexError:
             print("pair {}-{}-{} is missing MODEL".format(ii, *layer_pair))
@@ -58,27 +59,60 @@ if __name__ == "__main__":
     config_dir = args.config
     n_workers = args.workers
 
-    import yaml
-    assert(os.path.exists(config_dir))
-    with open(config_dir) as f:
-        config = yaml.load(f)
+    try:
+        from mpi4py import MPI
+        comm = MPI.COMM_WORLD
+        size = comm.Get_size()
+        rank = comm.Get_rank()
+        print("World size:", size, ", rank:", rank)
+        use_mpi = True
+    except ImportError:
+        rank = 0
+        size = 1
+        use_mpi = False
 
 
-    mk_cfg = config['doublets_for_graph']
-    evtids = mk_cfg['evtid']
-    if type(evtids) is str:
-        evtids = list_from_str(evtids)
+
+    if rank == 0:
+        import yaml
+        assert(os.path.exists(config_dir))
+        with open(config_dir) as f:
+            config = yaml.load(f)
+
+        mk_cfg = config['doublets_for_graph']
+        evtids = mk_cfg['evtid']
+        threshold_file = os.path.expandvars(mk_cfg['threshold'])
+        output_dir = os.path.expandvars(mk_cfg['selected'])
+        os.makedirs(output_dir, exist_ok=True)
+        if type(evtids) is str:
+            evtids = list_from_str(evtids)
+        else:
+            evtids = [evtids]
+
+        ## check existing evt-ids
+        evtids = [x.tolist() for x in np.array_split(evtids, size)]
+        layers = mk_cfg['layers']
     else:
-        evtids = [evtids]
+        evtids = None
+        threshold_file = None
+        output_dir = None
+        layers = None
 
-    threshold_file = os.path.expandvars(mk_cfg['threshold'])
-    output_dir = os.path.expandvars(mk_cfg['selected'])
-    os.makedirs(output_dir, exist_ok=True)
+    if use_mpi:
+        comm.Barrier()
+        evtids = comm.scatter(evtids, root=0)
+        threshold_file = comm.bcast(threshold_file, root=0)
+        output_dir = comm.bcast(output_dir, root=0)
+        layers = comm.bcast(layers, root=0)
+    else:
+        evtids = evtids[0]
 
     import multiprocessing as mp
     from functools import partial
-    print("workers: {}".format(n_workers))
+
+    print("rank({}) {} workers:".format(rank, n_workers))
+    print("rank({}) {} events:".format(rank, len(evtids)))
 
     with  mp.Pool(processes=n_workers) as pool:
-        pp_func = partial(process, threshold_file=threshold_file, output_dir=output_dir)
+        pp_func = partial(process, threshold_file=threshold_file, output_dir=output_dir, layers=layers)
         pool.map(pp_func, evtids)

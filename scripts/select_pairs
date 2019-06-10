@@ -9,6 +9,7 @@ if __name__ == "__main__":
     add_arg('config', type=str, help='configs/data.yaml')
     add_arg('pair_idx', nargs='?', type=int, help='pair idx', default=0)
     add_arg('cut_on_score', type=float, help='selection criteria')
+    add_arg('evtid', type=int, help='event id')
 
     args = parser.parse_args()
 
@@ -22,12 +23,13 @@ if __name__ == "__main__":
     cut = args.cut_on_score
 
     pair_idx = args.pair_idx
+    evtid = args.evtid
     file_name = os.path.join(
         os.path.expandvars(config['doublets_for_training']['base_dir']),
         config['doublets_for_training']['all_pairs'],
-        'evt{}'.format(cfg['evtid']),
+        'evt{}'.format(args.evtid),
         'pair{:03d}.h5'.format(pair_idx))
-    output_dir = os.path.join(cfg['selected'], 'evt{}'.format(pair_idx))
+    output_dir = os.path.join(cfg['selected'], 'evt{}'.format(evtid))
 
     train_cfg = config['doublet_training']
     model_weight_base_dir = os.path.expandvars(train_cfg['model_output_dir'])
