@@ -1,5 +1,9 @@
 #!/usr/bin/env python
-
+"""
+Use **make_pairs_for_training_segments** to make all pairs for the event,
+then use **select_pairs** to select promising pairs (can run on GPU)
+*  srun -n 10 make_doublets_from_NNs configs/data_5000evts.yaml
+"""
 import numpy as np
 import pandas as pd
 
