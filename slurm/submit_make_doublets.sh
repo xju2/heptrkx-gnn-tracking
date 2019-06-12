@@ -9,5 +9,5 @@
 setup_heptrkx
 
 which python
-srun -n 100 -c 18 make_doublets_from_NNs configs/data_5000evts.yaml --workers 9
+srun -n 200  make_doublets_from_NNs configs/data_5000evts.yaml --workers 1
 

@@ -25,7 +25,10 @@ if __name__ == "__main__":
     add_arg('evtid', type=int, help='event id')
     add_arg('--n-pids', type=int, help='how many particles should be used',
             default=-1)
+    add_arg('--workers', type=int, help='workers', default=1)
+
     args = parser.parse_args()
+    n_workers = args.workers
 
     import yaml
     assert(os.path.exists(args.config))
@@ -74,11 +77,6 @@ if __name__ == "__main__":
     selected_hits_angle = selected_hits.merge(local_angles, on='hit_id', how='left')
 
     pp_layers_info = [(x, ii) for ii,x in enumerate(layer_pairs)]
-
-    try:
-        n_workers = int(os.getenv('SLURM_CPUS_PER_TASK'))
-    except (ValueError, TypeError):
-        n_workers = 1
     print("Workers:", n_workers)
 
     import multiprocessing as mp
