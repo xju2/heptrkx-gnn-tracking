@@ -2,6 +2,7 @@
 
 import pandas as pd
 import numpy as np
+import yaml
 
 def load_seg(file_name):
     with pd.HDFStore(file_name) as store:
@@ -9,40 +10,14 @@ def load_seg(file_name):
 
     return df[df.selected]
 
-
-if __name__ == "__main__":
-    import os
-    import argparse
-
-    from heptrkx.nx_graph import utils_data
-    from heptrkx.nx_graph import utils_io
-
-    parser = argparse.ArgumentParser(description='Keras train pairs for each layer-pairs')
-    add_arg = parser.add_argument
-    add_arg('config', type=str, help='data configuration, configs/data.yaml')
-    add_arg('--workers', type=int, help='number of threads', default=1)
-    add_arg('--bidirection', action='store_true', help='use two-directions in graph')
-
-    args = parser.parse_args()
-    config_dir = args.config
-    n_workers = args.workers
-
-
-    import yaml
-    assert(os.path.exists(config_dir))
+def process(evtid, config_dir):
     with open(config_dir) as f:
         config = yaml.load(f)
 
-
     mk_cfg = config['doublets_for_graph']
-    evtids = mk_cfg['evtid']
-    if type(evtids) is str:
-        from heptrkx import list_from_str
-        evtids = list_from_str(evtids)
-    else:
-        evtids = [evtids]
 
-    pairs_input_dir = os.path.join(os.path.expandvars(mk_cfg['selected']), "evt{}".format(evtid))
+    pairs_selected_dir = os.path.expandvars(mk_cfg['selected'])
+    pairs_input_dir = os.path.join(pairs_selected_dir, "evt{}".format(evtid))
     layers = mk_cfg['layers']
     min_hits = mk_cfg['min_hits']
 
@@ -65,26 +40,18 @@ if __name__ == "__main__":
     del particle_hits
     del dp
 
-    print("total hits: {}".format(hits.shape[0]))
-    print("total particles: {}".format(particles.shape[0]))
+    print("event {} total hits: {}".format(evtid, hits.shape[0]))
+    print("event {} total particles: {}".format(evtid, particles.shape[0]))
 
     # find layer pairs
     from heptrkx import layer_pairs, select_pair_layers
     sel_layer_id = select_pair_layers(layers)
 
-    # load segments 
-    from functools import partial
-    import multiprocessing as mp
     file_names = [os.path.join(pairs_input_dir, 'pair{:03d}.h5'.format(i))
                   for i in sel_layer_id]
-
-    n_workers = args.workers
-    print("workers: {}".format(n_workers))
-    with  mp.Pool(processes=n_workers) as pool:
-        all_segments = pool.map(load_seg, file_names)
-
+    all_segments = [load_seg(file_name) for file_name in file_names]
     segments = pd.concat(all_segments, ignore_index=True)
-    print("total edges: ",  segments.shape[0])
+    print("event {} total edges: ".format(evtid, segments.shape[0]))
 
     # make a graph and save to disk
     output_dir = mk_cfg['out_graph']
@@ -97,3 +64,68 @@ if __name__ == "__main__":
 
     out_name = os.path.join(output_dir, 'evt{}'.format(evtid))
     utils_io.save_networkx(graph, out_name)
+
+if __name__ == "__main__":
+    import os
+    import argparse
+
+    from heptrkx.nx_graph import utils_data
+    from heptrkx.nx_graph import utils_io
+
+    parser = argparse.ArgumentParser(description='Keras train pairs for each layer-pairs')
+    add_arg = parser.add_argument
+    add_arg('config', type=str, help='data configuration, configs/data.yaml')
+    add_arg('--workers', type=int, help='number of threads', default=1)
+    add_arg('--bidirection', action='store_true', help='use two-directions in graph')
+
+    args = parser.parse_args()
+    config_dir = args.config
+    n_workers = args.workers
+
+    try:
+        from mpi4py import MPI
+        comm = MPI.COMM_WORLD
+        size = comm.Get_size()
+        rank = comm.Get_rank()
+        print("World size:", size, ", rank:", rank)
+        use_mpi = True
+    except ImportError:
+        rank = 0
+        size = 1
+        use_mpi = False
+
+    if rank == 0:
+        import yaml
+        assert(os.path.exists(config_dir))
+        with open(config_dir) as f:
+            config = yaml.load(f)
+
+
+        mk_cfg = config['doublets_for_graph']
+        evtids = mk_cfg['evtid']
+        if type(evtids) is str:
+            from heptrkx import list_from_str
+            evtids = list_from_str(evtids)
+        else:
+            evtids = [evtids]
+
+        ## split evtids based on the world-size
+        evtids = [x.tolist() for x in np.array_split(evtids, size)]
+    else:
+        evtids = None
+
+    if use_mpi:
+        comm.Barrier()
+        evtids = comm.scatter(evtids, root=0)
+    else:
+        evtids = evtids[0]
+
+    import multiprocessing as mp
+    from functools import partial
+
+    print("rank({}) {} workers:".format(rank, n_workers))
+    print("rank({}) {} events:".format(rank, len(evtids)))
+
+    with  mp.Pool(processes=n_workers) as pool:
+        pp_func = partial(process, config_dir=config_dir)
+        pool.map(pp_func, evtids)
