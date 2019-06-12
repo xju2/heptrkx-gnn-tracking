@@ -25,6 +25,8 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     config_dir = args.config
+    n_workers = args.workers
+
 
     import yaml
     assert(os.path.exists(config_dir))
@@ -33,7 +35,13 @@ if __name__ == "__main__":
 
 
     mk_cfg = config['doublets_for_graph']
-    evtid = mk_cfg['evtid']
+    evtids = mk_cfg['evtid']
+    if type(evtids) is str:
+        from heptrkx import list_from_str
+        evtids = list_from_str(evtids)
+    else:
+        evtids = [evtids]
+
     pairs_input_dir = os.path.join(os.path.expandvars(mk_cfg['selected']), "evt{}".format(evtid))
     layers = mk_cfg['layers']
     min_hits = mk_cfg['min_hits']

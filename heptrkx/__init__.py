@@ -36,3 +36,19 @@ def keep_finite(df):
 
 def select_pair_layers(layers):
     return [ii for ii, layer_pair in enumerate(layer_pairs) if layer_pair[0] in layers and layer_pair[1] in layers]
+
+def list_from_str(input_str):
+    items = input_str.split(',')
+    out = []
+    for item in items:
+        try:
+            value = int(item)
+            out.append(value)
+        except ValueError:
+            start, end = item.split('-')
+            try:
+                start, end = int(start), int(end)
+                out += list(range(start, end+1))
+            except ValueError:
+                pass
+    return out

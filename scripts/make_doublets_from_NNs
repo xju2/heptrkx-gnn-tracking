@@ -7,22 +7,7 @@ then use **select_pairs** to select promising pairs (can run on GPU)
 import numpy as np
 import pandas as pd
 
-def list_from_str(input_str):
-    items = input_str.split(',')
-    out = []
-    for item in items:
-        try:
-            value = int(item)
-            out.append(value)
-        except ValueError:
-            start, end = item.split('-')
-            try:
-                start, end = int(start), int(end)
-                out += list(range(start, end+1))
-            except ValueError:
-                pass
-    return out
-
+from heptrkx import list_from_str
 
 def process(evtid, threshold_file, output_dir, layers):
     df_threshold = pd.read_csv(threshold_file, sep=' ', header=None,
