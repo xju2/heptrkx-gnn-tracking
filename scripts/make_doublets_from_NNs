@@ -6,18 +6,23 @@ then use **select_pairs** to select promising pairs (can run on GPU)
 """
 import numpy as np
 import pandas as pd
+import yaml
 
 from heptrkx import list_from_str
 
-def process(evtid, threshold_file, output_dir, layers):
+def process(evtid, config_dir):
+    with open(config_dir) as f:
+            config = yaml.load(f)
+
+    mk_cfg = config['doublets_for_graph']
+    threshold_file = os.path.expandvars(mk_cfg['threshold'])
+    layers = mk_cfg['layers']
+
     df_threshold = pd.read_csv(threshold_file, sep=' ', header=None,
                                names=["idx", "in", "out", "cut", "eff", "purity", "n_true", "n_fake"])
-    #print(df_threshold.shape)
 
     cmd_raw_pairs = ['make_pairs_for_training_segments', config_dir, str(evtid)]
-    #print(" ".join(cmd_raw_pairs))
     ck_code = subprocess.call(cmd_raw_pairs)
-    #print('results', ck_code)
 
     from heptrkx import layer_pairs, select_pair_layers
     sel_layer_id = select_pair_layers(layers)
@@ -63,14 +68,12 @@ if __name__ == "__main__":
 
 
     if rank == 0:
-        import yaml
         assert(os.path.exists(config_dir))
         with open(config_dir) as f:
             config = yaml.load(f)
 
         mk_cfg = config['doublets_for_graph']
         evtids = mk_cfg['evtid']
-        threshold_file = os.path.expandvars(mk_cfg['threshold'])
         output_dir = os.path.expandvars(mk_cfg['selected'])
         os.makedirs(output_dir, exist_ok=True)
         if type(evtids) is str:
@@ -80,19 +83,12 @@ if __name__ == "__main__":
 
         ## split evtids based on the world-size
         evtids = [x.tolist() for x in np.array_split(evtids, size)]
-        layers = mk_cfg['layers']
     else:
         evtids = None
-        threshold_file = None
-        output_dir = None
-        layers = None
 
     if use_mpi:
         comm.Barrier()
         evtids = comm.scatter(evtids, root=0)
-        threshold_file = comm.bcast(threshold_file, root=0)
-        output_dir = comm.bcast(output_dir, root=0)
-        layers = comm.bcast(layers, root=0)
     else:
         evtids = evtids[0]
 
@@ -103,5 +99,5 @@ if __name__ == "__main__":
     print("rank({}) {} events:".format(rank, len(evtids)))
 
     with  mp.Pool(processes=n_workers) as pool:
-        pp_func = partial(process, threshold_file=threshold_file, output_dir=output_dir, layers=layers)
+        pp_func = partial(process, config_dir=config_dir)
         pool.map(pp_func, evtids)
