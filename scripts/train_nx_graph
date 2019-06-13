@@ -22,7 +22,8 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    config = utils_train.load_config(args.config)
+    from heptrkx import load_yaml
+    config = load_yaml(args.config)
 
     import time
     import os

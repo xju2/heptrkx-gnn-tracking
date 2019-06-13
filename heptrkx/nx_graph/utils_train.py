@@ -7,8 +7,6 @@ import tensorflow as tf
 from graph_nets import utils_tf
 from graph_nets import utils_np
 
-import yaml
-
 def create_feed_dict(generator, batch_size, input_ph, target_ph, is_trained=True):
     inputs, targets = generator(batch_size, is_trained)
     input_graphs  = utils_np.data_dicts_to_graphs_tuple(inputs)

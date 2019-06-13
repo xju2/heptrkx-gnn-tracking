@@ -6,13 +6,10 @@ then use **select_pairs** to select promising pairs (can run on GPU)
 """
 import numpy as np
 import pandas as pd
-import yaml
-
-from heptrkx import list_from_str
+from heptrkx import load_yaml, list_from_str
 
 def process(evtid, config_dir):
-    with open(config_dir) as f:
-            config = yaml.load(f)
+    config = load_yaml(config_dir)
 
     mk_cfg = config['doublets_for_graph']
     threshold_file = os.path.expandvars(mk_cfg['threshold'])
@@ -21,7 +18,8 @@ def process(evtid, config_dir):
     df_threshold = pd.read_csv(threshold_file, sep=' ', header=None,
                                names=["idx", "in", "out", "cut", "eff", "purity", "n_true", "n_fake"])
 
-    cmd_raw_pairs = ['make_pairs_for_training_segments', config_dir, str(evtid)]
+    cmd_raw_pairs = ['make_pairs_for_training_segments', config_dir, str(evtid), '-q']
+    print(cmd_raw_pairs)
     ck_code = subprocess.call(cmd_raw_pairs)
     if ck_code != 0:
         return
@@ -34,14 +32,12 @@ def process(evtid, config_dir):
         try:
             cmd_sel_pairs =['select_pairs', config_dir, str(ii),
                             str(df_threshold[df_threshold.idx == ii]['cut'].values[0]),
-                           str(evtid)]
-            #print(" ".join(cmd_sel_pairs))
+                           str(evtid), '-q']
         except IndexError:
             print("pair {}-{}-{} is missing MODEL".format(ii, *layer_pair))
         ck_code = subprocess.call(cmd_sel_pairs)
         if ck_code != 0:
             return
-        #print("pair selection:", ck_code)
 
 if __name__ == "__main__":
     import os
@@ -70,11 +66,9 @@ if __name__ == "__main__":
         use_mpi = False
 
 
-
     if rank == 0:
         assert(os.path.exists(config_dir))
-        with open(config_dir) as f:
-            config = yaml.load(f)
+        config = load_yaml(config_dir)
 
         mk_cfg = config['doublets_for_graph']
         evtids = mk_cfg['evtid']

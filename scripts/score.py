@@ -17,7 +17,7 @@ if __name__ == "__main__":
     import argparse
     import os
     import glob
-    from nx_graph.utils_train import load_config
+    from heptrkx import load_yaml
 
     parser = argparse.ArgumentParser(description='Get a score from postprocess')
     add_arg = parser.add_argument
@@ -35,7 +35,7 @@ if __name__ == "__main__":
 
     # create the model
     model = create_evaluator(config_file, iteration, input_ckpt)
-    config = load_config(config_file)
+    config = load_yaml(config_file)
 
     # prepare for data
     file_dir = config['data']['output_nxgraph_dir']

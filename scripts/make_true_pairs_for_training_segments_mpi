@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from heptrkx import layer_pairs
+
 def process(input_info, selected_hits_angle, output_dir):
     layer_pair, ii = input_info
     segments = list(utils_mldata.create_segments(selected_hits_angle, [layer_pair], only_true=True))
@@ -14,7 +14,6 @@ if __name__ == "__main__":
     import os
     import glob
     import re
-    import yaml
 
     import argparse
 
@@ -24,9 +23,8 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    assert(os.path.exists(args.config))
-    with open(args.config) as f:
-        config = yaml.load(f)
+    from heptrkx import layer_pairs, load_yaml
+    config = load_yaml(args.config)
 
     data_dir = os.path.expandvars(config['track_ml']['dir'])
     black_list_dir = os.path.expandvars(config['track_ml']['blacklist_dir'])

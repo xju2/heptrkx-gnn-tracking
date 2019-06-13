@@ -2,7 +2,7 @@
 
 
 if __name__ == "__main__":
-    from heptrkx import keep_finite
+    from heptrkx import keep_finite, load_yaml
     import os
     import argparse
 
@@ -15,10 +15,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    assert(os.path.exists(args.config))
-    import yaml
-    with open(args.config) as f:
-        config = yaml.load(f)
+    config = load_yaml(args.config)
     train_cfg = config['doublet_training']
 
     batch_size = train_cfg['batch_size']

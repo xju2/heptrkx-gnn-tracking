@@ -18,10 +18,8 @@ if __name__ == "__main__":
     quiet = args.quiet
 
     assert(os.path.exists(args.config))
-    import yaml
-    with open(args.config) as f:
-        config = yaml.load(f)
-
+    from heptrkx import load_yaml
+    config = load_yaml(args.config)
     cfg = config['doublets_for_graph']
 
     cut = args.cut_on_score
@@ -57,7 +55,7 @@ if __name__ == "__main__":
     if os.path.exists(outname):
         if not quiet:
             print(outname, 'is there')
-        exit()
+        exit(0)
 
     import numpy as np
     import pandas as pd

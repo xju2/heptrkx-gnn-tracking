@@ -39,7 +39,9 @@ if __name__ == "__main__":
 
     model = create_evaluator(config_file, args.iteration, args.ckpt)
 
-    config = utils_io.load_config(config_file)
+    from heptrkx import load_yaml
+    config = load_yaml(config_file)
+
     evtid = 660
     isec = 0
     batch_size = config['train']['batch_size']

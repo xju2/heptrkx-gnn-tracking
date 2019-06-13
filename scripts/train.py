@@ -9,7 +9,6 @@ import argparse
 import logging
 
 # Externals
-import yaml
 import numpy as np
 import torch.distributed as dist
 from torch.utils.data import DataLoader
@@ -52,9 +51,6 @@ def init_workers(distributed=False):
         n_ranks = dist.get_world_size()
     return rank, n_ranks
 
-def load_config(config_file):
-    with open(config_file) as f:
-        return yaml.load(f)
 
 def main():
     """Main function"""
@@ -65,7 +61,8 @@ def main():
     rank, n_ranks = init_workers(args.distributed)
 
     # Load configuration
-    config = load_config(args.config)
+    from heptrkx import load_yaml
+    config = load_yaml(args.config)
     output_dir = os.path.expandvars(config.get('output_dir', None))
     if rank == 0:
         os.makedirs(output_dir, exist_ok=True)

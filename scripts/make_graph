@@ -2,7 +2,7 @@
 
 import pandas as pd
 import numpy as np
-import yaml
+from heptrkx import load_yaml
 
 def load_seg(file_name):
     with pd.HDFStore(file_name) as store:
@@ -11,9 +11,7 @@ def load_seg(file_name):
     return df[df.selected]
 
 def process(evtid, config_dir):
-    with open(config_dir) as f:
-        config = yaml.load(f)
-
+    config = load_yaml(config_dir)
     mk_cfg = config['doublets_for_graph']
 
     pairs_selected_dir = os.path.expandvars(mk_cfg['selected'])
@@ -95,12 +93,8 @@ if __name__ == "__main__":
         use_mpi = False
 
     if rank == 0:
-        import yaml
         assert(os.path.exists(config_dir))
-        with open(config_dir) as f:
-            config = yaml.load(f)
-
-
+        config = load_yaml(config_dir)
         mk_cfg = config['doublets_for_graph']
         evtids = mk_cfg['evtid']
         if type(evtids) is str:

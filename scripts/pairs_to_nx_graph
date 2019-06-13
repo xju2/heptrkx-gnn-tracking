@@ -93,9 +93,9 @@ if __name__ == "__main__":
     add_arg('config',  nargs='?', default='configs/pairs_to_nx.yaml')
     args = parser.parse_args()
 
-    from nx_graph import utils_train
-    config = utils_train.load_config(args.config)
+    from heptrkx import load_yaml
 
+    config = load_yaml(args.config)
     pairs_input_dir = config['input_pairs']
     output_dir = config['output_graphs']
     if not os.path.exists(output_dir):

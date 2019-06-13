@@ -1,5 +1,7 @@
 
 # Layer Information
+
+
 layer_pairs = [
     (7, 8), (8, 9), (9, 10), (10, 24), (24, 25), (25, 26), (26, 27), (27, 40), (40, 41),
     (7, 6), (6, 5), (5, 4), (4, 3), (3, 2), (2, 1), (1, 0),
@@ -52,3 +54,10 @@ def list_from_str(input_str):
             except ValueError:
                 pass
     return out
+
+import yaml
+import os
+def load_yaml(file_name):
+    assert(os.path.exists(file_name))
+    with open(file_name) as f:
+        return yaml.load(f, Loader=yaml.FullLoader)
