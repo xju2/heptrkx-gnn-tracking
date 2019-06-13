@@ -46,7 +46,11 @@ if __name__ == "__main__":
     n_pids = args.n_pids
 
     from heptrkx.preprocess import utils_mldata
-    hits, particles, truth, cells = utils_mldata.read(data_dir, black_list_dir, evtid)
+    results = utils_mldata.read(data_dir, black_list_dir, evtid)
+    if results is None:
+        exit()
+    else:
+        hits, particles, truth, cells = results
 
     reco_pids = utils_mldata.reconstructable_pids(particles, truth)
     from heptrkx.nx_graph import utils_data
@@ -56,7 +60,7 @@ if __name__ == "__main__":
     # noise included!
     hh = utils_data.merge_truth_info_to_hits(hits, particles, truth)
     unique_pids = np.unique(hh['particle_id'])
-    print("Number of particles:", unique_pids.shape, reco_pids.shape)
+    print("event {} has {} particles {} reconstructable".format(evtid, unique_pids.shape, reco_pids.shape))
 
     if n_pids > 0:
         selected_pids = np.random.choice(unique_pids, size=n_pids)
@@ -65,8 +69,8 @@ if __name__ == "__main__":
         selected_hits = hh.assign(evtid=evtid)
 
     all_layers = np.unique(selected_hits.layer)
-    print("Total Number of Layers:", len(all_layers))
-    print("Total Layer Pairs", len(layer_pairs))
+    print("event {} Total {} Layers:".format(len(evtid, all_layers)))
+    print("event {} Total {} Layer Pairs".format(len(evetid, layer_pairs)))
 
     from heptrkx.nx_graph import transformation
     module_getter = utils_mldata.module_info(det_dir)
@@ -77,7 +81,7 @@ if __name__ == "__main__":
     selected_hits_angle = selected_hits.merge(local_angles, on='hit_id', how='left')
 
     pp_layers_info = [(x, ii) for ii,x in enumerate(layer_pairs)]
-    print("Workers:", n_workers)
+    print("event {} uses {} Workers:".format(evtid, n_workers))
 
     import multiprocessing as mp
     with mp.Pool(processes=n_workers) as pool:
