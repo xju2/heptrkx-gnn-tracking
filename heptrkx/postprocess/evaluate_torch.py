@@ -1,11 +1,12 @@
 """Take a model configation and evaluate hitsgraph"""
 
 import torch
-from models import get_model
-from datasets.graph import load_graph
-from datasets.graph import collate_fn as hitsgraph_to_input_target
+from ..models import get_model
+from ..datasets.graph import load_graph
+from ..datasets.graph import collate_fn as hitsgraph_to_input_target
 
-from nx_graph import utils_data, utils_io
+from ..nx_graph import utils_data, utils_io
+from .. import load_yaml
 
 import re
 import glob
@@ -34,7 +35,7 @@ def create_evaluator(config_file, reload_epoch, input_ckpt=None):
     """use training configrations to initialize models,
     return a function that could evaluate any event, or event section
     """
-    config = utils_io.load_config(config_file)
+    config = load_yaml(config_file)
     model = load_model(config, reload_epoch, input_ckpt).eval()
     hitsgraph_dir = config['data']['input_dir']
     base_dir = os.path.join(hitsgraph_dir, 'event{:09d}_g{:03d}.npz')

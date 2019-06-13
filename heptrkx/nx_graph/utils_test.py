@@ -5,13 +5,13 @@ utils for testing trained tf model
 import tensorflow as tf
 from graph_nets import utils_tf
 
-import yaml
 import sklearn.metrics
 import os
 import numpy as np
 
 from . import utils_train, utils_io, prepare, get_model
 from .utils_io import ckpt_name
+from .. import load_yaml
 
 import matplotlib.pyplot as plt
 
@@ -20,7 +20,7 @@ def create_trained_model(config_name, input_ckpt=None):
     @config: configuration for train_nx_graph
     """
     # load configuration file
-    config = utils_io.load_config(config_name)
+    config = load_yaml(config_name)
     config_tr = config['train']
 
     log_every_seconds       = config_tr['time_lapse']

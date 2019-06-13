@@ -7,9 +7,10 @@ import yaml
 import os
 import numpy as np
 
-from nx_graph.prepare import inputs_generator
-from nx_graph import get_model, utils_data, utils_train, utils_io
-from nx_graph.utils_io import ckpt_name
+from ..nx_graph.prepare import inputs_generator
+from ..nx_graph import get_model, utils_data, utils_train, utils_io
+from ..nx_graph.utils_io import ckpt_name
+from .. import load_yaml
 
 
 def create_evaluator(config_name, iteration, input_ckpt=None):
@@ -17,7 +18,7 @@ def create_evaluator(config_name, iteration, input_ckpt=None):
     @config: configuration for train_nx_graph
     """
     # load configuration file
-    config = utils_io.load_config(config_name)
+    config = load_yaml(config_name)
     config_tr = config['train']
 
     batch_size = n_graphs   = config_tr['batch_size']   # need optimization
