@@ -2,7 +2,7 @@
 
 import pandas as pd
 import numpy as np
-from heptrkx import load_yaml
+from heptrkx import layer_pairs, select_pair_layers, load_yaml
 import os
 import sys
 
@@ -25,7 +25,12 @@ def process(evtid, config_dir, quiet):
     pairs_input_dir = os.path.join(pairs_selected_dir, "evt{}".format(evtid))
     layers = mk_cfg['layers']
     min_hits = mk_cfg['min_hits']
+    output_dir = mk_cfg['out_graph']
 
+    out_name = os.path.join(output_dir, 'evt{}'.format(evtid))
+    if os.path.exists(out_name):
+        print("[{}] find {}".format(prog, out_name))
+        return
 
     # load event
     from heptrkx.preprocess import utils_mldata
@@ -47,7 +52,6 @@ def process(evtid, config_dir, quiet):
 
 
     # find layer pairs
-    from heptrkx import layer_pairs, select_pair_layers
     sel_layer_id = select_pair_layers(layers)
 
     file_names = [os.path.join(pairs_input_dir, 'pair{:03d}.h5'.format(i))
@@ -59,10 +63,9 @@ def process(evtid, config_dir, quiet):
         print("[{}] processing event {}".format(prog, evtid))
         print("\t total hits: {}".format(hits.shape[0]))
         print("\t total particles: {}".format(particles.shape[0]))
-        print("\t total edges: ".format(segments.shape[0]))
+        print("\t total edges: {}".format(segments.shape[0]))
 
     # make a graph and save to disk
-    output_dir = mk_cfg['out_graph']
 
     graph = utils_data.segments_to_nx(
         hits, segments,
@@ -70,7 +73,6 @@ def process(evtid, config_dir, quiet):
         receiver_hitid_name='hit_id_out',
         solution_name='true', use_digraph=True, bidirection=args.bidirection)
 
-    out_name = os.path.join(output_dir, 'evt{}'.format(evtid))
     utils_io.save_networkx(graph, out_name)
 
 if __name__ == "__main__":
@@ -79,6 +81,7 @@ if __name__ == "__main__":
 
     from heptrkx.nx_graph import utils_data
     from heptrkx.nx_graph import utils_io
+    import glob
 
     parser = argparse.ArgumentParser(description='Keras train pairs for each layer-pairs')
     add_arg = parser.add_argument
@@ -108,12 +111,24 @@ if __name__ == "__main__":
         assert(os.path.exists(config_dir))
         config = load_yaml(config_dir)
         mk_cfg = config['doublets_for_graph']
-        evtids = mk_cfg['evtid']
-        if type(evtids) is str:
-            from heptrkx import list_from_str
-            evtids = list_from_str(evtids)
-        else:
-            evtids = [evtids]
+        pairs_selected_dir = os.path.expandvars(mk_cfg['selected'])
+        layers = mk_cfg['layers']
+        sel_layer_id = select_pair_layers(layers)
+
+        ## find event IDs
+        evtids = []
+        for evt_dir_name in glob.glob(os.path.join(pairs_selected_dir, 'evt*')):
+            n_hdf5 = len(glob.glob(os.path.join(evt_dir_name, '*.h5')))
+            if n_hdf5 == len(sel_layer_id):
+                evtid = int(os.path.basename(evt_dir_name)[3:])
+                evtids.append(evtid)
+
+        if len(evtids) < 1:
+            print("[{}] no selected pairs avaiable".format(prog))
+            exit(0)
+
+        nevts = config['make_graph']['nevts']
+        evtids = evtids[:nevts]
 
         ## split evtids based on the world-size
         evtids = [x.tolist() for x in np.array_split(evtids, size)]
@@ -129,8 +144,8 @@ if __name__ == "__main__":
     import multiprocessing as mp
     from functools import partial
 
-    print("rank({}) {} workers:".format(rank, n_workers))
-    print("rank({}) {} events:".format(rank, len(evtids)))
+    print("rank({}) {} workers".format(rank, n_workers))
+    print("rank({}) {} events".format(rank, len(evtids)))
 
     with  mp.Pool(processes=n_workers) as pool:
         pp_func = partial(process, config_dir=config_dir, quiet=quiet)

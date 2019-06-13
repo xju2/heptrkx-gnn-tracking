@@ -340,7 +340,6 @@ def segments_to_nx(hits, segments,
         ###_add_edge(graph, in_node_idx, out_node_idx, solution, bidirection)
         graph.add_edge(in_node_idx, out_node_idx, solution=solution)
 
-
     return graph
 
 

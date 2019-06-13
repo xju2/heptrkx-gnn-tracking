@@ -27,3 +27,6 @@ doublets_for_graph: ## input pairs from all_pairs
     layers: [7, 8, 9, 10, 24, 25, 26, 27, 40, 41]
     min_hits: 3
     out_graph: /global/cscratch1/sd/xju/heptrkx/output_graphs_moreVar2/barrel_graphs
+
+make_graph:
+    nevts: 50
