@@ -3,14 +3,21 @@
 import pandas as pd
 import numpy as np
 from heptrkx import load_yaml
+import os
+import sys
+
+prog = os.path.basename(sys.argv[0])
 
 def load_seg(file_name):
-    with pd.HDFStore(file_name) as store:
-        df = store.get('data')
+    try:
+        with pd.HDFStore(file_name) as store:
+            df = store.get('data')
+    except KeyError:
+        return None
 
     return df[df.selected]
 
-def process(evtid, config_dir):
+def process(evtid, config_dir, quiet):
     config = load_yaml(config_dir)
     mk_cfg = config['doublets_for_graph']
 
@@ -38,8 +45,6 @@ def process(evtid, config_dir):
     del particle_hits
     del dp
 
-    print("event {} total hits: {}".format(evtid, hits.shape[0]))
-    print("event {} total particles: {}".format(evtid, particles.shape[0]))
 
     # find layer pairs
     from heptrkx import layer_pairs, select_pair_layers
@@ -47,9 +52,14 @@ def process(evtid, config_dir):
 
     file_names = [os.path.join(pairs_input_dir, 'pair{:03d}.h5'.format(i))
                   for i in sel_layer_id]
-    all_segments = [load_seg(file_name) for file_name in file_names]
+    all_segments = [load_seg(file_name) for file_name in file_names if load_seg(file_name) is not None]
     segments = pd.concat(all_segments, ignore_index=True)
-    print("event {} total edges: ".format(evtid, segments.shape[0]))
+
+    if not quiet:
+        print("[{}] processing event {}".format(prog, evtid))
+        print("\t total hits: {}".format(hits.shape[0]))
+        print("\t total particles: {}".format(particles.shape[0]))
+        print("\t total edges: ".format(segments.shape[0]))
 
     # make a graph and save to disk
     output_dir = mk_cfg['out_graph']
@@ -75,10 +85,12 @@ if __name__ == "__main__":
     add_arg('config', type=str, help='data configuration, configs/data.yaml')
     add_arg('--workers', type=int, help='number of threads', default=1)
     add_arg('--bidirection', action='store_true', help='use two-directions in graph')
+    add_arg('--quiet', action='store_true', help='in a quiet mode')
 
     args = parser.parse_args()
     config_dir = args.config
     n_workers = args.workers
+    quiet = args.quiet
 
     try:
         from mpi4py import MPI
@@ -121,5 +133,5 @@ if __name__ == "__main__":
     print("rank({}) {} events:".format(rank, len(evtids)))
 
     with  mp.Pool(processes=n_workers) as pool:
-        pp_func = partial(process, config_dir=config_dir)
+        pp_func = partial(process, config_dir=config_dir, quiet=quiet)
         pool.map(pp_func, evtids)
