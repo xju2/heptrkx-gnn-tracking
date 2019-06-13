@@ -8,6 +8,9 @@ import numpy as np
 import pandas as pd
 from heptrkx import load_yaml, list_from_str
 import subprocess
+import sys
+import os
+prog = os.path.basename(sys.argv[0])
 
 def process(evtid, config_dir):
     config = load_yaml(config_dir)
@@ -23,6 +26,7 @@ def process(evtid, config_dir):
     print(cmd_raw_pairs)
     ck_code = subprocess.call(cmd_raw_pairs)
     if ck_code != 0:
+        print("In [{}] make_pairs_for_training_segments failed".format(prog))
         return
 
     from heptrkx import layer_pairs, select_pair_layers
@@ -37,8 +41,7 @@ def process(evtid, config_dir):
         except IndexError:
             print("pair {}-{}-{} is missing MODEL".format(ii, *layer_pair))
         ck_code = subprocess.call(cmd_sel_pairs)
-        if ck_code != 0:
-            return
+
 
 if __name__ == "__main__":
     import os
