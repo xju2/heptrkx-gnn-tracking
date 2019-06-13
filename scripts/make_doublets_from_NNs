@@ -7,6 +7,7 @@ then use **select_pairs** to select promising pairs (can run on GPU)
 import numpy as np
 import pandas as pd
 from heptrkx import load_yaml, list_from_str
+import subprocess
 
 def process(evtid, config_dir):
     config = load_yaml(config_dir)
@@ -42,7 +43,6 @@ def process(evtid, config_dir):
 if __name__ == "__main__":
     import os
     import argparse
-    import subprocess
 
     parser = argparse.ArgumentParser(description='Keras train pairs for each layer-pairs')
     add_arg = parser.add_argument

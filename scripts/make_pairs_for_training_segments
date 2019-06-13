@@ -9,7 +9,17 @@ def process(input_info, selected_hits_angle, output_pairs_dir):
 
 if __name__ == "__main__":
     import os
+    import sys
     import argparse
+    import subprocess
+
+    import numpy as np
+    import pandas as pd
+    import tables
+
+    from heptrkx import layer_pairs, select_pair_layers, load_yaml
+    from heptrkx.nx_graph import utils_data
+    from heptrkx.preprocess import utils_mldata
 
     parser = argparse.ArgumentParser(description='make pairs for given evtid')
     add_arg = parser.add_argument
@@ -21,9 +31,9 @@ if __name__ == "__main__":
     add_arg('-q', '--quiet', action='store_true', help='quiet mode')
 
     args = parser.parse_args()
+    prog = os.path.basename(sys.argv[0])
     n_workers = args.workers
 
-    from heptrkx import layer_pairs, select_pair_layers, load_yaml
 
     config = load_yaml(args.config)
     data_dir = config['track_ml']['dir']
@@ -41,27 +51,40 @@ if __name__ == "__main__":
 
     output_pairs_dir = os.path.join(output_dir, 'evt{}'.format(evtid))
     os.makedirs(output_pairs_dir, exist_ok=True)
+
     ## remove pairs already produced...
-    sel_layer_id = [ii for ii in sel_layer_id if not os.path.exists(os.path.join(output_pairs_dir, 'pair{:03d}.h5'.format(ii)))]
+    missing_layer_id = []
+    for ii in sel_layer_id:
+        file_name = os.path.join(output_pairs_dir, 'pair{:03d}.h5'.format(ii))
+        if os.path.exists(file_name):
+            try:
+                with pd.HDFStore(file_name) as store:
+                    df = store.get('data')
+                if df is not None:
+                    continue
+            except tables.exceptions.HDF5ExtError:
+                if not quiet:
+                    print("{} is not good".format(file_name))
+                # subprocess.call(['rm', file_name])
+            except KeyError:
+                if not quiet:
+                    print("{} does not have 'data'".format(file_name))
+        missing_layer_id.append(ii)
+
+    sel_layer_id = missing_layer_id
     if len(sel_layer_id) < 1:
+        print("[{}] event {} all layer pairs are there".format(prog, evtid))
         exit(0)
 
     pp_layers_info = [(layer_pairs[ii], ii) for ii in sel_layer_id]
-
-
-
-
-    from heptrkx.preprocess import utils_mldata
     results = utils_mldata.read(data_dir, black_list_dir, evtid)
     if results is None:
-        exit()
+        print("[{}] cannot find event {}".format(prog, evtid))
+        exit(1)
     else:
         hits, particles, truth, cells = results
 
     reco_pids = utils_mldata.reconstructable_pids(particles, truth)
-    from heptrkx.nx_graph import utils_data
-    import numpy as np
-    import pandas as pd
 
     # noise included!
     hh = utils_data.merge_truth_info_to_hits(hits, particles, truth)
