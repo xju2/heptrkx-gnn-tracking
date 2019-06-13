@@ -25,6 +25,7 @@ if __name__ == "__main__":
     add_arg('--n-pids', type=int, help='how many particles should be used',
             default=-1)
     add_arg('--workers', type=int, help='workers', default=1)
+    add_arg('-q', '--quiet', action='store_true', help='quiet mode')
 
     args = parser.parse_args()
     n_workers = args.workers
@@ -44,6 +45,7 @@ if __name__ == "__main__":
 
     evtid = args.evtid
     n_pids = args.n_pids
+    quiet = args.quiet
 
     from heptrkx.preprocess import utils_mldata
     results = utils_mldata.read(data_dir, black_list_dir, evtid)
@@ -60,7 +62,6 @@ if __name__ == "__main__":
     # noise included!
     hh = utils_data.merge_truth_info_to_hits(hits, particles, truth)
     unique_pids = np.unique(hh['particle_id'])
-    print("event {} has {} particles {} reconstructable".format(evtid, unique_pids.shape, reco_pids.shape))
 
     if n_pids > 0:
         selected_pids = np.random.choice(unique_pids, size=n_pids)
@@ -70,8 +71,15 @@ if __name__ == "__main__":
 
     from heptrkx import layer_pairs, select_pair_layers
     sel_layer_id = select_pair_layers(layers)
-    print("event {} uses {} Layers:".format(len(evtid, len(layers))))
-    print("event {} Total {} Layer Pairs".format(evetid, len(sel_layer_id)))
+
+    if not quiet:
+        print("---- make pairs for event {} ----".format(evtid))
+        print("{} particles {} reconstructable".format(
+            unique_pids.shape[0],
+            reco_pids.shape[0]))
+        print("\tuses {} Layers.".format(len(layers)))
+        print("\tTotal {} Layer Pairs.".format(len(sel_layer_id)))
+        print("\tuses {} Workers:".format(n_workers))
 
     from heptrkx.nx_graph import transformation
     module_getter = utils_mldata.module_info(det_dir)
@@ -82,7 +90,6 @@ if __name__ == "__main__":
     selected_hits_angle = selected_hits.merge(local_angles, on='hit_id', how='left')
 
     pp_layers_info = [(layer_pairs[ii], ii) for ii in sel_layer_id]
-    print("event {} uses {} Workers:".format(evtid, n_workers))
 
     import multiprocessing as mp
     with mp.Pool(processes=n_workers) as pool:

@@ -23,6 +23,8 @@ def process(evtid, config_dir):
 
     cmd_raw_pairs = ['make_pairs_for_training_segments', config_dir, str(evtid)]
     ck_code = subprocess.call(cmd_raw_pairs)
+    if ck_code != 0:
+        return
 
     from heptrkx import layer_pairs, select_pair_layers
     sel_layer_id = select_pair_layers(layers)
@@ -37,6 +39,8 @@ def process(evtid, config_dir):
         except IndexError:
             print("pair {}-{}-{} is missing MODEL".format(ii, *layer_pair))
         ck_code = subprocess.call(cmd_sel_pairs)
+        if ck_code != 0:
+            return
         #print("pair selection:", ck_code)
 
 if __name__ == "__main__":

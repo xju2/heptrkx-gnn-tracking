@@ -10,8 +10,12 @@ if __name__ == "__main__":
     add_arg('pair_idx', nargs='?', type=int, help='pair idx', default=0)
     add_arg('cut_on_score', type=float, help='selection criteria')
     add_arg('evtid', type=int, help='event id')
+    add_arg('-q', '--quiet', action='store_true', help='in quiet mode')
 
     args = parser.parse_args()
+
+
+    quiet = args.quiet
 
     assert(os.path.exists(args.config))
     import yaml
@@ -39,17 +43,20 @@ if __name__ == "__main__":
     batch_size = train_cfg['batch_size']
 
 
-    print("model weight:", model_weight_dir)
-    print("Features:", features)
-    print("output:", output_dir)
-    print("input:",  file_name)
+    if not quiet:
+        print("---- select pairs ----")
+        print("model weight:", model_weight_dir)
+        print("Features:", features)
+        print("output:", output_dir)
+        print("input:",  file_name)
 
     os.makedirs(output_dir, exist_ok=True)
 
     pairs_base_name = os.path.basename(file_name)
     outname = os.path.join(output_dir, pairs_base_name)
     if os.path.exists(outname):
-        print(outname, 'is there')
+        if not quiet:
+            print(outname, 'is there')
         exit()
 
     import numpy as np
@@ -67,7 +74,7 @@ if __name__ == "__main__":
 
     from heptrkx import keep_finite
     df_input = keep_finite(df_input)
-    print("Before selection:", df_input.shape)
+
     all_inputs = df_input[features].values
     all_inputs = scaler.fit_transform(all_inputs)
     prediction = model.predict(all_inputs)
