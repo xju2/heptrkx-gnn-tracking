@@ -27,7 +27,7 @@ def process(evtid, config_dir, quiet):
     min_hits = mk_cfg['min_hits']
     output_dir = mk_cfg['out_graph']
 
-    out_name = os.path.join(output_dir, 'evt{}'.format(evtid))
+    out_name = os.path.join(output_dir, 'evt{}.hdf5'.format(evtid))
     if os.path.exists(out_name):
         print("[{}] find {}".format(prog, out_name))
         return
@@ -73,7 +73,8 @@ def process(evtid, config_dir, quiet):
         receiver_hitid_name='hit_id_out',
         solution_name='true', use_digraph=True, bidirection=args.bidirection)
 
-    utils_io.save_networkx(graph, out_name)
+    #utils_io.save_networkx(graph, out_name)
+    utils_io.save_nx_to_hdf5(graph, out_name)
 
 if __name__ == "__main__":
     import os
