@@ -6,8 +6,6 @@ import pandas as pd
 import math
 import numbers
 
-from numba import jit
-
 import os
 from collections import namedtuple
 
@@ -308,7 +306,6 @@ def hitsgraph_to_nx(G, IDs=None, use_digraph=True, bidirection=True):
     return graph
 
 
-@jit
 def segments_to_nx(hits, segments,
                    sender_hitid_name,
                    receiver_hitid_name,
@@ -333,18 +330,23 @@ def segments_to_nx(hits, segments,
                        solution=[0.0])
         hits_id_dict[hit_id] = idx
 
-    n_edges = segments.shape[0]
-    for idx in range(n_edges):
-        in_hit_idx  = int(segments.iloc[idx][sender_hitid_name])
-        out_hit_idx = int(segments.iloc[idx][receiver_hitid_name])
+    senders   = [hits_id_dict[x] for x in segments[sender_hitid_name].values]
+    receivers = [hits_id_dict[x] for x in segments[receiver_hitid_name].values]
+    edge_features = [{"solution": [x]} for x in segments[solution_name]]
+    edge_data = zip(senders, receivers, edge_features)
+    graph.add_edges_from(edge_data)
 
-        in_node_idx  = hits_id_dict[in_hit_idx]
-        out_node_idx = hits_id_dict[out_hit_idx]
-
-        solution = [segments.iloc[idx][solution_name]]
-        ## just add edge, not features
-        ###_add_edge(graph, in_node_idx, out_node_idx, solution, bidirection)
-        graph.add_edge(in_node_idx, out_node_idx, solution=solution)
+#    for idx in range(n_edges):
+#        in_hit_idx  = int(segments.iloc[idx][sender_hitid_name])
+#        out_hit_idx = int(segments.iloc[idx][receiver_hitid_name])
+#
+#        in_node_idx  = hits_id_dict[in_hit_idx]
+#        out_node_idx = hits_id_dict[out_hit_idx]
+#
+#        solution = [segments.iloc[idx][solution_name]]
+#        ## just add edge, not features
+#        ###_add_edge(graph, in_node_idx, out_node_idx, solution, bidirection)
+#        graph.add_edge(in_node_idx, out_node_idx, solution=solution)
 
     return graph
 

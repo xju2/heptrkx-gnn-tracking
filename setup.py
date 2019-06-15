@@ -37,8 +37,6 @@ setup(
         'trackml@ https://github.com/LAL/trackml-library.git@v3',
         'tables==3.4.4',
         'h5py==2.8.0',
-        'numba',
-        'colorama',
     ],
     setup_requires=['trackml'],
     classifiers=[
