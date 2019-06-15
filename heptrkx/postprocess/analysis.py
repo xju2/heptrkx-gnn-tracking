@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 
-from nx_graph import utils_data
+from ..nx_graph import utils_data
 
 from trackml.score import score_event
 
@@ -167,7 +167,6 @@ def score_nxgraphs(nx_graphs, truth):
             reduced_weights += w_used_hits
         if hits_from_reco.shape[0] != hits_from_true.shape[0]:
             w_broken_trk += w_used_hits
-
 
     return [score_event(truth, new_df), tot_truth_weight, reduced_weights, w_broken_trk]
 

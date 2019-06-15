@@ -8,7 +8,7 @@ from graph_nets import utils_tf
 from graph_nets import blocks
 import sonnet as snt
 
-LATENT_SIZE = 128
+LATENT_SIZE = 32
 NUM_LAYERS = 2
 
 def make_mlp_model():
@@ -93,7 +93,7 @@ class SegmentClassifier(snt.AbstractModule):
         super(SegmentClassifier, self).__init__(name=name)
 
         self._edge_block = blocks.EdgeBlock(
-            edge_model_fn=lambda : snt.nets.MLP([LATENT_SIZE], activation=tf.nn.relu, activate_final=True),
+            edge_model_fn=lambda : snt.nets.MLP([LATENT_SIZE, LATENT_SIZE], activation=tf.nn.relu, activate_final=True),
             use_edges=False,
             use_receiver_nodes=True,
             use_sender_nodes=True,

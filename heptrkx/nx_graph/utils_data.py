@@ -6,8 +6,12 @@ import pandas as pd
 import math
 import numbers
 
+from numba import jit
+
 import os
 from collections import namedtuple
+
+
 
 Point = namedtuple('Point', ['x', 'y', 'z'])
 Pos = namedtuple('Pos', ['x', 'y', 'z', 'eta', 'phi', 'theta', 'r3', 'r'])
@@ -303,6 +307,8 @@ def hitsgraph_to_nx(G, IDs=None, use_digraph=True, bidirection=True):
     graph.graph['features'] = np.array([0.])
     return graph
 
+
+@jit
 def segments_to_nx(hits, segments,
                    sender_hitid_name,
                    receiver_hitid_name,

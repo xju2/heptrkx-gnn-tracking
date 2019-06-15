@@ -1,52 +1,58 @@
 #!/usr/bin/env python
 
-import numpy as np
-import sklearn.metrics
 
-import tensorflow as tf
 
-from graph_nets import utils_tf
-from graph_nets import utils_np
-
-from heptrkx.nx_graph import utils_train
+import os
+import sys
+prog_name = os.path.basename(sys.argv[0])
 
 if __name__ == "__main__":
-    import sys
     import argparse
     import glob
     import re
+    import time
+
+    import numpy as np
+    import sklearn.metrics
+
+    import tensorflow as tf
+
+    from graph_nets import utils_tf
+    from graph_nets import utils_np
+
+    from heptrkx.nx_graph import utils_train
+    from heptrkx.nx_graph.prepare import inputs_generator2
+    from heptrkx.nx_graph import get_model
 
     parser = argparse.ArgumentParser(description='Train nx-graph with configurations')
     add_arg = parser.add_argument
-    add_arg('config',  nargs='?', default='configs/nxgraph_default.yaml')
+    add_arg('config',  nargs='?', default='configs/data_5000evts.yaml')
 
     args = parser.parse_args()
 
     from heptrkx import load_yaml
-    config = load_yaml(args.config)
+    all_config = load_yaml(args.config)
+    config = all_config['segment_training']
 
-    import time
-    import os
 
     # add ops to save and restore all the variables
     prod_name = config['prod_name']
     output_dir = os.path.join(config['output_dir'], prod_name)
-    print("trained model will be save at:", output_dir)
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+    print("[{}] save models at {}".format(prog_name, output_dir))
+    os.makedirs(output_dir, exist_ok=True)
 
     files = glob.glob(output_dir+"/*.ckpt.meta")
     last_iteration = 0 if len(files) < 1 else max([
         int(re.search('checkpoint_([0-9]*).ckpt.meta', os.path.basename(x)).group(1))
         for x in files
     ])
-    print("last iteration:", last_iteration)
+    print("[{}] last iteration: {}".format(prog_name, last_iteration))
 
-    from heptrkx.nx_graph.prepare import inputs_generator
     # default 2/3 for training and 1/3 for testing
-    generate_input_target = inputs_generator(config['data']['output_nxgraph_dir'], n_train_fraction=0.8)
+    input_nxgraphs_dir = all_config['doublets_for_graph']['out_graph']
+    generate_input_target = inputs_generator2(input_nxgraphs_dir, n_train_fraction=0.8)
 
-    config_tr = config['train']
+    config_tr = config['parameters']
     # How much time between logging and printing the current results.
     # save checkpoint very 10 mins
     log_every_seconds       = config_tr['time_lapse']
@@ -56,15 +62,10 @@ if __name__ == "__main__":
     num_processing_steps_tr = config_tr['n_iters']      ## level of message-passing
     print("Maximum iterations per job: {}".format(iter_per_job))
 
-
-
     ## start to build tensorflow sessions
     tf.reset_default_graph()
 
-    #from nx_graph.model_mlp import SegmentClassifier
-    #model = SegmentClassifier()
-    from heptrkx.nx_graph import get_model
-    model = get_model(config['model']['name'])
+    model = get_model(config['model_name'])
 
     input_graphs, target_graphs = generate_input_target(n_graphs)
     input_ph  = utils_tf.placeholders_from_data_dicts(input_graphs, force_dynamic_num_graphs=True)
@@ -74,9 +75,9 @@ if __name__ == "__main__":
 
     # Training loss.
     loss_weights = 1.0
-    if config['train']['real_weight']:
-        real_weight = config['train']['real_weight']
-        fake_weight = config['train']['fake_weight']
+    if config_tr['real_weight']:
+        real_weight = config_tr['real_weight']
+        fake_weight = config_tr['fake_weight']
         loss_weights = target_ph.edges * real_weight + (1 - target_ph.edges)*fake_weight
 
     loss_ops_tr = utils_train.create_loss_ops(target_ph, output_ops_tr, loss_weights) # Loss across processing steps.
@@ -98,7 +99,6 @@ if __name__ == "__main__":
 
     sess = tf.Session()
 
-
     saver = tf.train.Saver()
     ckpt_name = 'checkpoint_{:05d}.ckpt'
     if last_iteration > 0:
@@ -118,7 +118,7 @@ if __name__ == "__main__":
     out_str  = time.strftime('%d %b %Y %H:%M:%S', time.localtime())
     out_str += '\n'
     out_str += "# (iteration number), T (elapsed seconds), Ltr (training loss), Precision, Recall\n"
-    log_name = os.path.join(output_dir, config_tr['log_name'])
+    log_name = os.path.join(output_dir, config['log_name'])
     with open(log_name, 'a') as f:
         f.write(out_str)
 

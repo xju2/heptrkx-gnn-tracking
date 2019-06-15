@@ -150,6 +150,52 @@ def inputs_generator(base_dir_, n_train_fraction=-1):
     return generate_input_target
 
 
+def inputs_generator2(base_dir_, n_train_fraction=-1):
+    base_dir = os.path.join(base_dir_, "evt{}_INPUT.npz")
+
+    file_patten = base_dir.format(1000).replace('1000', '*')
+    all_files = glob.glob(file_patten)
+    n_events = len(all_files)
+    evt_ids = np.sort([int(re.search('evt([0-9]*)_INPUT.npz',
+                             os.path.basename(x)).group(1))
+               for x in all_files])
+
+    n_total = n_events
+    n_tr_fr = n_train_fraction if n_train_fraction > 0 and n_train_fraction < 1 else 0.7
+    n_max_evt_id_tr = int(n_events * n_tr_fr)
+    n_test = n_events - n_max_evt_id_tr
+
+    print("Total Events: {}, total {} files ".format(
+        n_events, n_total))
+    print("Training data: [{}, {}] events, total {} files".format(0, n_max_evt_id_tr-1, n_max_evt_id_tr))
+    print("Testing data:  [{}, {}] events, total {} files".format(n_max_evt_id_tr, n_events, n_test))
+    print("Training and testing graphs are selected randomly from their corresponding pools")
+
+
+    def generate_input_target(n_graphs, is_train=True):
+        input_graphs = []
+        target_graphs = []
+        igraphs = 0
+        while igraphs < n_graphs:
+            # determine while file to read
+            if is_train:
+                evt_id = random.randint(0, n_max_evt_id_tr-1)
+            else:
+                evt_id = random.randint(n_max_evt_id_tr, n_events-1)
+
+            file_name = base_dir.format(evt_ids[evt_id])
+            if not os.path.exists(file_name):
+                continue
+
+            input_graphs.append(load_data_dicts(file_name))
+            target_graphs.append(load_data_dicts(file_name.replace("INPUT", "TARGET")))
+
+            igraphs += 1
+
+        return input_graphs, target_graphs
+
+    return generate_input_target
+
 INPUT_NAME = "INPUT"
 TARGET_NAME = "TARGET"
 def get_networkx_saver(output_dir_):

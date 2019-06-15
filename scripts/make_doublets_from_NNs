@@ -51,22 +51,26 @@ if __name__ == "__main__":
     add_arg = parser.add_argument
     add_arg('config', type=str, help='data configuration, configs/data.yaml')
     add_arg('--workers', type=int, help='workers', default=1)
+    add_arg('--mpi', action='store_true', help='use MPI')
 
     args = parser.parse_args()
     config_dir = args.config
     n_workers = args.workers
+    use_mpi = args.mpi
 
-    try:
-        from mpi4py import MPI
-        comm = MPI.COMM_WORLD
-        size = comm.Get_size()
-        rank = comm.Get_rank()
-        print("World size:", size, ", rank:", rank)
-        use_mpi = True
-    except ImportError:
+    if use_mpi:
+        try:
+            from mpi4py import MPI
+            comm = MPI.COMM_WORLD
+            size = comm.Get_size()
+            rank = comm.Get_rank()
+            print("World size:", size, ", rank:", rank)
+        except ImportError:
+            rank = 0
+            size = 1
+    else:
         rank = 0
-        size = 1
-        use_mpi = False
+        size =1
 
 
     if rank == 0:

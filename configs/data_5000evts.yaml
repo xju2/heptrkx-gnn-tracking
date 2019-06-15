@@ -21,7 +21,7 @@ doublet_training:
     bkg_from_evtid: 6600
 
 doublets_for_graph: ## input pairs from all_pairs
-    evtid: 1000-1100
+    evtid: 1000
     selected: /global/cscratch1/sd/xju/heptrkx/output_graphs_moreVar2/selected_pairs
     threshold: /global/cscratch1/sd/xju/heptrkx/trained_models/doublet_moreVar/merged_info.txt 
     layers: [7, 8, 9, 10, 24, 25, 26, 27, 40, 41]
@@ -30,3 +30,20 @@ doublets_for_graph: ## input pairs from all_pairs
 
 make_graph:
     nevts: 50
+
+segment_training:
+    output_dir: /global/cscratch1/sd/xju/heptrkx/trained_models/segments
+    model_name: VARY
+    prod_name: barrel_NNs
+    log_name: big.log
+    parameters:
+        time_lapse:  240 # how often save checkpoint in seconds
+        batch_size: 1
+        iterations: 8000
+        iter_per_job: 8000
+        n_iters: 8
+        learning_rate: 0.01
+        real_weight: 1.0
+        fake_weight: 0.5
+
+

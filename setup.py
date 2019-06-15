@@ -20,7 +20,7 @@ setup(
     packages=find_packages(),
     install_requires=[
         "graph_nets==1.0.2",
-        'tensorflow==1.12.0',
+        'tensorflow-gpu==1.12.0',
         "future",
         "networkx",
         "numpy",
@@ -37,13 +37,13 @@ setup(
         'trackml@ https://github.com/LAL/trackml-library.git@v3',
         'tables==3.4.4',
         'h5py==2.8.0',
+        'numba',
+        'colorama',
     ],
     setup_requires=['trackml'],
     classifiers=[
         "Programming Language :: Python :: 3.6",
-        "Topic :: Scientific/Engineering :: Artificial Intelligence",
     ],
-    #dependency_links=['https://github.com/LAL/trackml-library/tarball/master#egg=trackml-3'],
     scripts=[
         'scripts/make_true_pairs_for_training_segments_mpi',
         'scripts/merge_true_pairs',
@@ -58,5 +58,7 @@ setup(
         'scripts/pairs_to_nx_graph',
         'scripts/get_total_segments',
         'scripts/make_graph',
+        'scripts/plot_graph',
+        'scripts/make_trkx',
     ],
 )

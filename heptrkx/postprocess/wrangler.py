@@ -6,8 +6,6 @@ import numpy as np
 
 from functools import partial
 
-
-
 def find_next_hits(G, pp, used_hits, th=0.1, th_re=0.8, feature_name='solution'):
     """G is the graph, path is previous hits."""
 
@@ -16,18 +14,21 @@ def find_next_hits(G, pp, used_hits, th=0.1, th_re=0.8, feature_name='solution')
         return None
 
     weights = [G.edges[(pp, i)][feature_name][0] for i in nbrs]
+
     if max(weights) < th:
         return None
 
     sorted_idx = list(reversed(np.argsort(weights)))
     next_hits = [nbrs[sorted_idx[0]]]
-    for ii in range(1, len(sorted_idx)):
-        idx = sorted_idx[ii]
-        w = weights[idx]
-        if w > th_re:
-            next_hits.append(nbrs[idx])
-        else:
-            break
+
+    if len(sorted_idx) > 1:
+        for ii in range(1, len(sorted_idx)):
+            idx = sorted_idx[ii]
+            w = weights[idx]
+            if w > th_re:
+                next_hits.append(nbrs[idx])
+            else:
+                break
 
     return next_hits
 
@@ -99,8 +100,10 @@ def chose_a_road(road, diff):
     return res
 
 
-
 def get_tracks(G, th=0.1, th_re=0.8, feature_name='solution', with_fit=True):
+    """
+    Don't use nx.MultiGraphs
+    """
     used_nodes = []
     sub_graphs = []
     next_hit_fn = partial(find_next_hits, th=th, th_re=th_re, feature_name=feature_name)

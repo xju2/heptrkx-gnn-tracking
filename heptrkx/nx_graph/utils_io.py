@@ -24,6 +24,7 @@ def read_pairs_input(file_name):
 
 
 def load_data_dicts(file_name):
+    assert(os.path.exists(file_name))
     with np.load(file_name) as f:
         return dict(f.items())
 

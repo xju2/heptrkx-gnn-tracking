@@ -80,12 +80,10 @@ if __name__ == "__main__":
     all_inputs = scaler.fit_transform(all_inputs)
     prediction = model.predict(all_inputs)
 
-    #pair_idx = int(pairs_base_name[4:-3])
-    #pair_info = layer_pairs_dict[pair_idx]
-
-    #all_targets = df_input[['true']].values
-    #plot_metrics(prediction, all_targets,
-    #             outname=os.path.join(output_dir, 'roc{:03d}_{}-{}.png'.format(pair_idx, *pair_info)))
+    pair_info = layer_pairs_dict[pair_idx]
+    all_targets = df_input[['true']].values
+    plot_metrics(prediction, all_targets,
+                 outname=os.path.join(output_dir, 'roc{:03d}_{}-{}.png'.format(pair_idx, *pair_info)))
 
     df_input = df_input.assign(prediction=prediction, selected=(prediction > cut))
     df_input = df_input[df_input.selected | df_input.true]
