@@ -8,6 +8,8 @@ from ..datasets.graph import load_graph
 import networkx as nx
 from graph_nets import utils_np
 
+from . import utils_io
+
 import os
 import glob
 import re
@@ -189,6 +191,56 @@ def inputs_generator2(base_dir_, n_train_fraction=-1):
 
             input_graphs.append(load_data_dicts(file_name))
             target_graphs.append(load_data_dicts(file_name.replace("INPUT", "TARGET")))
+
+            igraphs += 1
+
+        return input_graphs, target_graphs
+
+    return generate_input_target
+
+def inputs_generator3(base_dir_, n_train_fraction=-1):
+    base_dir = os.path.join(base_dir_, "evt{}.hdf5")
+
+    file_patten = base_dir.format(1000).replace('1000', '*')
+    all_files = glob.glob(file_patten)
+    n_events = len(all_files)
+    evt_ids = np.sort([int(re.search('evt([0-9]*).hdf5',
+                             os.path.basename(x)).group(1))
+               for x in all_files])
+
+    n_total = n_events
+    n_tr_fr = n_train_fraction if n_train_fraction > 0 and n_train_fraction < 1 else 0.7
+    n_max_evt_id_tr = int(n_events * n_tr_fr)
+    n_test = n_events - n_max_evt_id_tr
+
+    print("Total Events: {}, total {} files ".format(
+        n_events, n_total))
+    print("Training data: [{}, {}] events, total {} files".format(0, n_max_evt_id_tr-1, n_max_evt_id_tr))
+    print("Testing data:  [{}, {}] events, total {} files".format(n_max_evt_id_tr, n_events, n_test))
+    print("Training and testing graphs are selected randomly from their corresponding pools")
+
+
+    def generate_input_target(n_graphs, is_train=True, use_digraph=True, bidirection=False):
+        input_graphs = []
+        target_graphs = []
+        igraphs = 0
+        while igraphs < n_graphs:
+            # determine while file to read
+            if is_train:
+                evt_id = random.randint(0, n_max_evt_id_tr-1)
+            else:
+                evt_id = random.randint(n_max_evt_id_tr, n_events-1)
+
+            file_name = base_dir.format(evt_ids[evt_id])
+            if not os.path.exists(file_name):
+                continue
+
+            nx_G = utils_io.read_hdf5_to_nx(file_name, use_digraph=use_digraph, bidirection=bidirection)
+            input_graph, target_graph = graph_to_input_target(nx_G, no_edge_feature=True)
+            #output_data = utils_np.networkx_to_data_dict(input_graph)
+            #target_data = utils_np.networkx_to_data_dict(target_graph)
+            input_graphs.append(input_graph)
+            target_graphs.append(target_graph)
 
             igraphs += 1
 

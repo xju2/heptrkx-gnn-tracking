@@ -4,8 +4,10 @@ import numpy as np
 import pandas as pd
 import os
 
+import h5py
+
 from graph_nets import utils_np
-from .prepare import graph_to_input_target
+import networkx as nx
 
 ckpt_name = 'checkpoint_{:05d}.ckpt'
 
@@ -36,26 +38,13 @@ def load_input_target_data_dicts(path, evtid, isec):
     return input_dd, target_dd
 
 
-INPUT_NAME = "INPUT"
-TARGET_NAME = "TARGET"
-def save_networkx(graph, output_name):
-    output_data_name = output_name+'_{}.npz'.format(INPUT_NAME)
-    if os.path.exists(output_data_name):
-        print(output_data_name, "is there")
-        return
-
-    dirname = os.path.dirname(output_data_name)
-    os.makedirs(dirname, exist_ok=True)
-
-    input_graph, target_graph = graph_to_input_target(graph, no_edge_feature=True)
-    output_data = utils_np.networkx_to_data_dict(input_graph)
-    target_data = utils_np.networkx_to_data_dict(target_graph)
-
-    np.savez( output_data_name, **output_data)
-    np.savez( output_data_name.replace(INPUT_NAME, TARGET_NAME), **target_data)
-
-
 def save_nx_to_hdf5(graph, output_name):
+    if os.path.exists(output_name):
+        print(output_name, "is there")
+        return
+    else:
+        os.makedirs(os.path.dirname(output_name), exist_ok=True)
+
     number_of_nodes = graph.number_of_nodes()
     node_idxs, node_attr = zip(*graph.nodes(data=True))
     node_features = next(iter(graph.nodes(data=True)))[1].keys()

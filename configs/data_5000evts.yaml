@@ -26,15 +26,15 @@ doublets_for_graph: ## input pairs from all_pairs
     threshold: /global/cscratch1/sd/xju/heptrkx/trained_models/doublet_moreVar/merged_info.txt 
     layers: [7, 8, 9, 10, 24, 25, 26, 27, 40, 41]
     min_hits: 3
-    out_graph: /global/cscratch1/sd/xju/heptrkx/output_graphs_moreVar2/barrel_graphs
 
 make_graph:
-    nevts: 50
+    nevts: 10
+    out_graph: /global/cscratch1/sd/xju/heptrkx/output_graphs_moreVar2/barrel_graphs_hdf5
 
 segment_training:
     output_dir: /global/cscratch1/sd/xju/heptrkx/trained_models/segments
     model_name: VARY
-    prod_name: barrel_NNs
+    prod_name: barrel_NNs_10
     log_name: big.log
     parameters:
         time_lapse:  240 # how often save checkpoint in seconds

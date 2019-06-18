@@ -25,7 +25,7 @@ def process(evtid, config_dir, quiet):
     pairs_input_dir = os.path.join(pairs_selected_dir, "evt{}".format(evtid))
     layers = mk_cfg['layers']
     min_hits = mk_cfg['min_hits']
-    output_dir = mk_cfg['out_graph']
+    output_dir = config['make_graph']['out_graph']
 
     out_name = os.path.join(output_dir, 'evt{}.hdf5'.format(evtid))
     if os.path.exists(out_name):

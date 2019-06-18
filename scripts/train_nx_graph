@@ -21,7 +21,7 @@ if __name__ == "__main__":
     from graph_nets import utils_np
 
     from heptrkx.nx_graph import utils_train
-    from heptrkx.nx_graph.prepare import inputs_generator2
+    from heptrkx.nx_graph.prepare import inputs_generator3
     from heptrkx.nx_graph import get_model
 
     parser = argparse.ArgumentParser(description='Train nx-graph with configurations')
@@ -49,8 +49,8 @@ if __name__ == "__main__":
     print("[{}] last iteration: {}".format(prog_name, last_iteration))
 
     # default 2/3 for training and 1/3 for testing
-    input_nxgraphs_dir = all_config['doublets_for_graph']['out_graph']
-    generate_input_target = inputs_generator2(input_nxgraphs_dir, n_train_fraction=0.8)
+    input_nxgraphs_dir = all_config['make_graph']['out_graph']
+    generate_input_target = inputs_generator3(input_nxgraphs_dir, n_train_fraction=0.8)
 
     config_tr = config['parameters']
     # How much time between logging and printing the current results.
@@ -68,8 +68,8 @@ if __name__ == "__main__":
     model = get_model(config['model_name'])
 
     input_graphs, target_graphs = generate_input_target(n_graphs)
-    input_ph  = utils_tf.placeholders_from_data_dicts(input_graphs, force_dynamic_num_graphs=True)
-    target_ph = utils_tf.placeholders_from_data_dicts(target_graphs, force_dynamic_num_graphs=True)
+    input_ph  = utils_tf.placeholders_from_networkxs(input_graphs, force_dynamic_num_graphs=True)
+    target_ph = utils_tf.placeholders_from_networkxs(target_graphs, force_dynamic_num_graphs=True)
 
     output_ops_tr = model(input_ph, num_processing_steps_tr)
 
