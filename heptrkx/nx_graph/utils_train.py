@@ -2,9 +2,7 @@
 import numpy as np
 import sklearn.metrics
 
-import tensorflow as tf
 
-from graph_nets import utils_tf
 from graph_nets import utils_np
 
 def create_feed_dict(generator, batch_size, input_ph, target_ph, is_trained=True):
@@ -17,6 +15,7 @@ def create_feed_dict(generator, batch_size, input_ph, target_ph, is_trained=True
 
 
 def create_loss_ops(target_op, output_ops, weights):
+    import tensorflow as tf
     # only use edges
     loss_ops = [
         tf.losses.log_loss(target_op.edges, output_op.edges, weights=weights)
@@ -26,8 +25,9 @@ def create_loss_ops(target_op, output_ops, weights):
 
 
 def make_all_runnable_in_session(*args):
-  """Lets an iterable of TF graphs be output from a session as NP graphs."""
-  return [utils_tf.make_runnable_in_session(a) for a in args]
+    from graph_nets import utils_tf
+    """Lets an iterable of TF graphs be output from a session as NP graphs."""
+    return [utils_tf.make_runnable_in_session(a) for a in args]
 
 
 def eval_output(target, output):

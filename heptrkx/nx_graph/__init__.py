@@ -5,13 +5,12 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from .model          import SegmentClassifier as mm
-from .model_more     import SegmentClassifier as mm_more
-from .model_smart    import SegmentClassifier as mm_sm
-from .model_vary     import SegmentClassifier as mm_vary
-
 
 def get_model(model_name=None):
+    from .model          import SegmentClassifier as mm
+    from .model_more     import SegmentClassifier as mm_more
+    from .model_smart    import SegmentClassifier as mm_sm
+    from .model_vary     import SegmentClassifier as mm_vary
 
     # model_name could be used for future testing different models
 
