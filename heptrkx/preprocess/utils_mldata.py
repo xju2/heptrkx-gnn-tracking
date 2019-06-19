@@ -14,10 +14,11 @@ import os
 def read(data_dir, evtid, info=False):
     prefix = os.path.join(os.path.expandvars(data_dir), 'event{:09d}'.format(evtid))
 
-    if not os.path.exists( prefix+'-hits.csv'):
+    all_data = load_event(prefix, parts=['hits', 'particles', 'truth', 'cells'])
+    if all_data is None:
         return None
-
-    hits, particles, truth, cells = load_event(prefix, parts=['hits', 'particles', 'truth', 'cells'])
+    hits, particles, truth, cells = all_data
+    hits = hits.assign(evtid=evtid)
 
     px = particles.px
     py = particles.py

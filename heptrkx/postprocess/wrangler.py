@@ -1,5 +1,6 @@
 
 from . import utils_fit
+from .. import pairwise
 
 import networkx as nx
 import numpy as np
@@ -119,7 +120,7 @@ def get_tracks(G, th=0.1, th_re=0.8, feature_name='solution', with_fit=True):
             sub_graphs.append(G.subgraph([node]))
             continue
 
-        a_track = list(utils_fit.pairwise(a_road[:-1]))
+        a_track = list(pairwise(a_road[:-1]))
         sub = G.edge_subgraph(a_track)
         sub_graphs.append(sub)
         used_nodes += list(sub.nodes())
