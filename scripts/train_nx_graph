@@ -21,7 +21,7 @@ if __name__ == "__main__":
     from graph_nets import utils_np
 
     from heptrkx.nx_graph import utils_train
-    from heptrkx.nx_graph.prepare import inputs_generator2
+    from heptrkx.nx_graph import prepare
     from heptrkx.nx_graph import get_model
 
     parser = argparse.ArgumentParser(description='Train nx-graph with configurations')
@@ -50,7 +50,10 @@ if __name__ == "__main__":
 
     # default 2/3 for training and 1/3 for testing
     input_nxgraphs_dir = all_config['doublets_for_graph']['out_graph']
-    generate_input_target = inputs_generator2(input_nxgraphs_dir, n_train_fraction=0.8)
+    if 'input_type' not in config or config['input_type'] == 'data_dict':
+        generate_input_target = prepare.inputs_generator(input_nxgraphs_dir, n_train_fraction=0.8)
+    else:
+        generate_input_target = prepare.inputs_generator2(input_nxgraphs_dir, n_train_fraction=0.8)
 
     config_tr = config['parameters']
     # How much time between logging and printing the current results.

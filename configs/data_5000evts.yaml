@@ -36,6 +36,7 @@ segment_training:
     model_name: VARY
     prod_name: barrel_NNs
     log_name: big.log
+    input_type: 'data_dict'
     parameters:
         time_lapse:  240 # how often save checkpoint in seconds
         batch_size: 1
