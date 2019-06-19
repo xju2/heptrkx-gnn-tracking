@@ -26,10 +26,9 @@ def process_event(evt_id, pairs_input_dir, output_dir, n_phi_sections):
     print(os.getppid(),"-->", evt_id)
 
     # full event info
-    blacklist_dir = config['input_blacklist']
     evt_dir = config['input_track_events']
 
-    hits, particles, truth, cells = utils_mldata.read(evt_dir, blacklist_dir, evt_id)
+    hits, particles, truth, cells = utils_mldata.read(evt_dir, evt_id)
 
     hits = utils_data.merge_truth_info_to_hits(hits, truth, particles)
 

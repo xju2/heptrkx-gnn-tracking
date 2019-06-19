@@ -27,7 +27,6 @@ if __name__ == "__main__":
     config = load_yaml(args.config)
 
     data_dir = os.path.expandvars(config['track_ml']['dir'])
-    black_list_dir = os.path.expandvars(config['track_ml']['blacklist_dir'])
     det_dir  = os.path.expandvars(config['track_ml']['detector'])
     base_output_dir = os.path.expandvars(config['true_hits']['dir'])
 
@@ -93,7 +92,7 @@ if __name__ == "__main__":
         output_dir = os.path.join(base_output_dir, 'evt{}'.format(evtid))
         if os.path.exists(output_dir):
             continue
-        hits, particles, truth, cells = utils_mldata.read(data_dir, black_list_dir, evtid)
+        hits, particles, truth, cells = utils_mldata.read(data_dir, evtid)
 
         reco_pids = utils_mldata.reconstructable_pids(particles, truth)
 

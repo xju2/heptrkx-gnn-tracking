@@ -11,19 +11,13 @@ from ..nx_graph import transformation
 
 import os
 
-def read(data_dir, black_dir, evtid, info=False):
+def read(data_dir, evtid, info=False):
     prefix = os.path.join(os.path.expandvars(data_dir), 'event{:09d}'.format(evtid))
-    prefix_bl = os.path.join(os.path.expandvars(black_dir), 'event{:09d}-blacklist_'.format(evtid))
 
     if not os.path.exists( prefix+'-hits.csv'):
         return None
 
-    hits_exclude = pd.read_csv(prefix_bl+'hits.csv')
-    particles_exclude = pd.read_csv(prefix_bl+'particles.csv')
-
     hits, particles, truth, cells = load_event(prefix, parts=['hits', 'particles', 'truth', 'cells'])
-    hits = hits[~hits['hit_id'].isin(hits_exclude['hit_id'])]
-    particles = particles[~particles['particle_id'].isin(particles_exclude['particle_id'])]
 
     px = particles.px
     py = particles.py
@@ -42,8 +36,7 @@ def read_event(evtid, config, info=False):
         config = yaml.load(f)
 
     data_dir = config['track_ml']['dir']
-    black_dir = config['track_ml']['blacklist_dir']
-    return read(data_dir, black_dir, evtid, info)
+    return read(data_dir, evtid, info)
 
 
 def reconstructable_pids(particles, truth):
