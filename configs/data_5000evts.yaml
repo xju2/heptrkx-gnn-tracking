@@ -31,6 +31,12 @@ doublets_for_graph: ## input pairs from all_pairs
 make_graph:
     nevts: 50
 
+doublets_from_cuts:
+    layers: [7, 8, 9, 10, 24, 25, 26, 27, 40, 41] # only support these, do not change
+    phi_slope_max: 0.0006
+    z0_max: 100
+    out_graph: 
+
 segment_training:
     output_dir: /global/cscratch1/sd/xju/heptrkx/trained_models/segments
     model_name: VARY

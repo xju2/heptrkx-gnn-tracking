@@ -230,3 +230,11 @@ def cell_angles(df_hits, module_getter, cells):
 
     df_angles = pd.DataFrame(angles, columns=['hit_id', 'leta', 'lphi', 'lx', 'ly', 'lz', 'geta', 'gphi'])
     return df_angles
+
+
+def save_segments(input_info, selected_hits_angle, output_pairs_dir):
+    layer_pair, ii = input_info
+    out_name = os.path.join(output_pairs_dir, 'pair{:03d}.h5'.format(ii))
+    segments = list(create_segments(selected_hits_angle, [layer_pair]))
+    with pd.HDFStore(out_name) as store:
+            store['data'] = segments[0]
