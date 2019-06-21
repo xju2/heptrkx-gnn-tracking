@@ -11,19 +11,14 @@ from ..nx_graph import transformation
 
 import os
 
-def read(data_dir, black_dir, evtid, info=False):
+def read(data_dir, evtid, info=False):
     prefix = os.path.join(os.path.expandvars(data_dir), 'event{:09d}'.format(evtid))
-    prefix_bl = os.path.join(os.path.expandvars(black_dir), 'event{:09d}-blacklist_'.format(evtid))
 
-    if not os.path.exists( prefix+'-hits.csv'):
+    all_data = load_event(prefix, parts=['hits', 'particles', 'truth', 'cells'])
+    if all_data is None:
         return None
-
-    hits_exclude = pd.read_csv(prefix_bl+'hits.csv')
-    particles_exclude = pd.read_csv(prefix_bl+'particles.csv')
-
-    hits, particles, truth, cells = load_event(prefix, parts=['hits', 'particles', 'truth', 'cells'])
-    hits = hits[~hits['hit_id'].isin(hits_exclude['hit_id'])]
-    particles = particles[~particles['particle_id'].isin(particles_exclude['particle_id'])]
+    hits, particles, truth, cells = all_data
+    hits = hits.assign(evtid=evtid)
 
     px = particles.px
     py = particles.py
@@ -42,8 +37,7 @@ def read_event(evtid, config, info=False):
         config = yaml.load(f)
 
     data_dir = config['track_ml']['dir']
-    black_dir = config['track_ml']['blacklist_dir']
-    return read(data_dir, black_dir, evtid, info)
+    return read(data_dir, evtid, info)
 
 
 def reconstructable_pids(particles, truth):
@@ -145,17 +139,6 @@ def get_track_parameters(x, y, z):
     res0 = p_zr0[1][0]/x.shape[0]
     p_zr = p_zr0[0]
 
-#    if res0 > 10:
-#        p_zr1 = np.polyfit(r3[:-1], z[:-1], 1, full=True)
-#        res1 = p_zr1[1][0]/(x.shape[0] - 1)
-#        if res1 < res0:
-#            print("Drop Last", res1, res0)
-#            r3 = r3[:-1]
-#            x = x[:-1]
-#            y = y[:-1]
-#            z = z[:-1]
-#            p_zr = p_zr1[0]
-
     #theta = np.arccos(p_zr[0])
     theta = np.arccos(z[0]/r3[0])
     eta = -np.log(np.tan(theta/2.))
@@ -247,3 +230,11 @@ def cell_angles(df_hits, module_getter, cells):
 
     df_angles = pd.DataFrame(angles, columns=['hit_id', 'leta', 'lphi', 'lx', 'ly', 'lz', 'geta', 'gphi'])
     return df_angles
+
+
+def save_segments(input_info, selected_hits_angle, output_pairs_dir):
+    layer_pair, ii = input_info
+    out_name = os.path.join(output_pairs_dir, 'pair{:03d}.h5'.format(ii))
+    segments = list(create_segments(selected_hits_angle, [layer_pair]))
+    with pd.HDFStore(out_name) as store:
+            store['data'] = segments[0]

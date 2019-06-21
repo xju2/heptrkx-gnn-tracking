@@ -1,7 +1,7 @@
 """
 Modules for plotting
 """
-from . import utils_fit
+from .. import pairwise
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -24,7 +24,7 @@ def plot_eff_vs_pt(sel_pt, true_pt, ax=None):
 
     ax2 = ax.twinx()
     ratio = [x/y if y!=0 else 0 for x,y in zip(sel_vals, true_vals)]
-    xvals = [0.5*(x[0]+x[1]) for x in utils_fit.pairwise(bins)]
+    xvals = [0.5*(x[0]+x[1]) for x in pairwise(bins)]
     ax2.plot(xvals, ratio, '-o', lw=2, color='r')
     ax2.set_ylabel('Selected/True', color='r', fontsize=fontsize)
     ax2.set_ylim(0, 1.05)

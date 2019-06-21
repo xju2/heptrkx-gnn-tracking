@@ -1,12 +1,4 @@
 #!/usr/bin/env python
-def process(input_info, selected_hits_angle, output_pairs_dir):
-    layer_pair, ii = input_info
-    out_name = os.path.join(output_pairs_dir, 'pair{:03d}.h5'.format(ii))
-    segments = list(utils_mldata.create_segments(selected_hits_angle, [layer_pair]))
-    with pd.HDFStore(out_name) as store:
-            store['data'] = segments[0]
-
-
 if __name__ == "__main__":
     import os
     import sys
@@ -37,7 +29,6 @@ if __name__ == "__main__":
 
     config = load_yaml(args.config)
     data_dir = config['track_ml']['dir']
-    black_list_dir = config['track_ml']['blacklist_dir']
     det_dir  = config['track_ml']['detector']
     base_dir = config['doublets_for_training']['base_dir']
     output_dir = os.path.join(base_dir, config['doublets_for_training']['all_pairs'])
@@ -77,7 +68,7 @@ if __name__ == "__main__":
         exit(0)
 
     pp_layers_info = [(layer_pairs[ii], ii) for ii in sel_layer_id]
-    results = utils_mldata.read(data_dir, black_list_dir, evtid)
+    results = utils_mldata.read(data_dir, evtid)
     if results is None:
         print("[{}] cannot find event {}".format(prog, evtid))
         exit(1)
@@ -118,6 +109,6 @@ if __name__ == "__main__":
 
     import multiprocessing as mp
     with mp.Pool(processes=n_workers) as pool:
-        pp_func=partial(process, selected_hits_angle=selected_hits_angle,
+        pp_func=partial(utils_mldata.save_segments, selected_hits_angle=selected_hits_angle,
                         output_pairs_dir=output_pairs_dir)
         pool.map(pp_func, pp_layers_info)

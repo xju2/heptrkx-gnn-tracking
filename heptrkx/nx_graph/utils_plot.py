@@ -11,7 +11,7 @@ minor_size=14
 def get_pos(Gp):
     pos = {}
     for node in Gp.nodes():
-        r, phi, z = Gp.node[node]['pos']
+        r, phi, z = Gp.node[node]['pos'][:3]
         x = r * np.cos(phi)
         y = r * np.sin(phi)
         pos[node] = np.array([x, y])
