@@ -19,7 +19,8 @@ def load_seg(file_name):
 
 def process(evtid, config_dir, quiet):
     config = load_yaml(config_dir)
-    mk_cfg = config['doublets_for_graph']
+    data_source = config['pairs_form']
+    mk_cfg = config[data_source]
 
     pairs_selected_dir = os.path.expandvars(mk_cfg['selected'])
     pairs_input_dir = os.path.join(pairs_selected_dir, "evt{}".format(evtid))
@@ -111,7 +112,8 @@ if __name__ == "__main__":
     if rank == 0:
         assert(os.path.exists(config_dir))
         config = load_yaml(config_dir)
-        mk_cfg = config['doublets_for_graph']
+        data_source = config['pairs_form']
+        mk_cfg = config[data_source]
         pairs_selected_dir = os.path.expandvars(mk_cfg['selected'])
         layers = mk_cfg['layers']
         sel_layer_id = select_pair_layers(layers)

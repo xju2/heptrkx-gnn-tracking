@@ -20,7 +20,7 @@ setup(
     packages=find_packages(),
     install_requires=[
         "graph_nets==1.0.2",
-        'tensorflow==1.12.0',
+        'tensorflow-gpu==1.12.0',
         "future",
         "networkx",
         "numpy",
@@ -53,6 +53,7 @@ setup(
         'scripts/evaluate_gnn_models',
         'scripts/hits_graph_to_tuple',
         'scripts/make_doublets_from_NNs',
+        'scripts/make_doublets_from_cuts',
         'scripts/pairs_to_nx_graph',
         'scripts/get_total_segments',
         'scripts/make_graph',

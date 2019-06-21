@@ -23,19 +23,22 @@ doublet_training:
 doublets_for_graph: ## input pairs from all_pairs
     evtid: 1000
     selected: /global/cscratch1/sd/xju/heptrkx/output_graphs_moreVar2/selected_pairs
-    threshold: /global/cscratch1/sd/xju/heptrkx/trained_models/doublet_moreVar/merged_info.txt 
     layers: [7, 8, 9, 10, 24, 25, 26, 27, 40, 41]
     min_hits: 3
+    threshold: /global/cscratch1/sd/xju/heptrkx/trained_models/doublet_moreVar/merged_info.txt 
 
 make_graph:
     nevts: 10
     out_graph: /global/cscratch1/sd/xju/heptrkx/output_graphs_moreVar2/barrel_graphs_hdf5
+    pairs_from: 'doublets_from_cuts'
 
 doublets_from_cuts:
-    layers: [7, 8, 9, 10, 24, 25, 26, 27, 40, 41] # only support these, do not change
+    evtid: 1000
+    selected: /global/cscratch1/sd/xju/heptrkx/output_graphs_moreVar2/selected_pairs_from_cuts 
+    layers: [7, 8, 9, 10, 24, 25, 26, 27, 40, 41]
+    min_hits: 3
     phi_slope_max: 0.0006
     z0_max: 100
-    out_graph: 
 
 segment_training:
     output_dir: /global/cscratch1/sd/xju/heptrkx/trained_models/segments

@@ -1,4 +1,3 @@
-from graph_nets import utils_np
 import networkx as nx
 
 import numpy as np
@@ -102,6 +101,7 @@ def get_edge_features(in_node, out_node, add_angles=False):
 
 
 def data_dict_to_nx(dd_input, dd_target, use_digraph=True, bidirection=True):
+    from graph_nets import utils_np
     input_nx  = utils_np.data_dict_to_networkx(dd_input)
     target_nx = utils_np.data_dict_to_networkx(dd_target)
 
@@ -375,6 +375,7 @@ def _add_edge(G, sender, receiver, solution, bidirection, edge_features=None):
 
 
 def predicted_graphs_to_nxs(gnn_output, input_graphs, target_graphs, **kwargs):
+    from graph_nets import utils_np
     output_nxs = utils_np.graphs_tuple_to_networkxs(gnn_output)
     input_dds  = utils_np.graphs_tuple_to_data_dicts(input_graphs)
     target_dds = utils_np.graphs_tuple_to_data_dicts(target_graphs)

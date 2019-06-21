@@ -16,27 +16,12 @@ from functools import partial
 import yaml
 import numpy as np
 import pandas as pd
-import trackml.dataset
-
-
-def parse_args():
-    """Parse command line arguments."""
-    parser = argparse.ArgumentParser('prepare.py')
-    add_arg = parser.add_argument
-    add_arg('config', nargs='?', default='configs/data_5000evts.yaml')
-    add_arg('--n-workers', type=int, default=1)
-    add_arg('--task', type=int, default=0)
-    add_arg('--n-tasks', type=int, default=1)
-    add_arg('-v', '--verbose', action='store_true')
-    add_arg('--show-config', action='store_true')
-    add_arg('--interactive', action='store_true')
-    return parser.parse_args()
 
 from heptrkx.preprocess import utils_mldata
 from heptrkx.nx_graph import utils_data
 from heptrkx import load_yaml, pairwise, select_pair_layers, layer_pairs
 
-def process_event(evtid, config_dir):
+def process(evtid, config_dir):
     config = load_yaml(config_dir)
     data_dir = config['track_ml']['dir']
 
@@ -61,64 +46,80 @@ def process_event(evtid, config_dir):
 
     phi_slope_max = config['doublets_from_cuts']['phi_slope_max']
     z0_max = config['doublets_from_cuts']['z0_max']
-    segments = [x[(x.phi_slope.abs() < phi_slope_max) & (x.z0.abs() < z0_max)]
-                for x in utils_mldata.create_segments(hits, layer_pairs)]
-    all_segments = pd.concat(segments, ignore_index=True)
 
-
-def main():
-    """Main function"""
-
-    # Parse the command line
-    args = parse_args()
-
-    # Setup logging
-    log_format = '%(asctime)s %(levelname)s %(message)s'
-    log_level = logging.DEBUG if args.verbose else logging.INFO
-    logging.basicConfig(level=log_level, format=log_format)
-    logging.info('Initializing')
-    if args.show_config:
-        logging.info('Command line config: %s' % args)
-
-    # Load configuration
-    with open(args.config) as f:
-        config = yaml.load(f)
-    if args.task == 0:
-        logging.info('Configuration: %s' % config)
-
-    # Construct layer pairs from adjacent layer numbers
-    layers = np.arange(10)
-    layer_pairs = np.stack([layers[:-1], layers[1:]], axis=1)
-
-    # Find the input files
-    input_dir = config['track_ml']['dir']
-    all_files = os.listdir(input_dir)
-    suffix = '-hits.csv'
-    file_prefixes = sorted(os.path.join(input_dir, f.replace(suffix, ''))
-                           for f in all_files if f.endswith(suffix))
-    file_prefixes = file_prefixes[:config['n_files']]
-
-    # Split the input files by number of tasks and select my chunk only
-    file_prefixes = np.array_split(file_prefixes, args.n_tasks)[args.task]
-
-    # Prepare output
-    output_dir = os.path.expandvars(config['output_dir'])
+    output_dir = os.path.join(config['doublets_from_cuts']['selected'], 'evt{}'.format(evtid))
     os.makedirs(output_dir, exist_ok=True)
-    logging.info('Writing outputs to ' + output_dir)
 
-    # Process input files with a worker pool
-    with mp.Pool(processes=args.n_workers) as pool:
-        process_func = partial(process_event, output_dir=output_dir,
-                               phi_range=(-np.pi, np.pi), **config['selection'])
-        pool.map(process_func, file_prefixes)
+    for pair_id in sel_layer_id:
+        pairs = layer_pairs[pair_id]
+        outname = os.path.join(output_dir, "pair{:03d}.h5".format(pair_id))
+        if os.path.exists(outname):
+            continue
 
-    # Drop to IPython interactive shell
-    if args.interactive:
-        logging.info('Starting IPython interactive session')
-        import IPython
-        IPython.embed()
+        df = list(utils_mldata.create_segments(hits, [pairs]))
+        with pd.HDFStore(outname) as store:
+            store['data'] = df
 
-    logging.info('All done!')
 
-if __name__ == '__main__':
-    main()
+if __name__ == "__main__":
+    import os
+    import argparse
+
+    parser = argparse.ArgumentParser(description='Keras train pairs for each layer-pairs')
+    add_arg = parser.add_argument
+    add_arg('config', type=str, help='data configuration, configs/data.yaml')
+    add_arg('--workers', type=int, help='workers', default=1)
+    add_arg('--mpi', action='store_true', help='use MPI')
+
+    args = parser.parse_args()
+    config_dir = args.config
+    n_workers = args.workers
+    use_mpi = args.mpi
+
+    if use_mpi:
+        try:
+            from mpi4py import MPI
+            comm = MPI.COMM_WORLD
+            size = comm.Get_size()
+            rank = comm.Get_rank()
+            print("World size:", size, ", rank:", rank)
+        except ImportError:
+            rank = 0
+            size = 1
+    else:
+        rank = 0
+        size =1
+
+
+    if rank == 0:
+        assert(os.path.exists(config_dir))
+        config = load_yaml(config_dir)
+        mk_cfg = config['doublets_from_cuts']
+        evtids = mk_cfg['evtid']
+        output_dir = os.path.expandvars(mk_cfg['selected'])
+        os.makedirs(output_dir, exist_ok=True)
+        if type(evtids) is str:
+            evtids = list_from_str(evtids)
+        else:
+            evtids = [evtids]
+
+        ## split evtids based on the world-size
+        evtids = [x.tolist() for x in np.array_split(evtids, size)]
+    else:
+        evtids = None
+
+    if use_mpi:
+        comm.Barrier()
+        evtids = comm.scatter(evtids, root=0)
+    else:
+        evtids = evtids[0]
+
+    import multiprocessing as mp
+    from functools import partial
+
+    print("rank({}) {} workers:".format(rank, n_workers))
+    print("rank({}) {} events:".format(rank, len(evtids)))
+
+    with  mp.Pool(processes=n_workers) as pool:
+        pp_func = partial(process, config_dir=config_dir)
+        pool.map(pp_func, evtids)
