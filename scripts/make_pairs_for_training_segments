@@ -98,7 +98,6 @@ if __name__ == "__main__":
         print("\tTotal {} Layer Pairs.".format(len(sel_layer_id)))
         print("\tuses {} Workers:".format(n_workers))
 
-    from heptrkx.nx_graph import transformation
     module_getter = utils_mldata.module_info(det_dir)
 
     from functools import partial
