@@ -62,9 +62,11 @@ def process(evtid, config_dir):
         if os.path.exists(outname):
             continue
 
-        df = list(utils_mldata.create_segments(hits, [pairs]))
+        df = list(utils_mldata.create_segments(hits, [pairs]))[0]
+        df = df[(df.phi_slope.abs() < phi_slope_max) & (df.z0.abs() < z0_max)]
+
         with pd.HDFStore(outname) as store:
-            store['data'] = df[0]
+            store['data'] = df
 
 
 if __name__ == "__main__":
