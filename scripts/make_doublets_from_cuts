@@ -64,7 +64,7 @@ def process(evtid, config_dir):
 
         df = list(utils_mldata.create_segments(hits, [pairs]))
         with pd.HDFStore(outname) as store:
-            store['data'] = df
+            store['data'] = df[0]
 
 
 if __name__ == "__main__":
