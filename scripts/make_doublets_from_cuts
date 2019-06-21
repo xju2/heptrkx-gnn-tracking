@@ -1,0 +1,124 @@
+#!/usr/bin/env python
+"""
+Data preparation script for GNN tracking.
+
+This script processes the TrackML dataset and produces graph data on disk.
+"""
+
+# System
+import os
+import argparse
+import logging
+import multiprocessing as mp
+from functools import partial
+
+# Externals
+import yaml
+import numpy as np
+import pandas as pd
+import trackml.dataset
+
+
+def parse_args():
+    """Parse command line arguments."""
+    parser = argparse.ArgumentParser('prepare.py')
+    add_arg = parser.add_argument
+    add_arg('config', nargs='?', default='configs/data_5000evts.yaml')
+    add_arg('--n-workers', type=int, default=1)
+    add_arg('--task', type=int, default=0)
+    add_arg('--n-tasks', type=int, default=1)
+    add_arg('-v', '--verbose', action='store_true')
+    add_arg('--show-config', action='store_true')
+    add_arg('--interactive', action='store_true')
+    return parser.parse_args()
+
+from heptrkx.preprocess import utils_mldata
+from heptrkx.nx_graph import utils_data
+from heptrkx import load_yaml, pairwise, select_pair_layers, layer_pairs
+
+def process_event(evtid, config_dir):
+    config = load_yaml(config_dir)
+    data_dir = config['track_ml']['dir']
+
+    # Load the data
+    results = utils_mldata.read(data_dir, evtid)
+    if results is None:
+        print("[{}] cannot find event {}".format(prog, evtid))
+        exit(1)
+    else:
+        hits, particles, truth, cells = results
+
+    # only hits in barrel
+    logging.info('Event %i, selecting hits' % evtid)
+    hits = utils_data.merge_truth_info_to_hits(hits, particles, truth)
+    layers = config['doublets_from_cuts']['layers']
+    sel_layer_id = select_pair_layers(layers)
+    sel_layer_pairs = [layer_pairs[ii] for ii in sel_layer_id]
+
+    hits = hits[hits.layer.isin(layers)].assign(evtid=evtid)
+
+    # Graph features and scale
+
+    phi_slope_max = config['doublets_from_cuts']['phi_slope_max']
+    z0_max = config['doublets_from_cuts']['z0_max']
+    segments = [x[(x.phi_slope.abs() < phi_slope_max) & (x.z0.abs() < z0_max)]
+                for x in utils_mldata.create_segments(hits, layer_pairs)]
+    all_segments = pd.concat(segments, ignore_index=True)
+
+
+def main():
+    """Main function"""
+
+    # Parse the command line
+    args = parse_args()
+
+    # Setup logging
+    log_format = '%(asctime)s %(levelname)s %(message)s'
+    log_level = logging.DEBUG if args.verbose else logging.INFO
+    logging.basicConfig(level=log_level, format=log_format)
+    logging.info('Initializing')
+    if args.show_config:
+        logging.info('Command line config: %s' % args)
+
+    # Load configuration
+    with open(args.config) as f:
+        config = yaml.load(f)
+    if args.task == 0:
+        logging.info('Configuration: %s' % config)
+
+    # Construct layer pairs from adjacent layer numbers
+    layers = np.arange(10)
+    layer_pairs = np.stack([layers[:-1], layers[1:]], axis=1)
+
+    # Find the input files
+    input_dir = config['track_ml']['dir']
+    all_files = os.listdir(input_dir)
+    suffix = '-hits.csv'
+    file_prefixes = sorted(os.path.join(input_dir, f.replace(suffix, ''))
+                           for f in all_files if f.endswith(suffix))
+    file_prefixes = file_prefixes[:config['n_files']]
+
+    # Split the input files by number of tasks and select my chunk only
+    file_prefixes = np.array_split(file_prefixes, args.n_tasks)[args.task]
+
+    # Prepare output
+    output_dir = os.path.expandvars(config['output_dir'])
+    os.makedirs(output_dir, exist_ok=True)
+    logging.info('Writing outputs to ' + output_dir)
+
+    # Process input files with a worker pool
+    with mp.Pool(processes=args.n_workers) as pool:
+        process_func = partial(process_event, output_dir=output_dir,
+                               phi_range=(-np.pi, np.pi), **config['selection'])
+        pool.map(process_func, file_prefixes)
+
+    # Drop to IPython interactive shell
+    if args.interactive:
+        logging.info('Starting IPython interactive session')
+        import IPython
+        IPython.embed()
+
+    logging.info('All done!')
+
+if __name__ == '__main__':
+    main()
