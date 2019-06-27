@@ -2,8 +2,10 @@
 """Compute the efficiency of cut-based selections of edges for different layer pairs
 """
 
+from heptrkx import load_yaml
 from heptrkx.studies import eff_purity_of_edge_selection
 from heptrkx.nx_graph.utils_plot import plot_ratio
+from heptrkx.
 
 if __name__ == "__main__":
     import os
@@ -21,6 +23,7 @@ if __name__ == "__main__":
     n_workers = args.workers
     n_evts = args.nevts
     outdir = args.outdir
+    os.makedirs(outdir, exist_ok=True)
 
     config = load_yaml(config_dir)
     evt_dir = config['track_ml']['dir']
