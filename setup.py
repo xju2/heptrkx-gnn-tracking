@@ -59,5 +59,6 @@ setup(
         'scripts/make_graph',
         'scripts/plot_graph',
         'scripts/make_trkx',
+        'scripts/duplicated_hits',
     ],
 )

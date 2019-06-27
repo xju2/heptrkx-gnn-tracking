@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 
-from ..nx_graph import utils_data
+from heptrkx.nx_graph import utils_data
 
 from trackml.score import score_event
 
@@ -54,7 +54,7 @@ def summary_on_prediction(G, truth, prediction, do_detail=False):
     """
     aa = truth.merge(prediction, on='hit_id', how='inner').sort_values('particle_id')
     ss = aa.groupby('particle_id')[['track_id']].apply(lambda x: len(np.unique(x))) == 1
-    wrong_particles = ss[ss == False].index
+    wrong_particles = ss[~ss].index
     n_total_predictions = len(np.unique(prediction['track_id']))
     correct_particles = ss[ss].index
     n_correct = len(correct_particles)

@@ -5,6 +5,8 @@ import matplotlib.pyplot as plt
 
 import sklearn.metrics
 
+from heptrkx import pairwise
+
 fontsize=16
 minor_size=14
 
@@ -192,3 +194,24 @@ def pixel_matrix(pixel_cluster, show=False):
         plt.colorbar()
         plt.show()
     return matrix, max0-min0+1, max1-min1+1
+
+
+def plot_efficiency(tot, sel, label_tot, label_sel, xlabel, title, **plot_options):
+
+    fig, (ax0, ax1) = plt.subplots(2, 1, figsize=(10, 12), sharex=True, gridspec_kw={'height_ratios':[4, 1]})
+    fig.subplots_adjust(hspace=0)
+
+    val_tot, bins, _ = ax0.hist(tot, label='all', **plot_options)
+    val_sel, bins, _ = ax0.hist(sel, label='selected', **plot_options)
+    # ax0.set_ylim(1.1, 5000)
+    ax0.legend(fontsize=16)
+    ax0.set_title(title)
+
+    ratio = [x/y if y != 0 else 0. for x,y in zip(val_sel, val_tot)][:-1]
+    xvals = [0.5*(x[0]+x[1]) for x in pairwise(bins)][1:]
+    ax1.plot(xvals, ratio, 'o', label='ratio', lw=2)
+    ax1.set_xlabel(xlabel)
+    ax1.set_ylabel('ratio')
+
+    return fig, ax0, ax1
+
