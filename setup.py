@@ -60,5 +60,6 @@ setup(
         'scripts/plot_graph',
         'scripts/make_trkx',
         'scripts/duplicated_hits',
+        'scripts/edge_cuts_efficiency',
     ],
 )

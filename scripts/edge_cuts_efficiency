@@ -1,0 +1,77 @@
+#!/usr/bin/env python
+"""Compute the efficiency of cut-based selections of edges for different layer pairs
+"""
+
+from heptrkx.studies import eff_purity_of_edge_selection
+from heptrkx.nx_graph.utils_plot import plot_ratio
+
+if __name__ == "__main__":
+    import os
+    import argparse
+
+    parser = argparse.ArgumentParser(description='Efficiency of edge selections for different layer pairs')
+    add_arg = parser.add_argument
+    add_arg('config', type=str, help='data configuration, configs/data.yaml')
+    add_arg('--workers', type=int, help='workers', default=1)
+    add_arg('--nevts', type=int, help='number of events', default=4)
+    add_arg('--outdir', type=str, help='output directory', default='.')
+
+    args = parser.parse_args()
+    config_dir = args.config
+    n_workers = args.workers
+    n_evts = args.nevts
+    outdir = args.outdir
+
+    config = load_yaml(config_dir)
+    evt_dir = config['track_ml']['dir']
+    evtids = evtids_at_disk(evt_dir)
+    n_events = len(evtids)
+    print("Total avaiable events: {}".format(n_events))
+    if n_events > n_evts:
+        evtids = evtids[:n_evts]
+
+    with mp.Pool(processes=n_workers) as pool:
+        pp_func = partial(eff_purity_of_edge_selection, config_name=config_dir)
+        fraction_list = pool.map(pp_func, evtids)
+
+        # make efficiency plots for each layers
+        pT_bins = [
+            0, 0.1, 0.2, 0.4, 0.6, 0.8, 1.0,
+            1.2, 1.4, 1.6, 2, 3, 4, 5, 6, 7]
+        hist_configs = {
+                'bins': pT_bins,
+                'histtype': 'step',
+                'lw': 2,
+                'log': True,
+        }
+        xlabel = '$p_T$ [GeV]'
+
+        layers = config['doublets_from_cuts']['layers']
+        sel_layer_id = select_pair_layers(layers)
+        for ii, pair_idx in enumerate(sel_layer_id):
+            pairs = layer_pairs[pair_idx]
+
+            tot_list = [x[0][ii] for x in fraction_list]
+            sel_true_list = [x[1][ii] for x in fraction_list]
+            sel_list = [x[2][ii] for x in fraction_list]
+
+            tot = np.concatenate(tot_list, axis=None)
+            sel_true = np.concatenate(sel_true_list, axis=None)
+            sel = np.concatenate(sel_list, axis=None)
+
+            plot_ratio(
+                tot, sel, "true segments", "selected segments",
+                xlabel=xlabel,
+                title="pT of segments in layer {} {}".format(*pairs),
+                outname=os.path.join(
+                    outdir, "edge_eff_pair{:03d}.pdf".format(pair_idx)),
+                **hist_configs
+            )
+            plot_ratio(
+                sel, sel_true, "selected segments", "selected true segments",
+                xlabel=xlabel,
+                title="pT of segments in layer {} {}".format(*pairs),
+                outname=os.path.join(
+                    outdir, "edge_purity_pair{:03d}.pdf".format(pair_idx)),
+                **hist_configs
+            )

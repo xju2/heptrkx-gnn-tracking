@@ -196,8 +196,9 @@ def pixel_matrix(pixel_cluster, show=False):
     return matrix, max0-min0+1, max1-min1+1
 
 
-def plot_efficiency(tot, sel, label_tot, label_sel, xlabel, title, **plot_options):
-
+def plot_ratio(tot, sel, label_tot, label_sel,
+                    xlabel, title, outname, **plot_options):
+    plt.clf()
     fig, (ax0, ax1) = plt.subplots(2, 1, figsize=(10, 12), sharex=True, gridspec_kw={'height_ratios':[4, 1]})
     fig.subplots_adjust(hspace=0)
 
@@ -212,6 +213,5 @@ def plot_efficiency(tot, sel, label_tot, label_sel, xlabel, title, **plot_option
     ax1.plot(xvals, ratio, 'o', label='ratio', lw=2)
     ax1.set_xlabel(xlabel)
     ax1.set_ylabel('ratio')
-
-    return fig, ax0, ax1
+    plt.savefig(outname)
 
