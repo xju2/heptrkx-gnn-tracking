@@ -61,5 +61,3 @@ def eff_purity_of_edge_selection(evtid, config_name):
         sel_list.append(sel)
 
     return (tot_list, sel_true_list, sel_list)
-
-

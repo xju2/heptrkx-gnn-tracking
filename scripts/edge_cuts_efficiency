@@ -1,15 +1,20 @@
 #!/usr/bin/env python
 """Compute the efficiency of cut-based selections of edges for different layer pairs
 """
+import os
+import argparse
 
-from heptrkx import load_yaml
+import multiprocessing as mp
+from functools import partial
+import numpy as np
+
+from heptrkx import load_yaml, select_pair_layers, layer_pairs
 from heptrkx.studies import eff_purity_of_edge_selection
 from heptrkx.nx_graph.utils_plot import plot_ratio
-from heptrkx.
+from heptrkx.utils import evtids_at_disk
+
 
 if __name__ == "__main__":
-    import os
-    import argparse
 
     parser = argparse.ArgumentParser(description='Efficiency of edge selections for different layer pairs')
     add_arg = parser.add_argument
@@ -63,7 +68,7 @@ if __name__ == "__main__":
             sel = np.concatenate(sel_list, axis=None)
 
             plot_ratio(
-                tot, sel, "true segments", "selected segments",
+                tot, sel_true, "true segments", "selected segments",
                 xlabel=xlabel,
                 title="pT of segments in layer {} {}".format(*pairs),
                 outname=os.path.join(
