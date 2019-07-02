@@ -4,6 +4,7 @@ import numpy as np
 from heptrkx.nx_graph import utils_data
 
 from trackml.score import score_event
+from trackml.score import _analyze_tracks as analyze_tracks
 
 
 def find_hit_id(G, idx):
@@ -47,65 +48,34 @@ def graphs_to_df(nx_graphs):
     return df
 
 
-def summary_on_prediction(G, truth, prediction, do_detail=False):
+def summary_on_prediction(G, truth, prediction, matching_cut=0.0):
+    """Find number of track candidates that can match to a true track.
+    The matching requires the track candidate contains at least *mathching_cut*
+    percentange of hits from the true track.
+
+    G -- graph, that contains all hit and edge info,
+    truth -- DataFrame, contains true tracks,
+    prediction -- DataFrame, ['hit_id', 'track_id'].
+    matching_cut -- percentage of hits from the true track
+                    that are contained in the track candidate
     """
-    truth: DataFrame, contains only good tracks,
-    prediction: DataFrame, ['hit_id', 'track_id']
-    """
-    aa = truth.merge(prediction, on='hit_id', how='inner').sort_values('particle_id')
-    ss = aa.groupby('particle_id')[['track_id']].apply(lambda x: len(np.unique(x))) == 1
-    wrong_particles = ss[~ss].index
-    n_total_predictions = len(np.unique(prediction['track_id']))
-    correct_particles = ss[ss].index
-    n_correct = len(correct_particles)
-    n_wrong = len(wrong_particles)
-    if not do_detail:
-        return {
-            "n_correct": n_correct,
-            "n_wrong": n_wrong,
-            "correct_pids": correct_particles,
-            "wrong_pids": wrong_particles,
-            'total_predictions': n_total_predictions
-        }
+    truth_hit_id = truth[truth.hit_id.isin(prediction.hit_id)]
+    tracks = analyze_tracks(truth_hit_id, prediction)
+    print("Track ML score: ", score_event(truth_hit_id, prediction))
+    purity_maj = np.true_divide(tracks['major_nhits'], tracks['major_partcile_nhits'])
+    matched_tracks = tracks[purity_maj > matching_cut]
 
-    # are wrong particles due to missing edges (i.e they are isolated)
-    connected_pids = []
-    isolated_pids = []
-    broken_pids = []
-    for pp in wrong_particles:
-        jj = aa[aa['particle_id'] == pp]
-
-        is_isolated = True
-        is_broken = False
-        for hit_id in jj['hit_id']:
-            node = find_hit_id(G, hit_id)
-            if node < 0:
-                continue
-            nbrss = list(G.neighbors(node))
-            if nbrss is None or len(nbrss) < 1:
-                is_broken = True
-            else:
-                is_isolated = False
-
-        if is_isolated:
-            isolated_pids.append(pp)
-
-        if is_broken:
-            broken_pids.append(pp)
-        else:
-            connected_pids.append(pp)
-
+    n_total_predictions = tracks.shape[0]
+    correct_particles = matched_tracks.major_partcile_id.to_numpy()
+    n_correct = matched_tracks.shape[0]
+    n_wrong = n_total_predictions - n_correct
     return {
         "n_correct": n_correct,
         "n_wrong": n_wrong,
-        "isolated_pids": isolated_pids,
-        "broken_pids": broken_pids,
-        "connected_pids": connected_pids,
         "correct_pids": correct_particles,
         "wrong_pids": wrong_particles,
         'total_predictions': n_total_predictions
     }
-
 
 
 def label_particles(hits, truth, threshold=1.0, ignore_noise=True):
