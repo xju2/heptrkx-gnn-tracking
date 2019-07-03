@@ -6,24 +6,23 @@ import numpy as np
 import pandas as pd
 
 from heptrkx import load_yaml, select_pair_layers, layer_pairs
-from heptrkx.preprocess import utils_mldata
 from heptrkx.nx_graph import utils_data
 from heptrkx import seeding
+from heptrkx.master import Event
 
 from heptrkx.postprocess import wrangler, analysis
 
 def fraction_of_duplicated_hits(evtid, config_name):
     config = load_yaml(config_name)
     evt_dir = config['track_ml']['dir']
-
-    hits, particles, truth, cells = utils_mldata.read(evt_dir, evtid)
-    hits = utils_data.merge_truth_info_to_hits(hits, particles, truth)
     layers = config['doublets_from_cuts']['layers']
-    barrel_hits = hits[hits.layer.isin(layers)].assign(evtid=evtid)
+
+    event = Event(evt_dir)
+    event.read(evtid)
+    barrel_hits = event.filter_hits(layers)
 
     # remove noise hits
     barrel_hits = barrel_hits[barrel_hits.particle_id > 0]
-
 
     sel = barrel_hits.groupby("particle_id")['layer'].apply(
         lambda x: len(x) - np.unique(x).shape[0]
@@ -34,12 +33,12 @@ def fraction_of_duplicated_hits(evtid, config_name):
 def eff_purity_of_edge_selection(evtid, config_name):
     config = load_yaml(config_name)
     evt_dir = config['track_ml']['dir']
-
-    hits, particles, truth, cells = utils_mldata.read(evt_dir, evtid)
-    hits = utils_data.merge_truth_info_to_hits(hits, particles, truth)
     layers = config['doublets_from_cuts']['layers']
     sel_layer_id = select_pair_layers(layers)
-    barrel_hits = hits[hits.layer.isin(layers)].assign(evtid=evtid)
+
+    event = Master(evt_dir)
+    event.read(evtid)
+    barrel_hits = event.filter_hits(layers)
 
     phi_slope_max = config['doublets_from_cuts']['phi_slope_max']
     z0_max = config['doublets_from_cuts']['z0_max']
@@ -70,11 +69,12 @@ def eff_purity_of_edge_selection(evtid, config_name):
 def track_eff_of_edge_selected(evtid, config_name, matching_cut=0.8):
     config = load_yaml(config_name)
     evt_dir = config['track_ml']['dir']
-
-    hits, particles, truth, cells = utils_mldata.read(evt_dir, evtid)
-    hits = utils_data.merge_truth_info_to_hits(hits, particles, truth)
     layers = config['doublets_from_cuts']['layers']
-    barrel_hits = hits[hits.layer.isin(layers)].assign(evtid=evtid)
+    sel_layer_id = select_pair_layers(layers)
+
+    event = Master(evt_dir)
+    event.read(evtid)
+    barrel_hits = event.filter_hits(layers)
 
     data_source = 'doublets_from_cuts'
     cfg = config[data_source]
