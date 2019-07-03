@@ -16,19 +16,21 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from heptrkx.studies import fraction_of_duplicated_hits
-from heptrkx.utils_io import evtids_at_disk
+from heptrkx.utils import evtids_at_disk, load_yaml
 
 
 if __name__ == "__main__":
 
-    parser = argparse.ArgumentParser(description='make doublets using cut-based methods')
+    parser = argparse.ArgumentParser(description='plot number of duplicated hits for each track.')
     add_arg = parser.add_argument
     add_arg('config', type=str, help='data configuration, configs/data.yaml')
     add_arg('--workers', type=int, help='workers', default=1)
+    add_arg('--outname', help='output plot name', default='duplicated_hits.pdf')
 
     args = parser.parse_args()
     config_dir = args.config
     n_workers = args.workers
+    outname = args.outname
 
     config = load_yaml(config_dir)
     evt_dir = config['track_ml']['dir']
@@ -41,6 +43,10 @@ if __name__ == "__main__":
         fraction_list = pool.map(pp_func, evtids)
 
         diff = np.concatenate(fraction_list, axis=None)
-        plt.hist(diff, bins=11, range=(-0.5, 10.5), density=True)
+        nbins = 11
+        arr = plt.hist(diff, bins=nbins, range=(-0.5, 10.5), density=True)
+        for i in range(nbins):
+            plt.text(arr[1][i], arr[0][i], str(arr[0][i]))
+
         plt.xlabel("number of duplicated hits")
-        plt.savefig("duplicated_hits.pdf")
+        plt.savefig(outname)

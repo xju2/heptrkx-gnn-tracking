@@ -1,5 +1,7 @@
 #!/usr/bin/env python
-"""Compute the efficiency of cut-based selections of edges for different layer pairs
+"""Compute **edge** efficiency of cut-based selections.
+Edge efficiency is defined as:
+    \epsilon = n_selected_edges / n_true_edges
 """
 import os
 import argparse

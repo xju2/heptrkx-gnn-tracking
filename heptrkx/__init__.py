@@ -1,5 +1,4 @@
 # Layer Information
-
 __all__ = ['layer_pairs', 'load_yaml', 'select_pair_layers']
 
 layer_pairs = [

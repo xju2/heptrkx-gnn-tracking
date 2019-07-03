@@ -202,8 +202,8 @@ def plot_ratio(tot, sel, label_tot, label_sel,
     fig, (ax0, ax1) = plt.subplots(2, 1, figsize=(10, 12), sharex=True, gridspec_kw={'height_ratios':[4, 1]})
     fig.subplots_adjust(hspace=0)
 
-    val_tot, bins, _ = ax0.hist(tot, label='all', **plot_options)
-    val_sel, bins, _ = ax0.hist(sel, label='selected', **plot_options)
+    val_tot, bins, _ = ax0.hist(tot, label=label_tot, **plot_options)
+    val_sel, bins, _ = ax0.hist(sel, label=label_sel, **plot_options)
     # ax0.set_ylim(1.1, 5000)
     ax0.legend(fontsize=16)
     ax0.set_title(title)

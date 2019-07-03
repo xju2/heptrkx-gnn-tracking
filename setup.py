@@ -61,5 +61,6 @@ setup(
         'scripts/make_trkx',
         'scripts/duplicated_hits',
         'scripts/edge_cuts_efficiency',
+        'scripts/edge_cuts_track_eff',
     ],
 )

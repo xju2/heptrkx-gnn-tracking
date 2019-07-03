@@ -48,32 +48,36 @@ def graphs_to_df(nx_graphs):
     return df
 
 
-def summary_on_prediction(G, truth, prediction, matching_cut=0.0):
+def summary_on_prediction(G, truth, prediction, matching_cut=0.0, min_hits=3):
     """Find number of track candidates that can match to a true track.
     The matching requires the track candidate contains at least *mathching_cut*
     percentange of hits from the true track.
+    total true tracks are the tracks that have at least *min_hits* number of hits.
+
 
     G -- graph, that contains all hit and edge info,
     truth -- DataFrame, contains true tracks,
     prediction -- DataFrame, ['hit_id', 'track_id'].
     matching_cut -- percentage of hits from the true track
                     that are contained in the track candidate
+    min_hits -- minimum number of hits associated with a true track
     """
     truth_hit_id = truth[truth.hit_id.isin(prediction.hit_id)]
     tracks = analyze_tracks(truth_hit_id, prediction)
     print("Track ML score: ", score_event(truth_hit_id, prediction))
-    purity_maj = np.true_divide(tracks['major_nhits'], tracks['major_partcile_nhits'])
+    true_nhits = truth_hit_id[truth_hit_id.particle_id > 0].groupby('particle_id')['hit_id'].count()
+    n_total_predictions = true_nhits[true_nhits > min_hits-1].shape[0]
+
+    purity_maj = np.true_divide(tracks['major_nhits'], tracks['major_particle_nhits'])
     matched_tracks = tracks[purity_maj > matching_cut]
 
-    n_total_predictions = tracks.shape[0]
-    correct_particles = matched_tracks.major_partcile_id.to_numpy()
-    n_correct = matched_tracks.shape[0]
+    correct_particles = np.unique(matched_tracks.major_particle_id)
+    n_correct = correct_particles.shape[0]
     n_wrong = n_total_predictions - n_correct
     return {
         "n_correct": n_correct,
         "n_wrong": n_wrong,
         "correct_pids": correct_particles,
-        "wrong_pids": wrong_particles,
         'total_predictions': n_total_predictions
     }
 

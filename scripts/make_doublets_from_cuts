@@ -6,7 +6,6 @@ Process the dataset and save doublets to disk.
 # System
 import os
 import argparse
-import logging
 import multiprocessing as mp
 from functools import partial
 
@@ -42,7 +41,6 @@ def process(evtid, config_dir):
         hits, particles, truth, cells = results
 
     # only hits in barrel
-    logging.info('Event %i, selecting hits' % evtid)
     hits = utils_data.merge_truth_info_to_hits(hits, particles, truth)
     layers = config['doublets_from_cuts']['layers']
     sel_layer_id = select_pair_layers(layers)
