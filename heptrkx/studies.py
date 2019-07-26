@@ -36,7 +36,7 @@ def eff_purity_of_edge_selection(evtid, config_name):
     layers = config['doublets_from_cuts']['layers']
     sel_layer_id = select_pair_layers(layers)
 
-    event = Master(evt_dir)
+    event = Event(evt_dir)
     event.read(evtid)
     barrel_hits = event.filter_hits(layers)
 
@@ -66,13 +66,13 @@ def eff_purity_of_edge_selection(evtid, config_name):
     return (tot_list, sel_true_list, sel_list)
 
 
-def track_eff_of_edge_selected(evtid, config_name, matching_cut=0.8):
+def track_eff_of_edge_selected(evtid, config_name, matching_cut=0.8, remove_duplicated_hits=False):
     config = load_yaml(config_name)
     evt_dir = config['track_ml']['dir']
     layers = config['doublets_from_cuts']['layers']
     sel_layer_id = select_pair_layers(layers)
 
-    event = Master(evt_dir)
+    event = Event(evt_dir)
     event.read(evtid)
     barrel_hits = event.filter_hits(layers)
 
@@ -84,9 +84,14 @@ def track_eff_of_edge_selected(evtid, config_name, matching_cut=0.8):
     all_segments = []
     for pair_id in sel_layer_id:
         file_name = os.path.join(pairs_input_dir, 'pair{:03d}.h5'.format(pair_id))
-        with pd.HDFStore(file_name) as store:
-            df = store.get('data')
+        try:
+            with pd.HDFStore(file_name, 'r') as store:
+                df = store.get('data')
+        except KeyError:
+            pass
+        else:
             all_segments.append(df)
+
     segments = pd.concat(all_segments, ignore_index=True)
     graph = utils_data.segments_to_nx(
         barrel_hits, segments,
@@ -103,6 +108,7 @@ def track_eff_of_edge_selected(evtid, config_name, matching_cut=0.8):
     true_nhits = barrel_hits[barrel_hits.particle_id > 0].groupby('particle_id')['hit_id'].count()
     true_particle_ids = true_nhits[true_nhits > 2].index.to_numpy()
 
+    particles = event.particles
     pT_all = particles[particles.particle_id.isin(true_particle_ids)].pt.to_numpy()
-    pT_sel = particles[particles.particle_id.isin(summary2['correct_pids'])].pt.to_numpy()
+    pT_sel = particles[particles.particle_id.isin(summary['correct_pids'])].pt.to_numpy()
     return pT_all, pT_sel

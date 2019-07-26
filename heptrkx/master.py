@@ -19,13 +19,30 @@ vlids = [(7,2), (7,4), (7,6), (7,8), (7,10), (7,12), (7,14),
          (18,2), (18,4), (18,6), (18,8), (18,10), (18,12)]
 n_det_layers = len(vlids)
 
-def Event(object):
+class Event(object):
+    """An object saving Event info, including hits, particles, truth and cell info"""
     def __init__(self, evtdir):
         self._evt_dir = evtdir
         self._hits = None
 
+    @property
+    def particles(self):
+        return self._particles
+
+    @property
+    def hits(self):
+        return self._hits
+
+    @property
+    def cells(self):
+        return self._cells
+
+    @property
+    def truth(self):
+        return self._truth
+
     def read(self, evtid, merge_truth=True):
-        prefix = os.path.join(os.path.expandvars(self.evt_dir),
+        prefix = os.path.join(os.path.expandvars(self._evt_dir),
                               'event{:09d}'.format(evtid))
 
         all_data = load_event(prefix,
@@ -52,12 +69,12 @@ def Event(object):
         return (self._hits, self._particles, self._truth, self._cells)
 
     def merge_truth_info_to_hits(self, inplace=True):
-        if not self._hits:
+        if self._hits is None:
             return None
 
         hits = self._hits
-        hits = hits.merge(truth, on='hit_id', how='left')
-        hits = hits.merge(particles, on='particle_id', how='left')
+        hits = hits.merge(self._truth, on='hit_id', how='left')
+        hits = hits.merge(self._particles, on='particle_id', how='left')
 
         # noise hits does not have particle info
         # yielding NaN value
@@ -103,3 +120,66 @@ def Event(object):
         if inplace:
             self._hits = no_noise
         return no_noise
+
+    def remove_duplicated_hits(self, inplace=True):
+        hits = self._hits.loc[
+            self._hits.groupby(['particle_id', 'layer'], as_index=False).r.idxmin()
+        ]
+        if inplace:
+            self._hits = hits
+        return hits
+
+    @staticmethod
+    def _local_angle(cell, module):
+        n_u = max(cell['ch0']) - min(cell['ch0']) + 1
+        n_v = max(cell['ch1']) - min(cell['ch1']) + 1
+        l_u = n_u * module.pitch_u.values   # x
+        l_v = n_v * module.pitch_v.values   # y
+        l_w = 2   * module.module_t.values  # z
+        return (l_u, l_v, l_w)
+
+    @staticmethod
+    def _extract_rotation_matrix(module):
+        rot_matrix = np.matrix( [[ module.rot_xu.values[0], module.rot_xv.values[0], module.rot_xw.values[0]],
+                                 [  module.rot_yu.values[0], module.rot_yv.values[0], module.rot_yw.values[0]],
+                                 [  module.rot_zu.values[0], module.rot_zv.values[0], module.rot_zw.values[0]]])
+        return rot_matrix, np.linalg.inv(rot_matrix)
+
+    @staticmethod
+    def cartesion_to_spherical(x, y, z):
+        r3 = np.sqrt(x**2 + y**2 + z**2)
+        phi = np.arctan2(y, x)
+        theta = np.arccos(z/r3)
+        return r3, theta, phi
+
+    @staticmethod
+    def theta_to_eta(theta):
+        return -np.log(np.tan(0.5*theta))
+
+    def add_cluster_info(self, detector_dir, inplace=True):
+        self._detector = pd.read_csv(os.path.expandvars(detector_dir))
+        df_hits = self._hits
+        cells = self._cells
+
+        angles = []
+        for ii in range(df_hits.shape[0]):
+            hit = df_hits.iloc[ii]
+            cell = cells[cells.hit_id == hit.hit_id]
+            module = self._detector[(self.detector.volume_id == hit.volume_id)
+                                    & (detector.layer_id == hit.layer_id)
+                                    & (detector.module_id == hit.module_id)]
+            l_x, l_y, l_z = self._local_angle(cell, module)
+            # convert to global coordinates
+            module_matrix, module_matrix_inv = self._extract_rotation_matrix(module)
+            g_matrix = module_matrix * [l_x, l_y, l_z]
+            _, g_theta, g_phi = cartesion_to_spherical(g_matrix[0][0], g_matrix[1][0], g_matrix[2][0])
+            _, l_theta, l_phi = cartesion_to_spherical(l_x[0], l_y[0], l_z[0])
+            # to eta and phi...
+            l_eta = theta_to_eta(l_theta)
+            g_eta = theta_to_eta(g_theta[0, 0])
+            lx, ly, lz = l_x[0], l_y[0], l_z[0]
+            angles.append([int(hit.hit_id), l_eta, l_phi, lx, ly, lz, g_eta, g_phi[0, 0]])
+        df_angles = pd.DataFrame(angles, columns=['hit_id', 'leta', 'lphi', 'lx', 'ly', 'lz', 'geta', 'gphi'])
+        if inplace:
+            self._hits = self._hits.merge(df_angles, on='hit_id', how='left')
+        return df_angles

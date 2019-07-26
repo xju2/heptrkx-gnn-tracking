@@ -19,9 +19,11 @@ import h5py
 from heptrkx.preprocess import utils_mldata
 from heptrkx.nx_graph import utils_data
 from heptrkx import load_yaml, pairwise, select_pair_layers, layer_pairs, list_from_str
-from heptrkx import seeding
 
-def process(evtid, config_dir):
+from heptrkx import seeding
+from heptrkx.master import Event
+
+def process(evtid, config_dir, remove_duplicated_hits=False):
     """
     Produce doublets from hits only from the specified layers
     using the cuts on phi slope and z0.
@@ -30,31 +32,18 @@ def process(evtid, config_dir):
     """
     config = load_yaml(config_dir)
     data_dir = config['track_ml']['dir']
-    det_dir  = config['track_ml']['detector']
-
-    # Load the data
-    results = utils_mldata.read(data_dir, evtid)
-    if results is None:
-        print("[{}] cannot find event {}".format(prog, evtid))
-        exit(1)
-    else:
-        hits, particles, truth, cells = results
-
-    # only hits in barrel
-    hits = utils_data.merge_truth_info_to_hits(hits, particles, truth)
     layers = config['doublets_from_cuts']['layers']
     sel_layer_id = select_pair_layers(layers)
-    sel_layer_pairs = [layer_pairs[ii] for ii in sel_layer_id]
 
-    hits = hits[hits.layer.isin(layers)].assign(evtid=evtid)
-    module_getter = utils_mldata.module_info(det_dir)
-
-    # add local angles to hits
-    local_angles = utils_mldata.cell_angles(hits, module_getter, cells)
-    hits = hits.merge(local_angles, on='hit_id', how='left')
+    event = Event(data_dir)
+    if not event.read(evtid, merge_truth=True):
+        print("[{}] cannot find event {}".format(prog, evtid))
+        exit(1)
+    hits = event.filter_hits(layers)
+    if remove_duplicated_hits:
+        hits = event.remove_duplicated_hits()
 
     # Graph features and scale
-
     phi_slope_max = config['doublets_from_cuts']['phi_slope_max']
     z0_max = config['doublets_from_cuts']['z0_max']
 
@@ -75,13 +64,17 @@ def process(evtid, config_dir):
         efficiency = n_selected_true/n_true
         purity = n_selected_true/df.shape[0]
 
+        with pd.HDFStore(outname, 'w') as store:
+            store['data'] = df
+            store['info'] = pd.Series([efficiency, purity], index=['efficiency', 'purity'])
+
         # save selected pairs into HDF5 file
         # instead of HDFStore from pandas, I use HDF5 so to save some meta-info
-        with h5py.File(outname, 'w') as f:
-            dest = f.create_dataset('data', data=df.values())
-            dest.attrs['columns'] = np.string_(df.columns)
-            dest.attrs['efficiency'] = efficiency
-            dest.attrs['purity'] = purity
+        #with h5py.File(outname, 'w') as f:
+        #    dest = f.create_dataset('data', data=df.values)
+        #    dest.attrs['columns'] = np.string_(df.columns)
+        #    dest.attrs['efficiency'] = efficiency
+        #    dest.attrs['purity'] = purity
 
         print("[{}]: event {}, pair {}({}, {}),\
               efficiency {:.2f} and purity {:.2f}".format(
@@ -100,11 +93,13 @@ if __name__ == "__main__":
     add_arg('config', type=str, help='data configuration, configs/data.yaml')
     add_arg('--workers', type=int, help='workers', default=1)
     add_arg('--mpi', action='store_true', help='use MPI')
+    add_arg('--noduplicate', action='store_true', help='remove duplicate hits')
 
     args = parser.parse_args()
     config_dir = args.config
     n_workers = args.workers
     use_mpi = args.mpi
+    no_dup = args.noduplicate
 
     if use_mpi:
         try:
@@ -150,5 +145,5 @@ if __name__ == "__main__":
     print("rank({}) {} workers deal with {} events.".format(rank, n_workers, len(evtids)))
 
     with  mp.Pool(processes=n_workers) as pool:
-        pp_func = partial(process, config_dir=config_dir)
+        pp_func = partial(process, config_dir=config_dir, remove_duplicated_hits=no_dup)
         pool.map(pp_func, evtids)
