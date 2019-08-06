@@ -1,0 +1,14 @@
+# tracking dataset
+
+# only use layers that are listed below
+layers: [7, 8, 9, 10]
+
+track_ml:
+    dir: /global/cscratch1/sd/xju/heptrkx/codalab/inputs/train_all
+    detector: /global/cscratch1/sd/xju/heptrkx/codalab/inputs/detector.csv
+
+# subdirectory of base_dir storing true pairs and all pairs
+doublets_for_training:
+    base_dir: /global/cscratch1/sd/xju/heptrkx/codalab/outputs/pairs
+    true_pairs: merged_true_pairs # only true pairs
+    all_pairs: all_pairs # all pairs, used for training, testing, for Graph

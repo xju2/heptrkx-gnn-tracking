@@ -140,8 +140,8 @@ def get_track_parameters(x, y, z):
     res0 = p_zr0[1][0]/x.shape[0]
     p_zr = p_zr0[0]
 
-    #theta = np.arccos(p_zr[0])
-    theta = np.arccos(z[0]/r3[0])
+    theta = np.arccos(p_zr[0])
+    # theta = np.arccos(z[0]/r3[0])
     eta = -np.log(np.tan(theta/2.))
 
     center_estimate = np.mean(x), np.mean(y)
