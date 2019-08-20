@@ -99,7 +99,7 @@ if __name__ == "__main__":
     from functools import partial
     import multiprocessing as mp
 
-    print("rank {} has {} workers".format(rank, n_workers)
+    print("rank {} has {} workers".format(rank, n_workers))
     print("rank {} deals with {} events".format(rank, len(evt_ids)))
 
     for evtid in evt_ids:
