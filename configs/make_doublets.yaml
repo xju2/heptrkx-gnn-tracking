@@ -1,7 +1,7 @@
 # tracking dataset
 
 # only use layers that are listed below
-layers: [7, 8, 9, 10]
+layers: [7, 8]
 
 track_ml:
     dir: /global/cscratch1/sd/xju/heptrkx/codalab/inputs/train_all
