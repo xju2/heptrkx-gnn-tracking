@@ -7,6 +7,9 @@ track_ml:
     dir: /global/cscratch1/sd/xju/heptrkx/codalab/inputs/train_all
     detector: /global/cscratch1/sd/xju/heptrkx/codalab/inputs/detector.csv
 
+true_hits:
+    dir: /global/cscratch1/sd/xju/heptrkx/codalab/outputs/true_pairs
+
 # subdirectory of base_dir storing true pairs and all pairs
 doublets_for_training:
     base_dir: /global/cscratch1/sd/xju/heptrkx/codalab/outputs/pairs

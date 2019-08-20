@@ -79,8 +79,6 @@ if __name__ == "__main__":
     with pd.HDFStore(file_name) as store:
         df_input = store['data'].astype(np.float64)
 
-
-
     if true_file is not 'None':
         from sklearn.utils import shuffle
         with pd.HDFStore(true_file) as store:

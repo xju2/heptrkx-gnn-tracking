@@ -46,7 +46,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     n_workers = args.workers
 
-    from heptrkx import layer_pairs, load_yaml
+    from heptrkx import layer_pairs, select_pair_layers, load_yaml
 
     config = load_yaml(args.config)
     path = os.path.expandvars(config['true_hits']['dir'])
@@ -79,10 +79,11 @@ if __name__ == "__main__":
     from functools import partial
     import multiprocessing as mp
 
-    pp_layers_info = list(range(len(layer_pairs)))
-    print("# workers:", n_workers)
-    print(evt_ids_tr[0])
-    print(pp_layers_info[0])
+    layers = config['layers']
+    pp_layers_info= select_pair_layers(layers)
+
+    print("{} workers".format(n_workers))
+    print("{} layers".format(len(pp_layers_info)))
 
     with mp.Pool(processes=n_workers) as pool:
         pp_func = partial(process, evt_id_list=evt_ids_tr, output_dir=os.path.join(output_dir, tr_dir_name))
