@@ -70,11 +70,9 @@ if __name__ == "__main__":
         print("Resume previous training")
         model.load_weights(checkpoint_path)
 
-
     model.compile(optimizer='adam',
                   loss='binary_crossentropy',
                   metrics=['accuracy'])
-
 
     import pandas as pd
     import numpy as np

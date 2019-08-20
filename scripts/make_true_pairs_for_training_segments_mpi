@@ -72,15 +72,15 @@ if __name__ == "__main__":
         n_events = len(evt_ids)
         print("Total Events:", n_events)
 
+        evt_ids = evt_ids[:args.nevts]
+        print("Events to be processed:", len(evt_ids))
+
         # remove existing ones
         all_existing_files = glob.glob(os.path.join(base_output_dir, '*'))
         existing_evt_ids = set([int(os.path.basename(x)[3:]) for x in all_existing_files])
         set_evt_ids = set(evt_ids.tolist())
         evt_ids = np.array(list(set_evt_ids.difference(existing_evt_ids)))
         print("Left Events:", len(evt_ids))
-
-        evt_ids = evt_ids[:args.nevts]
-        print("Events to be processed:", len(evt_ids))
 
         evt_ids = [x.tolist() for x in np.array_split(evt_ids, size)]
 
@@ -126,11 +126,15 @@ if __name__ == "__main__":
         selected_hits_angle = selected_hits.merge(local_angles, on='hit_id', how='left')
 
         pp_layers_info = [(layer_pairs[ii], ii) for ii in sel_layer_id]
+        only_true = True
 
         if n_workers > 1:
             with mp.Pool(processes=n_workers) as pool:
-                pp_func=partial(utils_mldata.save_segments, selected_hits_angle=selected_hits_angle, output_dir=output_dir)
+                pp_func=partial(utils_mldata.save_segments,
+                                selected_hits_angle=selected_hits_angle,
+                                output_dir=output_dir,
+                                only_true=only_true)
                 pool.map(pp_func, pp_layers_info)
         else:
             for layers_info in pp_layers_info:
-                utils_mldata.save_segments(layers_info, selected_hits_angle, output_dir)
+                utils_mldata.save_segments(layers_info, selected_hits_angle, output_dir, only_true)

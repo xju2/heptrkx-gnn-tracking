@@ -41,8 +41,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="merge true pairs")
     add_arg = parser.add_argument
     add_arg('config', help='data configuration')
+    add_arg('-w', '--workers', type=int, help='number of workers', default=1)
 
     args = parser.parse_args()
+    n_workers = args.workers
 
     from heptrkx import layer_pairs, load_yaml
 
@@ -78,10 +80,6 @@ if __name__ == "__main__":
     import multiprocessing as mp
 
     pp_layers_info = list(range(len(layer_pairs)))
-    try:
-        n_workers = int(os.getenv('SLURM_CPUS_PER_TASK'))
-    except (ValueError, TypeError):
-        n_workers = 1
     print("# workers:", n_workers)
     print(evt_ids_tr[0])
     print(pp_layers_info[0])

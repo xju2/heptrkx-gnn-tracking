@@ -4,6 +4,8 @@ import os
 
 import numpy as np
 import pandas as pd
+import glob
+import os
 
 from trackml.dataset import load_event
 
@@ -19,11 +21,53 @@ vlids = [(7,2), (7,4), (7,6), (7,8), (7,10), (7,12), (7,14),
          (18,2), (18,4), (18,6), (18,8), (18,10), (18,12)]
 n_det_layers = len(vlids)
 
+eventid_info = {}
+def get_event(data_dir, n_events):
+    if data_dir in eventid_info.keys():
+        evt_ids = eventid_info[evtdir]
+    else:
+        all_files = glob.glob(os.path.join(data_dir, '*-hits.csv*'))
+        evt_ids = np.sort([int(re.search('event0000([0-9]*)-hits.csv.gz',
+                                         os.path.basename(x)).group(1))
+                           for x in all_files])
+    if n_events > len(evt_ids):
+        print("Requested number of events {} larger than the total Events: {}".format(n_events, len(evt_ids)))
+        n_events = len(evt_ids)
+    return [Event(evtdir, evtid) for evtid in evt_ids[:n_events]]
+
+
 class Event(object):
     """An object saving Event info, including hits, particles, truth and cell info"""
-    def __init__(self, evtdir):
+    def __init__(self, evtdir, evtid):
         self._evt_dir = evtdir
-        self._hits = None
+        if self.read(evtid) is None:
+            msg="Failed to read {} with event ID {}".format(evtdir, evtid)
+            raise Exception('Event', msg)
+
+    def read(self, evtid):
+        prefix = os.path.join(os.path.expandvars(self._evt_dir),
+                              'event{:09d}'.format(evtid))
+
+        all_data = load_event(prefix, parts=['hits', 'particles', 'truth', 'cells'])
+        if all_data is None:
+            return None
+
+        hits, particles, truth, cells = all_data
+        hits = hits.assign(evtid=evtid)
+
+        ## add pT to particles
+        px = particles.px
+        py = particles.py
+        pt = np.sqrt(px**2 + py**2)
+        particles = particles.assign(pt=pt)
+
+        self._evtid = evtid
+        self._hits = hits
+        self._particles = particles
+        self._truth = truth
+        self._cells = cells
+
+        self.merge_truth_info_to_hits()
 
     @property
     def particles(self):
@@ -41,37 +85,12 @@ class Event(object):
     def truth(self):
         return self._truth
 
-    def read(self, evtid, merge_truth=True):
-        prefix = os.path.join(os.path.expandvars(self._evt_dir),
-                              'event{:09d}'.format(evtid))
+    @property
+    def evtid(self):
+        return self._evtid
 
-        all_data = load_event(prefix,
-                              parts=['hits', 'particles', 'truth', 'cells'])
-        if all_data is None:
-            return None
 
-        hits, particles, truth, cells = all_data
-        hits = hits.assign(evtid=evtid)
-
-        ## add pT to particles
-        px = particles.px
-        py = particles.py
-        pt = np.sqrt(px**2 + py**2)
-        particles = particles.assign(pt=pt)
-        self._evtid = evtid
-        self._hits = hits
-        self._particles = particles
-        self._truth = truth
-        self._cells = cells
-
-        if merge_truth:
-            self.merge_truth_info_to_hits()
-        return (self._hits, self._particles, self._truth, self._cells)
-
-    def merge_truth_info_to_hits(self, inplace=True):
-        if self._hits is None:
-            return None
-
+    def merge_truth_info_to_hits(self):
         hits = self._hits
         hits = hits.merge(self._truth, on='hit_id', how='left')
         hits = hits.merge(self._particles, on='particle_id', how='left')
@@ -104,9 +123,7 @@ class Event(object):
 
         # add hit indexes to column hit_idx
         hits = hits.rename_axis('hit_idx').reset_index()
-        if inplace:
-            self._hits = hits
-        return hits
+        self._hits = hits
 
     def filter_hits(self, layers, inplace=True):
         """keep hits that are in the layers"""
@@ -156,7 +173,7 @@ class Event(object):
     def theta_to_eta(theta):
         return -np.log(np.tan(0.5*theta))
 
-    def add_cluster_info(self, detector_dir, inplace=True):
+    def cluster_info(self, detector_dir, inplace=True):
         self._detector = pd.read_csv(os.path.expandvars(detector_dir))
         df_hits = self._hits
         cells = self._cells

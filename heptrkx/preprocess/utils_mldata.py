@@ -233,10 +233,10 @@ def cell_angles(df_hits, module_getter, cells):
     return df_angles
 
 
-def save_segments(input_info, selected_hits_angle, output_pairs_dir):
+def save_segments(input_info, selected_hits_angle, output_pairs_dir, only_true=False):
     layer_pair, ii = input_info
     os.makedirs(output_pairs_dir, exist_ok=True)
     out_name = os.path.join(output_pairs_dir, 'pair{:03d}.h5'.format(ii))
-    segments = list(create_segments(selected_hits_angle, [layer_pair]))
+    segments = list(create_segments(selected_hits_angle, [layer_pair], only_true=only_true))
     with pd.HDFStore(out_name) as store:
             store['data'] = segments[0]
