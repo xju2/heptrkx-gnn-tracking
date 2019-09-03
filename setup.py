@@ -62,5 +62,6 @@ setup(
         'scripts/duplicated_hits',
         'scripts/edge_cuts_efficiency',
         'scripts/edge_cuts_track_eff',
+        'scripts/create_seed_inputs',
     ],
 )

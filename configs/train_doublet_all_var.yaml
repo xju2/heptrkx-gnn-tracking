@@ -12,3 +12,6 @@ doublet_training:
     model_output_dir: /global/cscratch1/sd/xju/heptrkx/codalab/outputs/doublet_NN_all
     features: ['x_in', 'x_out', 'y_in', 'y_out', 'z_in', 'z_out', 'lx_in', 'lx_out', 'ly_in', 'ly_out', 'lz_in', 'lz_out']
     bkg_from_evtid: 21000
+
+doublets_for_graph:
+    selected: /global/cscratch1/sd/xju/heptrkx/codalab/outputs/seed_studies/all_features

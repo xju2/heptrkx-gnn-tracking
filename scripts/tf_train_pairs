@@ -2,9 +2,12 @@
 
 
 if __name__ == "__main__":
-    from heptrkx import keep_finite, load_yaml
+    from heptrkx import keep_finite, load_yaml, layer_pairs
     import os
     import argparse
+
+    import pandas as pd
+    import numpy as np
 
     parser = argparse.ArgumentParser(description='Keras train pairs for each layer-pairs')
     add_arg = parser.add_argument
@@ -45,7 +48,6 @@ if __name__ == "__main__":
     checkpoint_path = os.path.join(output_dir, "model{}".format(pairs_base_name.replace('h5', 'ckpt')))
     checkpoint_dir = os.path.dirname(checkpoint_path)
 
-    from heptrkx import layer_pairs
     layer_info = dict([(ii, layer_pair) for ii, layer_pair in enumerate(layer_pairs)])
     pair_info = layer_info[pair_idx]
 
@@ -74,21 +76,25 @@ if __name__ == "__main__":
                   loss='binary_crossentropy',
                   metrics=['accuracy'])
 
-    import pandas as pd
-    import numpy as np
+    print("Model is compiled. Start to read training data")
+    features = train_cfg['features']
+    all_var = features + ['true']
     with pd.HDFStore(file_name) as store:
-        df_input = store['data'].astype(np.float64)
+        #df_input = store['data'].astype(np.float64)
+        df_input = store['data'][all_var].astype(np.float64)
 
     if true_file is not 'None':
         from sklearn.utils import shuffle
+        print("read true pairs")
         with pd.HDFStore(true_file) as store:
-            df_true = store['data'].astype(np.float64)
+            df_true = store['data'][all_var].astype(np.float64)
+            print("merging")
             df_input = pd.concat([df_input, df_true], ignore_index=True)
-            df_input = shuffle(df_input, random_state=10)
+            print("merging finished")
+            # df_input = shuffle(df_input, random_state=10)
 
-    df_input = keep_finite(df_input)
-    features = train_cfg['features']
-
+    print("ready for training")
+    # df_input = keep_finite(df_input)
 
     all_inputs  = df_input[features].values
     all_targets = df_input[['true']].values

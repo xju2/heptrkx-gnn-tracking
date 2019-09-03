@@ -86,7 +86,7 @@ if __name__ == "__main__":
                  outname=os.path.join(output_dir, 'roc{:03d}_{}-{}.png'.format(pair_idx, *pair_info)))
 
     df_input = df_input.assign(prediction=prediction, selected=(prediction > cut))
-    df_input = df_input[df_input.selected | df_input.true]
+    # df_input = df_input[df_input.selected | df_input.true]
 
     with pd.HDFStore(outname) as store:
         store['data'] = df_input

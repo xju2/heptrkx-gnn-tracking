@@ -9,6 +9,9 @@ doublet_training:
     batch_size: 512
     epochs: 6
     eff_cut: 0.98
-    model_output_dir: /global/cscratch1/sd/xju/heptrkx/codalab/outputs/doublet_NN_all
+    model_output_dir: /global/cscratch1/sd/xju/heptrkx/codalab/outputs/doublet_NN_onlyPos
     features: ['x_in', 'x_out', 'y_in', 'y_out', 'z_in', 'z_out']
     bkg_from_evtid: 21000
+
+doublets_for_graph:
+    selected: /global/cscratch1/sd/xju/heptrkx/codalab/outputs/seed_studies/location_features

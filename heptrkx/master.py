@@ -1,11 +1,11 @@
 """Master class
 """
 import os
+import re
+import glob
 
 import numpy as np
 import pandas as pd
-import glob
-import os
 
 from trackml.dataset import load_event
 
@@ -24,7 +24,7 @@ n_det_layers = len(vlids)
 eventid_info = {}
 def get_event(data_dir, n_events):
     if data_dir in eventid_info.keys():
-        evt_ids = eventid_info[evtdir]
+        evt_ids = eventid_info[data_dir]
     else:
         all_files = glob.glob(os.path.join(data_dir, '*-hits.csv*'))
         evt_ids = np.sort([int(re.search('event0000([0-9]*)-hits.csv.gz',
@@ -33,14 +33,14 @@ def get_event(data_dir, n_events):
     if n_events > len(evt_ids):
         print("Requested number of events {} larger than the total Events: {}".format(n_events, len(evt_ids)))
         n_events = len(evt_ids)
-    return [Event(evtdir, evtid) for evtid in evt_ids[:n_events]]
+    return [Event(data_dir, evtid) for evtid in evt_ids[:n_events]]
 
 
 class Event(object):
     """An object saving Event info, including hits, particles, truth and cell info"""
     def __init__(self, evtdir, evtid):
         self._evt_dir = evtdir
-        if self.read(evtid) is None:
+        if not self.read(evtid):
             msg="Failed to read {} with event ID {}".format(evtdir, evtid)
             raise Exception('Event', msg)
 
@@ -50,7 +50,7 @@ class Event(object):
 
         all_data = load_event(prefix, parts=['hits', 'particles', 'truth', 'cells'])
         if all_data is None:
-            return None
+            return False
 
         hits, particles, truth, cells = all_data
         hits = hits.assign(evtid=evtid)
@@ -68,6 +68,7 @@ class Event(object):
         self._cells = cells
 
         self.merge_truth_info_to_hits()
+        return True
 
     @property
     def particles(self):
