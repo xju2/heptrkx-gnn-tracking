@@ -3,10 +3,10 @@ import os
 import numpy as np
 from functools import partial
 
-from nx_graph import utils_data
-from nx_graph import prepare
+from heptrkx.nx_graph import utils_data
+from heptrkx.nx_graph import prepare
 
-from datasets.graph import load_graph
+from heptrkx.datasets.graph import load_graph
 import multiprocessing as mp
 
 def process_event(evt_id, input_dir, n_sections, output, bidirection):

@@ -2,12 +2,21 @@
 
 
 if __name__ == "__main__":
-    from heptrkx import keep_finite, load_yaml, layer_pairs
     import os
     import argparse
 
     import pandas as pd
     import numpy as np
+    import time
+    from bisect import bisect
+
+    from sklearn.preprocessing import StandardScaler
+    from sklearn.metrics import precision_recall_curve
+
+    from heptrkx.nx_graph.shadow_model import fully_connected_classifier
+    from heptrkx import keep_finite, load_yaml, layer_pairs
+    from heptrkx.nx_graph.utils_plot import plot_metrics
+
 
     parser = argparse.ArgumentParser(description='Keras train pairs for each layer-pairs')
     add_arg = parser.add_argument
@@ -58,15 +67,9 @@ if __name__ == "__main__":
         print("model is trained and evaluated")
         exit()
 
-    import tensorflow as tf
-    from tensorflow import keras
 
     # same model for everyone
-    model = keras.Sequential([
-            keras.layers.Dense(128, activation=tf.nn.relu),
-            keras.layers.Dense(64, activation=tf.nn.relu),
-            keras.layers.Dense(32, activation=tf.nn.relu),
-            keras.layers.Dense(1, activation=tf.nn.sigmoid)])
+    model = fully_connected_classifier()
 
     if os.path.exists(checkpoint_path+".index") and (args.resume_train or args.in_eval):
         print("Resume previous training")
@@ -80,18 +83,28 @@ if __name__ == "__main__":
     features = train_cfg['features']
     all_var = features + ['true']
     with pd.HDFStore(file_name) as store:
-        #df_input = store['data'].astype(np.float64)
-        df_input = store['data'][all_var].astype(np.float64)
+        t1 = time.time()
+        df_input = store['data']
+        t2 = time.time()
+        df_input = df_input[all_var].astype(np.float64)
+        t3 = time.time()
+        print("Time to read background data: {.0f} seconds".format(t2-t1))
+        print("Time to convert format: {.0f} seconds".format(t3-t2))
+
 
     if true_file is not 'None':
         from sklearn.utils import shuffle
         print("read true pairs")
         with pd.HDFStore(true_file) as store:
+            now = time.time()
             df_true = store['data'][all_var].astype(np.float64)
-            print("merging")
+            time_stop1 = time.time()
+            print("Takes {.0f} second to read, now merging".format(time_stop1-now))
             df_input = pd.concat([df_input, df_true], ignore_index=True)
-            print("merging finished")
-            # df_input = shuffle(df_input, random_state=10)
+            time_stop2 = time.time()
+            print("Takes {.0f} second to merge, now shuffing".format(time_stop2-time_stop1))
+            df_input = shuffle(df_input, random_state=10)
+            print("Total time spend in reading true files: {.0f} seconds".format(time.time() - now))
 
     print("ready for training")
     # df_input = keep_finite(df_input)
@@ -109,7 +122,6 @@ if __name__ == "__main__":
     n_validating = int(n_total*0.1)
 
     # transform all inputs
-    from sklearn.preprocessing import StandardScaler
     scaler = StandardScaler()
     all_inputs_normed = scaler.fit_transform(all_inputs)
 
@@ -144,20 +156,17 @@ if __name__ == "__main__":
     test_inputs = test_inputs.assign(prediction=prediction)
 
 
-    from heptrkx.nx_graph.utils_plot import plot_metrics
 
     plot_metrics(prediction, y_test,
                  outname=os.path.join(output_dir, 'roc{:03d}_{}-{}.pdf'.format(pair_idx, *pair_info)),
                  off_interactive=True)
 
     # find a threshold
-    from sklearn.metrics import precision_recall_curve
     y_true = y_test > 0.5
     purity, efficiency, thresholds = precision_recall_curve(y_true, prediction)
     #print(len(purity), len(efficiency), len(thresholds))
 
     eff_cut = train_cfg['eff_cut']
-    from bisect import bisect
     ti = bisect(list(reversed(efficiency.tolist())), eff_cut)
     ti = len(efficiency) - ti
     thres = thresholds[ti]

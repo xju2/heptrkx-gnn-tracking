@@ -1,4 +1,3 @@
-
 # subdirectory of base_dir storing true pairs and all pairs
 doublets_for_training:
     base_dir: /global/cscratch1/sd/xju/heptrkx/codalab/outputs/pairs

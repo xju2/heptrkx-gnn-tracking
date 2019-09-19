@@ -61,17 +61,20 @@ if __name__ == "__main__":
     print("80% for training, 10% for validation and 10% for testing")
 
     tr_dir_name = 'training'
-    val_dir_name = 'validation'
-    test_dir_name = 'testing'
     os.makedirs(os.path.join(output_dir, tr_dir_name), exist_ok=True)
-    os.makedirs(os.path.join(output_dir, val_dir_name), exist_ok=True)
-    os.makedirs(os.path.join(output_dir, test_dir_name), exist_ok=True)
 
-    from heptrkx.nx_graph.utils_data import split_list
-    evt_ids_tr, evt_ids_val, evt_ids_test = split_list(evt_ids)
+    # val_dir_name = 'validation'
+    # test_dir_name = 'testing'
+    # os.makedirs(os.path.join(output_dir, val_dir_name), exist_ok=True)
+    # os.makedirs(os.path.join(output_dir, test_dir_name), exist_ok=True)
+
+    #from heptrkx.nx_graph.utils_data import split_list
+    #evt_ids_tr, evt_ids_val, evt_ids_test = split_list(evt_ids)
+    #print("Training:",   len(evt_ids_tr))
+    #print("Validation:", len(evt_ids_val))
+    #print("Testing:", len(evt_ids_test))
+    evt_ids_tr = evt_ids
     print("Training:",   len(evt_ids_tr))
-    print("Validation:", len(evt_ids_val))
-    print("Testing:", len(evt_ids_test))
 
     import pandas as pd
 
@@ -89,11 +92,11 @@ if __name__ == "__main__":
         pp_func = partial(process, evt_id_list=evt_ids_tr, output_dir=os.path.join(output_dir, tr_dir_name))
         pool.map(pp_func, pp_layers_info)
 
-    with mp.Pool(processes=n_workers) as pool:
-        pp_func = partial(process, evt_id_list=evt_ids_val, output_dir=os.path.join(output_dir, val_dir_name))
-        pool.map(pp_func, pp_layers_info)
+    # with mp.Pool(processes=n_workers) as pool:
+    #     pp_func = partial(process, evt_id_list=evt_ids_val, output_dir=os.path.join(output_dir, val_dir_name))
+    #     pool.map(pp_func, pp_layers_info)
 
-    with mp.Pool(processes=n_workers) as pool:
-        pp_func = partial(process, evt_id_list=evt_ids_test, output_dir=os.path.join(output_dir, test_dir_name))
-        pool.map(pp_func, pp_layers_info)
+    # with mp.Pool(processes=n_workers) as pool:
+    #     pp_func = partial(process, evt_id_list=evt_ids_test, output_dir=os.path.join(output_dir, test_dir_name))
+    #     pool.map(pp_func, pp_layers_info)
 

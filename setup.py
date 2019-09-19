@@ -63,5 +63,7 @@ setup(
         'scripts/edge_cuts_efficiency',
         'scripts/edge_cuts_track_eff',
         'scripts/create_seed_inputs',
+        'scripts/eval_doublet_NN',
+        'scripts/prepare_hitsgraph',
     ],
 )

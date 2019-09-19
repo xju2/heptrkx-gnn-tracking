@@ -63,7 +63,7 @@ if __name__ == "__main__":
     trk_dir = args.trkml
     dd = os.path.join(trk_dir, 'event{:09d}')
     hits, particles, truth = load_event(dd.format(evtid), parts=['hits', 'particles', 'truth'])
-    hits = merge_truth_info_to_hits(hits, truth, particles)
+    hits = merge_truth_info_to_hits(hits, particles, truth)
     true_features = ['pt', 'particle_id', 'nhits']
 
     all_graphs = []

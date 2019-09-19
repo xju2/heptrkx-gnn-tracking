@@ -63,7 +63,7 @@ split_inputs = np.array_split(file_names, n_batches)
 
 dd = os.path.join(trk_dir, 'event{:09d}')
 hits, particles, truth = load_event(dd.format(evtid), parts=['hits', 'particles', 'truth'])
-hits = utils_data.merge_truth_info_to_hits(hits, truth, particles)
+hits = utils_data.merge_truth_info_to_hits(hits, particles, truth)
 true_features = ['pt', 'particle_id', 'nhits', 'weight']
 
 all_graphs = []
