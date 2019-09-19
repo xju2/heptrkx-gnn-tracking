@@ -65,5 +65,6 @@ setup(
         'scripts/create_seed_inputs',
         'scripts/eval_doublet_NN',
         'scripts/prepare_hitsgraph',
+        'scripts/merge_true_fake_pairs',
     ],
 )
