@@ -61,8 +61,7 @@ if __name__ == "__main__":
     print("Training File Name: {}".format(file_name))
 
     ## save checkpoints
-    pairs_base_name = os.path.basename(file_name)
-    checkpoint_path = os.path.join(output_dir, "model{}".format(pairs_base_name.replace('h5', 'ckpt')))
+    checkpoint_path = os.path.join(output_dir, "modelpair{:03d}.ckpt".format(pair_idx))
     checkpoint_dir = os.path.dirname(checkpoint_path)
 
     layer_info = dict([(ii, layer_pair) for ii, layer_pair in enumerate(layer_pairs)])
@@ -108,12 +107,12 @@ if __name__ == "__main__":
             now = time.time()
             df_true = store['data'][all_var].astype(np.float64)
             time_stop1 = time.time()
-            print("Takes {.0f} second to read, now merging".format(time_stop1-now))
+            print("Takes {:.0f} second to read, now merging".format(time_stop1-now))
             df_input = pd.concat([df_input, df_true], ignore_index=True)
             time_stop2 = time.time()
-            print("Takes {.0f} second to merge, now shuffing".format(time_stop2-time_stop1))
+            print("Takes {:.0f} second to merge, now shuffing".format(time_stop2-time_stop1))
             df_input = shuffle(df_input, random_state=10)
-            print("Total time spend in reading true files: {.0f} seconds".format(time.time() - now))
+            print("Total time spend in reading true files: {:.0f} seconds".format(time.time() - now))
 
     print("ready for training")
     # df_input = keep_finite(df_input)
