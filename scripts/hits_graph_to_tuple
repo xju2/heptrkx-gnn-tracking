@@ -65,15 +65,6 @@ if __name__ == "__main__":
     import time
     start_time = time.time()
 
-    log_name = os.path.join(output, config['data']['log_name'])
-
-    out_str  = time.strftime('%d %b %Y %H:%M:%S', time.localtime())
-    out_str += '\n'
-    out_str += "# (iteration number), # (event number), T (elapsed seconds)\n"
-    with open(log_name, 'a') as f:
-        f.write(out_str)
-
-    out_str = ""
     # split all evt_ids to n_tasks and n_workers
     n_tasks = config['data']['n_tasks']
     n_workers = config['data']['n_workers']
@@ -87,11 +78,3 @@ if __name__ == "__main__":
                         output=output,
                         bidirection=args.bidirection)
         pool.map(pp_fn, evt_ids_split)
-
-    elapsed_time = time.time() - start_time
-    info = "# {:05d}, # {:05d}, T {:.1f}\n".format(ii, evt_id, elapsed_time)
-    out_str += info
-    print(info)
-
-    with open(log_name, 'a') as f:
-        f.write(out_str)
