@@ -108,9 +108,8 @@ def create_segments(hits, layer_pairs, gid_keys='layer', only_true=False):
             dphi=dphi, dz=dz, dr=dr, true=y, phi_slope=phi_slope, z0=z0, deta=deta)
 
 
-        n_true_edges = df_pairs[df_pairs['true']==True].shape[0]
-        n_fake_edges = df_pairs[df_pairs['true']==False].shape[0]
-
+        #n_true_edges = df_pairs[df_pairs['true']==True].shape[0]
+        #n_fake_edges = df_pairs[df_pairs['true']==False].shape[0]
         # print('processed:', gid1, gid2, "True edges {} and Fake Edges {}, purity {:.3f} %".format(n_true_edges, n_fake_edges, n_true_edges*100/n_fake_edges))
 
         df_pairs = df_pairs.rename(columns={'index_in': 'hit_idx_in', "index_out": 'hit_idx_out'})
@@ -120,9 +119,7 @@ def create_segments(hits, layer_pairs, gid_keys='layer', only_true=False):
             df_pairs = df_pairs.assign(deta1=deta1, dphi1=dphi1)
         except KeyError:
             pass
-
 #        print(df_pairs.columns)
-
         yield df_pairs
 
 

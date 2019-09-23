@@ -74,7 +74,7 @@ if __name__ == "__main__":
 
     scaler = StandardScaler()
 
-    df_input = keep_finite(df_input)
+    #df_input = keep_finite(df_input)
 
     all_inputs = df_input[features].values
     all_inputs = scaler.fit_transform(all_inputs)

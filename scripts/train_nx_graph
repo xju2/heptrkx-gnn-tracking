@@ -1,7 +1,4 @@
 #!/usr/bin/env python
-
-
-
 import os
 import sys
 prog_name = os.path.basename(sys.argv[0])
@@ -23,6 +20,7 @@ if __name__ == "__main__":
     from heptrkx.nx_graph import utils_train
     from heptrkx.nx_graph import prepare
     from heptrkx.nx_graph import get_model
+    from heptrkx import load_yaml
 
     parser = argparse.ArgumentParser(description='Train nx-graph with configurations')
     add_arg = parser.add_argument
@@ -30,7 +28,6 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    from heptrkx import load_yaml
     all_config = load_yaml(args.config)
     config = all_config['segment_training']
 
@@ -71,8 +68,8 @@ if __name__ == "__main__":
     model = get_model(config['model_name'])
 
     input_graphs, target_graphs = generate_input_target(n_graphs)
-    input_ph  = utils_tf.placeholders_from_networkxs(input_graphs, force_dynamic_num_graphs=True)
-    target_ph = utils_tf.placeholders_from_networkxs(target_graphs, force_dynamic_num_graphs=True)
+    input_ph  = utils_tf.placeholders_from_data_dicts(input_graphs, force_dynamic_num_graphs=True)
+    target_ph = utils_tf.placeholders_from_data_dicts(target_graphs, force_dynamic_num_graphs=True)
 
     output_ops_tr = model(input_ph, num_processing_steps_tr)
 
