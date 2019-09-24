@@ -11,7 +11,7 @@ if __name__ == "__main__":
     add_arg('nevts', type=int, help='number of events to be processed')
     args = parser.parse_args()
 
-    data_dir = '/global/cscratch1/sd/xju/heptrkx/codalab/inputs/train_all'      
+    data_dir = '/global/cscratch1/sd/xju/heptrkx/codalab/inputs/train_all'
     n_events = args.nevts
     all_events = master.get_event(data_dir, n_events)
     for event in all_events:

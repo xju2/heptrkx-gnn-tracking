@@ -17,14 +17,6 @@ def get_data(file_name):
     with pd.HDFStore(file_name) as store:
         return store.get('data')
 
-def logloss(true_label, predicted, eps=1e-15):
-    p = np.clip(predicted, eps, 1 - eps)
-    if true_label == 1:
-        return -np.log(p)
-    else:
-        return -np.log(1 - p)
-
-
 def track_parameters(DF):
     x = np.array([0, DF['x_in'], DF['x_out']])
     y = np.array([0, DF['y_in'], DF['y_out']])
@@ -64,7 +56,9 @@ if __name__ == "__main__":
     import yaml
     import time
     from tqdm import tqdm
-
+    from sklearn.metrics import log_loss
+    from functools import partial
+    import multiprocessing as mp
 
     from heptrkx import load_yaml
 
@@ -97,11 +91,25 @@ if __name__ == "__main__":
     pred_location = df_location.prediction
 
     now = time.time()
-    df_all_pt_eta = df_all[['x_in', 'x_out', 'y_in', 'y_out', 'z_in', 'z_out']].apply(track_parameters, axis=1)
+    #df_all_pt_eta = df_all[['x_in', 'x_out', 'y_in', 'y_out', 'z_in', 'z_out']].iloc[0:20000].apply(track_parameters, axis=1)
+
+    n_workers = 320
+    with mp.Pool(processes=n_workers) as pool:
+        all_pt_eta = pool.map(track_parameters, [x[1] for x in df_all.iterrows()])
+        df_all_pt_eta = pd.DataFrame(all_pt_eta)
+
+    # df_all_pt_eta = df_all[['x_in', 'x_out', 'y_in', 'y_out', 'z_in', 'z_out']].apply(track_parameters, axis=1)
+
+    #series_pt_eta = [track_parameters(df_all.iloc[ii]) for ii in range(df_all.shape[0]) ]
+    #df_all_pt_eta = pd.DataFrame(series_pt_eta)
+    # series_pt_eta = []
+    # for ii in tqdm(range(df_all.shape[0])):
+    #     series_pt_eta.append(track_parameters(df_all.iloc[ii]))
+
     print("finding tracking parameters takes {:.0f} mins".format((time.time() - now)/60))
     df = df_all[['hit_idx_in', 'hit_idx_out', 'hit_id_in', 'hit_id_out', 'true']].assign(
         pred_all=pred_all, pred_cluster=pred_cluster, pred_location=pred_location)
-    segments = df.assign(avg_pt=df_all['trk_pT'], avg_eta=df_all['trk_eta'])
+    segments = df.assign(avg_pt=df_all_pt_eta['trk_pT'], avg_eta=df_all_pt_eta['trk_eta'])
 
     ## start to make some plots
     pt_range = [0.1, 0.5, 1., 1000]  # GeV
