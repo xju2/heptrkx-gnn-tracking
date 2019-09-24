@@ -66,5 +66,6 @@ setup(
         'scripts/eval_doublet_NN',
         'scripts/prepare_hitsgraph',
         'scripts/merge_true_fake_pairs',
+        'scripts/seeding_eff_purity_comparison',
     ],
 )
