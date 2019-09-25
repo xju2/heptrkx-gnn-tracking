@@ -11,14 +11,17 @@ if __name__ == "__main__":
     add_arg('nevts', type=int, help='number of events to be processed')
     args = parser.parse_args()
 
-    data_dir = '/global/cscratch1/sd/xju/heptrkx/codalab/inputs/train_all'      
+    data_dir = '/global/cscratch1/sd/xju/heptrkx/codalab/inputs/train_all'
     n_events = args.nevts
     all_events = master.get_event(data_dir, n_events)
     for event in all_events:
         evtid = event.evtid
         hits = event.hits[event.hits.particle_id != 0]
-        hits = hits[hits.layer.isin([7, 8, 9, 10])]
-        hits = hits[np.abs(hits.eta) < 1.1]
+        hits = hits[hits.layer.isin([7, 8, 9])]
+        # hits = hits[np.abs(hits.eta) < 1.1]
+        a = hits.groupby('particle_id')['hit_idx'].count() > 2
+        print(hits.shape)
+        print(a[a].shape)
         output_hits = hits[['layer', 'x', 'y', 'z']].assign(lxyz='lxyz', covr=0.01, covz=0.05)
 
         out_name = 'hits4seeding_{}.csv'.format(evtid)
