@@ -10,7 +10,7 @@ if __name__ == "__main__":
     from sklearn.preprocessing import StandardScaler
 
     from heptrkx import load_yaml, keep_finite, layer_pairs_dict
-    from heptrkx.nx_graph.shadow_model import fully_connected_classifier
+    from heptrkx.nx_graph import shadow_model
     from heptrkx.nx_graph.utils_plot import plot_metrics
 
     parser = argparse.ArgumentParser(description='Keras train pairs for each layer-pairs')
@@ -20,6 +20,8 @@ if __name__ == "__main__":
     add_arg('cut_on_score', type=float, help='selection criteria')
     add_arg('evtid', type=int, help='event id')
     add_arg('-q', '--quiet', action='store_true', help='in quiet mode')
+    add_arg('--model', default="fully_connected_classifier", help="NN model",
+            choices=['fully_connected_classifier', 'fc_with_dropout'])
 
     args = parser.parse_args()
     prog = os.path.basename(sys.argv[0])
@@ -69,7 +71,7 @@ if __name__ == "__main__":
         print("input:",  file_name)
 
 
-    model = fully_connected_classifier()
+    model = getattr(shadow_model, args.model)()
     model.load_weights(model_weight_dir)
 
     scaler = StandardScaler()
