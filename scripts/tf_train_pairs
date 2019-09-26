@@ -28,8 +28,6 @@ if __name__ == "__main__":
     add_arg('--resume-train',  action='store_true')
     add_arg('--in-eval', action='store_true')
     add_arg('--input', default=None, help="training inputs")
-    add_arg('--model', default="fully_connected_classifier", help="NN model",
-            choices=['fully_connected_classifier', 'fc_with_dropout'])
 
 
     args = parser.parse_args()
@@ -41,6 +39,7 @@ if __name__ == "__main__":
     epochs = train_cfg['epochs']
     output_dir = train_cfg['model_output_dir']
     pair_idx = args.pair_idx
+    model_name = train_cfg['model']
 
     if args.input:
         file_name = args.input
@@ -77,9 +76,8 @@ if __name__ == "__main__":
         print("model is trained and evaluated")
         exit()
 
-
     # same model for everyone
-    model = getattr(shadow_model, args.model)()
+    model = getattr(shadow_model, model_name)()
 
     if os.path.exists(checkpoint_path+".index") and (args.resume_train or args.in_eval):
         print("Resume previous training")

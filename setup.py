@@ -67,5 +67,6 @@ setup(
         'scripts/prepare_hitsgraph',
         'scripts/merge_true_fake_pairs',
         'scripts/seeding_eff_purity_comparison',
+        'scripts/fit_hits',
     ],
 )

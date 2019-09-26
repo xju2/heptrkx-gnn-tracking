@@ -20,8 +20,6 @@ if __name__ == "__main__":
     add_arg('cut_on_score', type=float, help='selection criteria')
     add_arg('evtid', type=int, help='event id')
     add_arg('-q', '--quiet', action='store_true', help='in quiet mode')
-    add_arg('--model', default="fully_connected_classifier", help="NN model",
-            choices=['fully_connected_classifier', 'fc_with_dropout'])
 
     args = parser.parse_args()
     prog = os.path.basename(sys.argv[0])
@@ -49,6 +47,7 @@ if __name__ == "__main__":
     output_dir = os.path.join(cfg['selected'], 'evt{}'.format(evtid))
     train_cfg = config['doublet_training']
     model_weight_base_dir = os.path.expandvars(train_cfg['model_output_dir'])
+    model_name = train_cfg['model']
     pair_basename = os.path.basename(file_name).replace('.h5', '.ckpt')
     model_weight_dir = os.path.join(model_weight_base_dir, 'model{}'.format(pair_basename))
     features = train_cfg['features']
@@ -71,7 +70,7 @@ if __name__ == "__main__":
         print("input:",  file_name)
 
 
-    model = getattr(shadow_model, args.model)()
+    model = getattr(shadow_model, model_name)()
     model.load_weights(model_weight_dir)
 
     scaler = StandardScaler()
