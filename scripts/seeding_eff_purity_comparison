@@ -93,12 +93,12 @@ if __name__ == "__main__":
     now = time.time()
     #df_all_pt_eta = df_all[['x_in', 'x_out', 'y_in', 'y_out', 'z_in', 'z_out']].iloc[0:20000].apply(track_parameters, axis=1)
 
-    n_workers = 100
-    with mp.Pool(processes=n_workers) as pool:
-        all_pt_eta = pool.map(track_parameters, [x[1] for x in df_all.iterrows()])
-        df_all_pt_eta = pd.DataFrame(all_pt_eta)
+    #n_workers = 100
+    #with mp.Pool(processes=n_workers) as pool:
+    #    all_pt_eta = pool.map(track_parameters, [x[1] for x in df_all.iterrows()])
+    #    df_all_pt_eta = pd.DataFrame(all_pt_eta)
 
-    # df_all_pt_eta = df_all[['x_in', 'x_out', 'y_in', 'y_out', 'z_in', 'z_out']].apply(track_parameters, axis=1)
+    df_all_pt_eta = df_all[['x_in', 'x_out', 'y_in', 'y_out', 'z_in', 'z_out']].apply(track_parameters, axis=1)
 
     #series_pt_eta = [track_parameters(df_all.iloc[ii]) for ii in range(df_all.shape[0]) ]
     #df_all_pt_eta = pd.DataFrame(series_pt_eta)

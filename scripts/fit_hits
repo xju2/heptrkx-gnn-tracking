@@ -56,10 +56,12 @@ if __name__ == "__main__":
 
     now = time.time()
 
-    n_workers = 32
-    with mp.Pool(processes=n_workers) as pool:
-        all_pt_eta = pool.map(track_parameters, [x[1] for x in df_all.iterrows()])
-        df_all_pt_eta = pd.DataFrame(all_pt_eta)
+
+    all_pt_eta = [track_parameters(x[1]) for x in df_all.iterrows()]
+    #n_workers = 8
+    #with mp.Pool(processes=n_workers) as pool:
+    #    all_pt_eta = pool.map(track_parameters, [x[1] for x in df_all.iterrows()])
+    #    df_all_pt_eta = pd.DataFrame(all_pt_eta)
 
     print("finding tracking parameters takes {:.0f} mins".format((time.time() - now)/60))
     with pd.HDFStore(os.path.join(outdir, file_name)) as store:
