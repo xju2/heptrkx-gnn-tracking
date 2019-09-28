@@ -19,7 +19,7 @@ setup(
     url="https://github.com/xju2/hep-gnn-tracking",
     packages=find_packages(),
     install_requires=[
-        "graph_nets@ htttps://github.com/deepmind/graph_nets/tarball/master",
+        "graph_nets@ https://github.com/deepmind/graph_nets/tarball/master",
         'tensorflow-gpu',
         "future",
         "networkx",
@@ -29,7 +29,6 @@ setup(
         "setuptools",
         "six",
         "matplotlib",
-        "sklearn",
         "torch",
         "torchvision",
         'sklearn',

@@ -74,6 +74,7 @@ if __name__ == "__main__":
     outdir = args.outdir
 
     evtid = args.evtid
+    pairid = args.pairid
     pair_name = "pair{:03d}.h5".format(args.pairid)
     file_name = 'evt{}/{}'.format(evtid, pair_name)
 

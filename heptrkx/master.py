@@ -126,6 +126,11 @@ class Event(object):
         hits = hits.rename_axis('hit_idx').reset_index()
         self._hits = hits
 
+    def reconstructable_pids(self, min_hits=4):
+        truth_particles = self.particles.merge(self.truth, on='particle_id', how='left')
+        reconstructable_particles = truth_particles[truth_particles.nhits > min_hits]
+        return np.unique(reconstructable_particles.particle_id)
+
     def filter_hits(self, layers, inplace=True):
         """keep hits that are in the layers"""
         barrel_hits = self._hits[self._hits.layer.isin(layers)]
