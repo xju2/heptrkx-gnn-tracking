@@ -72,6 +72,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
     config = load_yaml(args.config)
     outdir = args.outdir
+    if not os.path.exists(outdir):
+            os.makedirs(outdir)
+
 
     evtid = args.evtid
     pairid = args.pairid
