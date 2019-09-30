@@ -31,7 +31,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='Train nx-graph with configurations')
     add_arg = parser.add_argument
-    add_arg('config',  nargs='?', default='configs/nxgraph_default.yaml')
+    add_arg('config', help="job configuration")
     add_arg('-b', '--bidirection', action='store_true')
     add_arg('-i', '--itask', type=int, default=0)
     args = parser.parse_args()
@@ -39,16 +39,17 @@ if __name__ == "__main__":
     from heptrkx import load_yaml
     config = load_yaml(args.config)
     input_dir = config['data']['input_hitsgraph_dir']
-    base_dir = os.path.join(input_dir,'event00000{}_g{:03d}.npz')
+    base_dir = os.path.join(input_dir,'event{:09d}_g{:03d}.npz')
 
     # find number of files, section IDs in hitgraphs directory
-    file_patten = base_dir.format(1000, 0).replace('1000', '*')
+    file_patten = os.path.join(input_dir, 'event*_g000.npz')
+    print(file_patten)
     all_files = glob.glob(file_patten)
     n_events = len(all_files)
-    evt_ids = sorted([int(re.search('event00000([0-9]*)_g000.npz', os.path.basename(x)).group(1))
+    evt_ids = sorted([int(re.search('event([0]*)([0-9]*)_g000.npz', os.path.basename(x)).group(2))
                for x in all_files])
 
-    section_patten = base_dir.format(1000, 0).replace('_g000', '_g[0-9]*[0-9]*[0-9]')
+    section_patten = base_dir.format(evt_ids[0], 0).replace('_g000', '_g[0-9]*[0-9]*[0-9]')
     n_sections = len(glob.glob(section_patten))
     n_total = n_events*n_sections
     print("Total Events: {} with {} sections, total {} files ".format(
