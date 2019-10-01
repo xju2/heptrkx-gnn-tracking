@@ -7,6 +7,7 @@ This script processes the TrackML dataset and produces graph data on disk.
 
 # System
 import os
+import re
 import argparse
 import logging
 import multiprocessing as mp
@@ -252,9 +253,8 @@ def main():
     # Find the input files
     input_dir = config['input_dir']
     all_files = os.listdir(input_dir)
-    suffix = '-hits.csv'
-    file_prefixes = sorted(os.path.join(input_dir, f.replace(suffix, ''))
-                           for f in all_files if f.endswith(suffix))
+    file_prefixes = sorted(os.path.join(input_dir, re.search('event([0-9]*)', f).group(0))
+                           for f in all_files if 'hits' in f)
     file_prefixes = file_prefixes[:config['n_files']]
 
     # Split the input files by number of tasks and select my chunk only

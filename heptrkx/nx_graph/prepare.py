@@ -77,19 +77,20 @@ class index_mgr:
 
 
 def inputs_generator(base_dir_, n_train_fraction=-1):
-    base_dir =  os.path.join(base_dir_, "event00000{}_g{:09d}_INPUT.npz")
+    base_dir =  os.path.join(base_dir_, "event{:09d}_g{:09d}_INPUT.npz")
 
-    file_patten = base_dir.format(1000, 0).replace('1000', '*')
+    file_patten = os.path.join(base_dir_, 'event*_g{:09d}_INPUT.npz'.format(0))
     all_files = glob.glob(file_patten)
     n_events = len(all_files)
-    evt_ids = np.sort([int(re.search('event00000([0-9]*)_g000000000_INPUT.npz',
-                             os.path.basename(x)).group(1))
+    evt_ids = np.sort([int(re.search('event([0]*)([0-9]*)_g000000000_INPUT.npz',
+                             os.path.basename(x)).group(2))
                for x in all_files])
-    #print(evt_ids)
+    if len(evt_ids) < 1:
+        raise Exception("Total events less than 1 ")
 
     def get_sections(xx):
         section_patten = base_dir.format(xx, 0).replace('_g000000000', '*')
-        #print(section_patten)
+        print(section_patten)
         return int(len(glob.glob(section_patten)))
 
     if len(evt_ids) < 100:
