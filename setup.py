@@ -20,7 +20,7 @@ setup(
     packages=find_packages(),
     install_requires=[
         "graph_nets@ https://github.com/deepmind/graph_nets/tarball/master",
-        'tensorflow-gpu',
+        'tensorflow-gpu==1.14.0',
         "future",
         "networkx",
         "numpy",
