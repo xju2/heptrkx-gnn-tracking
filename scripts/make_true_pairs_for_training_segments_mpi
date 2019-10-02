@@ -1,4 +1,7 @@
 #!/usr/bin/env python
+"""
+create true segments/pairs/doublets by connecting hits in adjacency layers
+"""
 def process(input_info, selected_hits_angle, output_dir):
     layer_pair, ii = input_info
     segments = list(utils_mldata.create_segments(selected_hits_angle, [layer_pair], only_true=True))

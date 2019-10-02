@@ -65,12 +65,17 @@ def eff_purity_of_edge_selection(evtid, config_name):
 
 def eff_purity_of_edge_selection2(evtid, evt_dir,
                                   phi_slope_max, z0_max, layers=None, min_hits=0,
-                                  verbose=False):
-
+                                  verbose=False,
+                                  outdir=None,
+                                  remove_duplicated_hits=False
+                                 ):
     sel_layer_id = select_pair_layers(layers)
 
     event = Event(evt_dir, evtid)
     hits = event.filter_hits(layers)
+    if remove_duplicated_hits:
+        hits = event.remove_duplicated_hits()
+
     ## particles having at least mininum number of hits associated
     cut = hits[hits.particle_id != 0].groupby('particle_id')['hit_id'].count() > min_hits
     pids = cut[cut].index
@@ -91,22 +96,32 @@ def eff_purity_of_edge_selection2(evtid, evt_dir,
             & (df.phi_slope.abs() < phi_slope_max)\
             & (df.z0.abs() < z0_max)
         ].pt.to_numpy()
-        sel = df[
-            (df.phi_slope.abs() < phi_slope_max)\
-            & (df.z0.abs() < z0_max)
-        ].pt.to_numpy()
+        df_sel = df[(df.phi_slope.abs() < phi_slope_max) &\
+                    (df.z0.abs() < z0_max)]
+        sel = df_sel.pt.to_numpy()
         tot_list.append(tot)
         sel_true_list.append(sel_true)
         sel_list.append(sel)
+
+        efficiency = sel_true.shape[0]/tot.shape[0]
+        purity = sel_true.shape[0]/sel.shape[0]
         if verbose:
             print("pair ({}, {}), {} true segments, {} selected, {} true ones selected \
                   segment efficiency {:.2f}% and purity {:.2f}%".format(
                       layer_pair[0], layer_pair[1],
                       tot.shape[0], sel.shape[0], sel_true.shape[0],
-                      100.*sel_true.shape[0]/tot.shape[0],
-                      100.*sel_true.shape[0]/sel.shape[0]
+                      100.*efficiency, 100.*purity
                   )
                  )
+        if outdir:
+            os.makedirs(outdir, exist_ok=True)
+            outname = os.path.join(outdir, "pair{:03d}.h5".format(pair_idx))
+            if os.path.exists(outname):
+                print("Found {}".format(outname))
+            else:
+                with pd.HDFStore(outname, 'w') as store:
+                    store['data'] = df_sel
+                    store['info'] = pd.Series([efficiency, purity], index=['efficiency', 'purity'])
 
     return (tot_list, sel_true_list, sel_list)
 

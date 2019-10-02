@@ -1,5 +1,6 @@
 #!/usr/bin/env python
-"""Data preparation script for GNN tracking.
+"""
+Data preparation script for GNN tracking.
 Process the dataset and save doublets to disk.
 """
 
@@ -16,12 +17,11 @@ import pandas as pd
 import h5py
 
 
-from heptrkx.preprocess import utils_mldata
-from heptrkx.nx_graph import utils_data
 from heptrkx import load_yaml, pairwise, select_pair_layers, layer_pairs, list_from_str
 
 from heptrkx import seeding
-from heptrkx.master import Event
+from heptrkx import master
+from heptrkx.studies import eff_purity_of_edge_selection2
 
 def process(evtid, config_dir, remove_duplicated_hits=False):
     """
@@ -31,57 +31,20 @@ def process(evtid, config_dir, remove_duplicated_hits=False):
     Efficiency and Purity are the attributes of the dataset.
     """
     config = load_yaml(config_dir)
-    data_dir = config['track_ml']['dir']
+    evt_dir = config['track_ml']['dir']
     layers = config['doublets_from_cuts']['layers']
-    sel_layer_id = select_pair_layers(layers)
-
-    event = Event(data_dir)
-    if not event.read(evtid, merge_truth=True):
-        print("[{}] cannot find event {}".format(prog, evtid))
-        exit(1)
-    hits = event.filter_hits(layers)
-    if remove_duplicated_hits:
-        hits = event.remove_duplicated_hits()
-
-    # Graph features and scale
     phi_slope_max = config['doublets_from_cuts']['phi_slope_max']
     z0_max = config['doublets_from_cuts']['z0_max']
+    min_hits = config['doublets_from_cuts']['min_hits']
+    outdir = os.path.join(config['doublets_from_cuts']['selected'], 'evt{}'.format(evtid))
 
-    output_dir = os.path.join(config['doublets_from_cuts']['selected'], 'evt{}'.format(evtid))
-    os.makedirs(output_dir, exist_ok=True)
+    eff_purity_of_edge_selection2(evtid, evt_dir,
+                                  phi_slope_max, z0_max, layers, min_hits,
+                                  verbose=True,
+                                  outdir=outdir,
+                                  remove_duplicated_hits=remove_duplicated_hits,
+                                 )
 
-    for pair_id in sel_layer_id:
-        pairs = layer_pairs[pair_id]
-        outname = os.path.join(output_dir, "pair{:03d}.h5".format(pair_id))
-        if os.path.exists(outname):
-            continue
-
-        df = seeding.create_segments(hits, pairs)
-        n_total = df.shape[0]
-        n_true = df[df.true].shape[0]
-        df = df[(df.phi_slope.abs() < phi_slope_max) & (df.z0.abs() < z0_max)]
-        n_selected_true = df[df.true].shape[0]
-        efficiency = n_selected_true/n_true
-        purity = n_selected_true/df.shape[0]
-
-        with pd.HDFStore(outname, 'w') as store:
-            store['data'] = df
-            store['info'] = pd.Series([efficiency, purity], index=['efficiency', 'purity'])
-
-        # save selected pairs into HDF5 file
-        # instead of HDFStore from pandas, I use HDF5 so to save some meta-info
-        #with h5py.File(outname, 'w') as f:
-        #    dest = f.create_dataset('data', data=df.values)
-        #    dest.attrs['columns'] = np.string_(df.columns)
-        #    dest.attrs['efficiency'] = efficiency
-        #    dest.attrs['purity'] = purity
-
-        print("[{}]: event {}, pair {}({}, {}),\
-              efficiency {:.2f} and purity {:.2f}".format(
-                  os.getpid(), evtid,
-                  pair_id, pairs[0], pairs[1],
-                  efficiency, purity
-              ))
 
 
 if __name__ == "__main__":
@@ -117,12 +80,9 @@ if __name__ == "__main__":
 
 
     if rank == 0:
-        assert(os.path.exists(config_dir))
         config = load_yaml(config_dir)
         mk_cfg = config['doublets_from_cuts']
         evtids = mk_cfg['evtid']
-        output_dir = os.path.expandvars(mk_cfg['selected'])
-        os.makedirs(output_dir, exist_ok=True)
         if type(evtids) is str:
             evtids = list_from_str(evtids)
         else:
@@ -144,6 +104,10 @@ if __name__ == "__main__":
 
     print("rank({}) {} workers deal with {} events.".format(rank, n_workers, len(evtids)))
 
-    with  mp.Pool(processes=n_workers) as pool:
-        pp_func = partial(process, config_dir=config_dir, remove_duplicated_hits=no_dup)
-        pool.map(pp_func, evtids)
+    if n_workers > 1:
+        with  mp.Pool(processes=n_workers) as pool:
+            pp_func = partial(process, config_dir=config_dir, remove_duplicated_hits=no_dup)
+            pool.map(pp_func, evtids)
+    else:
+        for evtid in evtids:
+            process(evtid, config_dir, no_dup)
