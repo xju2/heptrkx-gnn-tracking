@@ -93,6 +93,12 @@ def eff_purity_of_edge_selection2(evtid, evt_dir,
     sel_list = []
     if outdir:
         os.makedirs(outdir, exist_ok=True)
+        hits_outname = os.path.join(outdir, "event{:09d}-hits.h5".format(evtid))
+        if os.path.exists(hits_outname):
+            print("Found {}".format(hits_outname))
+        else:
+            with pd.HDFStore(hits_outname, 'w') as store:
+                store['data'] = hits
 
     for pair_idx in sel_layer_id:
         if outdir:
@@ -104,6 +110,7 @@ def eff_purity_of_edge_selection2(evtid, evt_dir,
         layer_pair = layer_pairs[pair_idx]
         df = seeding.create_segments(hits, layer_pair)
         df.loc[~df.particle_id.isin(pids), 'true'] = False
+
         tot = df[df.true].pt.to_numpy()
         sel_true = df[
             (df.true)\

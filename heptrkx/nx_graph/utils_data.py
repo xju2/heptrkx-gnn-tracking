@@ -317,7 +317,7 @@ def segments_to_nx(hits, segments,
     graph = nx.DiGraph() if use_digraph else nx.Graph()
     graph.graph['features'] = np.array([0.])
 
-    feature_names = ['r', 'phi', 'z', 'eta']
+    feature_names = ['r', 'phi', 'z']
 
     n_hits = hits.shape[0]
     hits_id_dict = {}

@@ -72,6 +72,9 @@ def create_segments(hits, layer_pair, gid_keys='layer', only_true=False):
         'layer_in', 'layer_out',
         'particle_id_in',
         'pt_in',
+        'r_in', 'r_out',
+        'phi_in', 'phi_out',
+        'z_in', 'z_out',
     ]
     if 'lx_in' in hit_pairs.columns:
         selected_features += [

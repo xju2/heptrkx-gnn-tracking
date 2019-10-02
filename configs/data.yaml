@@ -1,4 +1,5 @@
 # tracking dataset
+#
 track_ml:
     dir:      /global/project/projectdirs/m3443/usr/xju/heptrkx/codalab/inputs/train_all
     detector: /global/project/projectdirs/m3443/usr/xju/heptrkx/codalab/inputs/detector.csv
@@ -29,19 +30,20 @@ doublets_for_graph: ## input pairs from all_pairs
     min_hits: 3
     threshold: /global/cscratch1/sd/xju/heptrkx/trained_models/doublet_moreVar/merged_info.txt 
 
-# Do not use!
-make_graph:
-    nevts: 10
-    out_graph: /global/cscratch1/sd/xju/heptrkx/output_graphs_moreVar2/barrel_graphs_hdf5
-    pairs_from: 'doublets_from_cuts'
-
 doublets_from_cuts:
     evtid: 21001
-    selected: /global/project/projectdirs/m3443/usr/xju/heptrkx/codalab/output/segments_from_cuts_noDup
+    selected: /global/project/projectdirs/m3443/usr/xju/heptrkx/codalab/output/segments/noDup_from_cuts
     layers: [7, 8, 9, 10, 24, 25, 26, 27, 40, 41]
     min_hits: 3
     phi_slope_max: 0.0006
     z0_max: 100
+
+make_graph:
+    nevts: 1
+    out_graph: /global/project/projectdirs/m3443/usr/xju/heptrkx/codalab/output/graphs/Digraph_noEdgeFeatures_Barrel_noDup
+    input_segments: /global/project/projectdirs/m3443/usr/xju/heptrkx/codalab/output/segments/noDup_from_cuts
+    input_data: /global/project/projectdirs/m3443/usr/xju/heptrkx/codalab/inputs/train_all
+    layers: [7, 8, 9, 10, 24, 25, 26, 27, 40, 41]
 
 segment_training:
     output_dir: /global/cscratch1/sd/xju/heptrkx/trained_models/segments

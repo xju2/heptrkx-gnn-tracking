@@ -2,9 +2,12 @@
 
 import pandas as pd
 import numpy as np
-from heptrkx import layer_pairs, select_pair_layers, load_yaml
 import os
 import sys
+
+from heptrkx import layer_pairs, select_pair_layers, load_yaml
+from heptrkx.nx_graph import utils_data
+from heptrkx.nx_graph import utils_io
 
 prog = os.path.basename(sys.argv[0])
 
@@ -13,52 +16,30 @@ def load_seg(file_name):
         with pd.HDFStore(file_name) as store:
             df = store.get('data')
     except KeyError:
+        print("{} is not there".format(file_name))
         return None
+    return df
 
-    return df[df.selected]
 
-def process(evtid, config_dir, quiet):
-    config = load_yaml(config_dir)
-    data_source = config['pairs_form']
-    mk_cfg = config[data_source]
-
-    pairs_selected_dir = os.path.expandvars(mk_cfg['selected'])
-    pairs_input_dir = os.path.join(pairs_selected_dir, "evt{}".format(evtid))
-    layers = mk_cfg['layers']
-    min_hits = mk_cfg['min_hits']
-    output_dir = config['make_graph']['out_graph']
-
+def process(evtid, pairs_input_dir,
+            layers, output_dir,
+            quiet=True):
     out_name = os.path.join(output_dir, 'evt{}.hdf5'.format(evtid))
     if os.path.exists(out_name):
         print("[{}] find {}".format(prog, out_name))
         return
 
-    # load event
-    from heptrkx.preprocess import utils_mldata
-    hits, particles, truth, cells = utils_mldata.read_event(evtid, config_dir, info=True)
-    hits = utils_data.merge_truth_info_to_hits(hits, particles, truth)
-
-    # select hits in predefined layers
-    if layers[0] > 0:
-        hits = hits[hits.layer.isin(layers)]
-
-    particle_hits = particles.merge(hits, on='particle_id', how='left')
-    dp = particle_hits[~np.isnan(particle_hits.hit_id)]
-
-    ## good particles are the particles that have at least *min_hits* hits
-    good_particles = (dp.groupby('particle_id')['hit_id'].count() > min_hits-1).index.to_numpy()
-    particles = particles[particles.particle_id.isin(good_particles)]
-    del particle_hits
-    del dp
-
-
     # find layer pairs
     sel_layer_id = select_pair_layers(layers)
-
     file_names = [os.path.join(pairs_input_dir, 'pair{:03d}.h5'.format(i))
                   for i in sel_layer_id]
     all_segments = [load_seg(file_name) for file_name in file_names if load_seg(file_name) is not None]
     segments = pd.concat(all_segments, ignore_index=True)
+
+    # get hits
+    hit_file_name = os.path.join(pairs_input_dir, 'event{:09d}-hits.h5'.format(evtid))
+    with pd.HDFStore(hit_file_name) as store:
+        hits = store['data']
 
     if not quiet:
         print("[{}] processing event {}".format(prog, evtid))
@@ -67,22 +48,20 @@ def process(evtid, config_dir, quiet):
         print("\t total edges: {}".format(segments.shape[0]))
 
     # make a graph and save to disk
-
     graph = utils_data.segments_to_nx(
         hits, segments,
         sender_hitid_name='hit_id_in',
         receiver_hitid_name='hit_id_out',
-        solution_name='true', use_digraph=True, bidirection=args.bidirection)
+        solution_name='true', use_digraph=True, bidirection=args.bidirection
+    )
 
     #utils_io.save_networkx(graph, out_name)
     utils_io.save_nx_to_hdf5(graph, out_name)
 
+
 if __name__ == "__main__":
     import os
     import argparse
-
-    from heptrkx.nx_graph import utils_data
-    from heptrkx.nx_graph import utils_io
     import glob
 
     parser = argparse.ArgumentParser(description='Keras train pairs for each layer-pairs')
@@ -112,10 +91,8 @@ if __name__ == "__main__":
     if rank == 0:
         assert(os.path.exists(config_dir))
         config = load_yaml(config_dir)
-        data_source = config['pairs_form']
-        mk_cfg = config[data_source]
-        pairs_selected_dir = os.path.expandvars(mk_cfg['selected'])
-        layers = mk_cfg['layers']
+        pairs_selected_dir = os.path.expandvars(config['make_graph']['input_segments'])
+        layers = config['make_graph']['layers']
         sel_layer_id = select_pair_layers(layers)
 
         ## find event IDs

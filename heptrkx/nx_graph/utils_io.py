@@ -32,11 +32,9 @@ def load_data_dicts(file_name):
 
 def load_input_target_data_dicts(path, evtid, isec):
     base_name = os.path.join(path, 'event{:09d}_g{:09d}_{}.npz')
-
     input_dd = load_data_dicts(base_name.format(evtid, isec, "INPUT"))
     target_dd = load_data_dicts(base_name.format(evtid, isec, "TARGET"))
     return input_dd, target_dd
-
 
 def save_nx_to_hdf5(graph, output_name):
     if os.path.exists(output_name):
