@@ -68,4 +68,3 @@ def select_pair_layers(layers):
     return [ii for ii, layer_pair in enumerate(layer_pairs)
             if layer_pair[0] in layers and layer_pair[1] in layers
            ]
-

@@ -17,8 +17,7 @@ def fraction_of_duplicated_hits(evtid, config_name):
     evt_dir = config['track_ml']['dir']
     layers = config['doublets_from_cuts']['layers']
 
-    event = Event(evt_dir)
-    event.read(evtid)
+    event = Event(evt_dir, evtid)
     barrel_hits = event.filter_hits(layers)
 
     # remove noise hits
@@ -36,8 +35,7 @@ def eff_purity_of_edge_selection(evtid, config_name):
     layers = config['doublets_from_cuts']['layers']
     sel_layer_id = select_pair_layers(layers)
 
-    event = Event(evt_dir)
-    event.read(evtid)
+    event = Event(evt_dir, evtid)
     barrel_hits = event.filter_hits(layers)
 
     phi_slope_max = config['doublets_from_cuts']['phi_slope_max']
