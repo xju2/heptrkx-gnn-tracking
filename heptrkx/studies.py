@@ -71,7 +71,12 @@ def eff_purity_of_edge_selection2(evtid, evt_dir,
                                  ):
     sel_layer_id = select_pair_layers(layers)
 
-    event = Event(evt_dir, evtid)
+    try:
+        event = Event(evt_dir, evtid)
+    except Exception as e:
+        print(e[1])
+        return (None, None, None)
+
     hits = event.filter_hits(layers)
     if remove_duplicated_hits:
         hits = event.remove_duplicated_hits()
@@ -86,7 +91,16 @@ def eff_purity_of_edge_selection2(evtid, evt_dir,
     tot_list = []
     sel_true_list = []
     sel_list = []
+    if outdir:
+        os.makedirs(outdir, exist_ok=True)
+
     for pair_idx in sel_layer_id:
+        if outdir:
+            outname = os.path.join(outdir, "pair{:03d}.h5".format(pair_idx))
+            if os.path.exists(outname):
+                print("Found {}".format(outname))
+                continue
+
         layer_pair = layer_pairs[pair_idx]
         df = seeding.create_segments(hits, layer_pair)
         df.loc[~df.particle_id.isin(pids), 'true'] = False
@@ -106,7 +120,7 @@ def eff_purity_of_edge_selection2(evtid, evt_dir,
         efficiency = sel_true.shape[0]/tot.shape[0]
         purity = sel_true.shape[0]/sel.shape[0]
         if verbose:
-            print("pair ({}, {}), {} true segments, {} selected, {} true ones selected \
+            print("pair ({}, {}), {} true segments, {} selected, {} true ones selected\n\
                   segment efficiency {:.2f}% and purity {:.2f}%".format(
                       layer_pair[0], layer_pair[1],
                       tot.shape[0], sel.shape[0], sel_true.shape[0],
@@ -114,14 +128,9 @@ def eff_purity_of_edge_selection2(evtid, evt_dir,
                   )
                  )
         if outdir:
-            os.makedirs(outdir, exist_ok=True)
-            outname = os.path.join(outdir, "pair{:03d}.h5".format(pair_idx))
-            if os.path.exists(outname):
-                print("Found {}".format(outname))
-            else:
-                with pd.HDFStore(outname, 'w') as store:
-                    store['data'] = df_sel
-                    store['info'] = pd.Series([efficiency, purity], index=['efficiency', 'purity'])
+            with pd.HDFStore(outname, 'w') as store:
+                store['data'] = df_sel
+                store['info'] = pd.Series([efficiency, purity], index=['efficiency', 'purity'])
 
     return (tot_list, sel_true_list, sel_list)
 

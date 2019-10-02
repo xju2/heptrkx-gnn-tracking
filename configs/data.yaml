@@ -37,7 +37,7 @@ make_graph:
 
 doublets_from_cuts:
     evtid: 21001
-    selected: /global/cscratch1/sd/xju/heptrkx/codalab_outputs/selected_pairs_from_cuts_HDF5_noDup
+    selected: /global/project/projectdirs/m3443/usr/xju/heptrkx/codalab/output/segments_from_cuts_noDup
     layers: [7, 8, 9, 10, 24, 25, 26, 27, 40, 41]
     min_hits: 3
     phi_slope_max: 0.0006
