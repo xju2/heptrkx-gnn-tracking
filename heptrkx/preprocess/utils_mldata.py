@@ -173,8 +173,8 @@ def get_track_parameters(x, y, z):
 
     # track travels colockwise or anti-colockwise
     # positive for colckwise
-    xs = x[0]
-    ys = y[0]
+    xs = x[0] if x[0] != 0 else 1e-1
+    ys = y[0] if y[0] != 0 else 1e-1
     is_14 = xs > 0
     is_above = y0 > ys/xs*x0
     sgn = 1 if is_14^is_above else -1
