@@ -63,6 +63,52 @@ def eff_purity_of_edge_selection(evtid, config_name):
 
     return (tot_list, sel_true_list, sel_list)
 
+def eff_purity_of_edge_selection2(evtid, evt_dir,
+                                  phi_slope_max, z0_max, layers=None, min_hits=0,
+                                  verbose=False):
+
+    sel_layer_id = select_pair_layers(layers)
+
+    event = Event(evt_dir, evtid)
+    hits = event.filter_hits(layers)
+    ## particles having at least mininum number of hits associated
+    cut = hits.groupby('particle_id')['hit_id'].count() > min_hits
+    pids = cut[cut].index
+    if verbose:
+        print("event {} has {} particles with at least {} hits".format(evtid, len(pids)))
+
+    tot_list = []
+    sel_true_list = []
+    sel_list = []
+    for pair_idx in sel_layer_id:
+        layer_pair = layer_pairs[pair_idx]
+        df = seeding.create_segments(hits, layer_pair)
+        df.loc[~df.particle_id.isin(pids)].true = False
+        tot = df[df.true].pt.to_numpy()
+        sel_true = df[
+            (df.true)\
+            & (df.phi_slope.abs() < phi_slope_max)\
+            & (df.z0.abs() < z0_max)
+        ].pt.to_numpy()
+        sel = df[
+            (df.phi_slope.abs() < phi_slope_max)\
+            & (df.z0.abs() < z0_max)
+        ].pt.to_numpy()
+        tot_list.append(tot)
+        sel_true_list.append(sel_true)
+        sel_list.append(sel)
+        if verbose:
+            print("pair ({}, {}), {} true particles, {} selected, {} true ones selected \
+                  efficiency {:.2f}% and purity {:.2f}%".format(
+                      layer_pair[0], layer_pair[1],
+                      tot.shape[0], sel.shape[0], sel_true.shape[0],
+                      sel_true.shape[0]/tot.shape[0],
+                      sel_true.shape[0]/sel.shape[0]
+                  )
+                 )
+
+    return (tot_list, sel_true_list, sel_list)
+
 
 def track_eff_of_edge_selected(evtid, config_name, matching_cut=0.8, remove_duplicated_hits=False):
     config = load_yaml(config_name)

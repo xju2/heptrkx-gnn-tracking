@@ -11,7 +11,7 @@ from functools import partial
 import numpy as np
 
 from heptrkx import load_yaml, select_pair_layers, layer_pairs
-from heptrkx.studies import eff_purity_of_edge_selection
+from heptrkx.studies import eff_purity_of_edge_selection2
 from heptrkx.nx_graph.utils_plot import plot_ratio
 from heptrkx.utils import evtids_at_disk
 
@@ -20,28 +20,46 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='Efficiency of edge selections for different layer pairs')
     add_arg = parser.add_argument
-    add_arg('config', type=str, help='data configuration, configs/data.yaml')
+    add_arg('config', type=str, help='data configuration, config/data.yaml')
+    add_arg('outdir', type=str, help='output directory')
     add_arg('--workers', type=int, help='workers', default=1)
     add_arg('--nevts', type=int, help='number of events', default=4)
-    add_arg('--outdir', type=str, help='output directory', default='.')
+    add_arg('--min_hits', type=int,
+            help='minimum number of hits associated with the particle', default=3)
+    add_arg('-v', '--verbose', action='store_true', help='enable print out')
 
     args = parser.parse_args()
     config_dir = args.config
-    n_workers = args.workers
-    n_evts = args.nevts
     outdir = args.outdir
     os.makedirs(outdir, exist_ok=True)
+
+    n_workers = args.workers
+    n_evts = args.nevts
+    min_hits = args.min_hits
+    verbose = args.verbose
+
 
     config = load_yaml(config_dir)
     evt_dir = config['track_ml']['dir']
     evtids = evtids_at_disk(evt_dir)
     n_events = len(evtids)
-    print("Total avaiable events: {}".format(n_events))
+    print("Total {} events, and requested to run {} events".format(n_events, n_evts))
     if n_events > n_evts:
         evtids = evtids[:n_evts]
 
+    phi_slope_max = config['doublets_from_cuts']['phi_slope_max']
+    z0_max = config['doublets_from_cuts']['z0_max']
+    layers = config['doublets_from_cuts']['layers']
+
     with mp.Pool(processes=n_workers) as pool:
-        pp_func = partial(eff_purity_of_edge_selection, config_name=config_dir)
+        pp_func = partial(eff_purity_of_edge_selection2,
+                          evt_dir=evt_dir,
+                          phi_slope_max=phi_slope_max,
+                          z0_max=z0_max,
+                          layers=layers,
+                          min_hits=min_hits,
+                          verbose=verbose
+                         )
         fraction_list = pool.map(pp_func, evtids)
 
         # make efficiency plots for each layers
@@ -56,7 +74,6 @@ if __name__ == "__main__":
         }
         xlabel = '$p_T$ [GeV]'
 
-        layers = config['doublets_from_cuts']['layers']
         sel_layer_id = select_pair_layers(layers)
         for ii, pair_idx in enumerate(sel_layer_id):
             pairs = layer_pairs[pair_idx]
