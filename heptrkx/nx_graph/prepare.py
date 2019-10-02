@@ -276,3 +276,27 @@ def get_networkx_saver(output_dir_):
         return True
 
     return save_networkx
+
+
+def get_nx_outname(outdir, evtid, isec=0):
+    return os.path.join(outdir, 'event{:09d}_g{:09d}_{}.npz'.format(evtid, isec, INPUT_NAME))
+
+
+def save_nx(graph, outdir, evtid, isec=0):
+    """
+    save networkx graph as data dict for TF
+    """
+    output_data_name = get_nx_outname(outdir, evtid, isec)
+    if os.path.exists(output_data_name):
+        print(output_data_name, "is there")
+        return
+
+    if graph is None:
+        return False
+
+    input_graph, target_graph = graph_to_input_target(graph)
+    output_data = utils_np.networkx_to_data_dict(input_graph)
+    target_data = utils_np.networkx_to_data_dict(target_graph)
+
+    np.savez( output_data_name, **output_data)
+    np.savez( output_data_name.replace(INPUT_NAME, TARGET_NAME), **target_data)

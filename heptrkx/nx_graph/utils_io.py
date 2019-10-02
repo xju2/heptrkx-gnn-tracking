@@ -94,3 +94,4 @@ def read_hdf5_to_nx(hdf5_name, use_digraph=True, bidirection=False):
             graph.add_edges_from(zip(receivers, senders, edge_features))
 
         return graph
+

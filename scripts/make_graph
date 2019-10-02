@@ -8,6 +8,7 @@ import sys
 from heptrkx import layer_pairs, select_pair_layers, load_yaml
 from heptrkx.nx_graph import utils_data
 from heptrkx.nx_graph import utils_io
+from heptrkx.nx_graph import prepare
 
 prog = os.path.basename(sys.argv[0])
 
@@ -24,10 +25,12 @@ def load_seg(file_name):
 def process(evtid, pairs_input_dir,
             layers, output_dir,
             quiet=True):
-    out_name = os.path.join(output_dir, 'evt{}.hdf5'.format(evtid))
+    out_name = prepare.get_nx_outname(output_dir, evtid)
     if os.path.exists(out_name):
         print("[{}] find {}".format(prog, out_name))
         return
+
+    pairs_input_dir = os.path.join(pairs_input_dir, 'evt{:03d}'.format(evtid))
 
     # find layer pairs
     sel_layer_id = select_pair_layers(layers)
@@ -44,7 +47,6 @@ def process(evtid, pairs_input_dir,
     if not quiet:
         print("[{}] processing event {}".format(prog, evtid))
         print("\t total hits: {}".format(hits.shape[0]))
-        print("\t total particles: {}".format(particles.shape[0]))
         print("\t total edges: {}".format(segments.shape[0]))
 
     # make a graph and save to disk
@@ -55,8 +57,8 @@ def process(evtid, pairs_input_dir,
         solution_name='true', use_digraph=True, bidirection=args.bidirection
     )
 
-    #utils_io.save_networkx(graph, out_name)
-    utils_io.save_nx_to_hdf5(graph, out_name)
+    prepare.save_nx(graph, output_dir, evtid)
+    #utils_io.save_nx_to_hdf5(graph, out_name)
 
 
 if __name__ == "__main__":
@@ -68,7 +70,7 @@ if __name__ == "__main__":
     add_arg = parser.add_argument
     add_arg('config', type=str, help='data configuration, configs/data.yaml')
     add_arg('--workers', type=int, help='number of threads', default=1)
-    add_arg('--bidirection', action='store_true', help='use two-directions in graph')
+    add_arg('-b', '--bidirection', action='store_true', help='use two-directions in graph')
     add_arg('--quiet', action='store_true', help='in a quiet mode')
 
     args = parser.parse_args()
@@ -76,57 +78,41 @@ if __name__ == "__main__":
     n_workers = args.workers
     quiet = args.quiet
 
-    try:
-        from mpi4py import MPI
-        comm = MPI.COMM_WORLD
-        size = comm.Get_size()
-        rank = comm.Get_rank()
-        print("World size:", size, ", rank:", rank)
-        use_mpi = True
-    except ImportError:
-        rank = 0
-        size = 1
-        use_mpi = False
+    config = load_yaml(config_dir)
+    pairs_selected_dir = os.path.expandvars(config['make_graph']['input_segments'])
+    layers = config['make_graph']['layers']
+    sel_layer_id = select_pair_layers(layers)
+    output_dir = config['make_graph']['out_graph']
 
-    if rank == 0:
-        assert(os.path.exists(config_dir))
-        config = load_yaml(config_dir)
-        pairs_selected_dir = os.path.expandvars(config['make_graph']['input_segments'])
-        layers = config['make_graph']['layers']
-        sel_layer_id = select_pair_layers(layers)
+    ## find event IDs
+    evtids = []
+    for evt_dir_name in glob.glob(os.path.join(pairs_selected_dir, 'evt*')):
+        n_hdf5 = len(glob.glob(os.path.join(evt_dir_name, '*.h5')))
+        if n_hdf5 > 0:
+            evtid = int(os.path.basename(evt_dir_name)[3:])
+            evtids.append(evtid)
 
-        ## find event IDs
-        evtids = []
-        for evt_dir_name in glob.glob(os.path.join(pairs_selected_dir, 'evt*')):
-            n_hdf5 = len(glob.glob(os.path.join(evt_dir_name, '*.h5')))
-            if n_hdf5 == len(sel_layer_id):
-                evtid = int(os.path.basename(evt_dir_name)[3:])
-                evtids.append(evtid)
+    if len(evtids) < 1:
+        print("[{}] no selected pairs avaiable".format(prog))
+        exit(0)
 
-        if len(evtids) < 1:
-            print("[{}] no selected pairs avaiable".format(prog))
-            exit(0)
-
-        nevts = config['make_graph']['nevts']
-        evtids = evtids[:nevts]
-
-        ## split evtids based on the world-size
-        evtids = [x.tolist() for x in np.array_split(evtids, size)]
-    else:
-        evtids = None
-
-    if use_mpi:
-        comm.Barrier()
-        evtids = comm.scatter(evtids, root=0)
-    else:
-        evtids = evtids[0]
+    nevts = config['make_graph']['nevts']
+    evtids = evtids[:nevts]
 
     import multiprocessing as mp
     from functools import partial
 
-    print("rank({}) {} workers".format(rank, n_workers))
-    print("rank({}) {} events".format(rank, len(evtids)))
+    print("{} workers processing {} events".format(n_workers, len(evtids)))
 
-    with  mp.Pool(processes=n_workers) as pool:
-        pp_func = partial(process, config_dir=config_dir, quiet=quiet)
-        pool.map(pp_func, evtids)
+    if n_workers > 1:
+        with  mp.Pool(processes=n_workers) as pool:
+            pp_func = partial(process,
+                              pairs_input_dir=pairs_selected_dir,
+                              layers=layers,
+                              output_dir=output_dir,
+                              quiet=quiet
+                             )
+            pool.map(pp_func, evtids)
+    else:
+        for evtid in evtids:
+            process(evtid, pairs_selected_dir, layers, output_dir, quiet)

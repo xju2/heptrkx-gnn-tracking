@@ -23,7 +23,7 @@ from heptrkx import seeding
 from heptrkx import master
 from heptrkx.studies import eff_purity_of_edge_selection2
 
-def process(evtid, config_dir, remove_duplicated_hits=False):
+def process(evtid, config_dir, remove_duplicated_hits=False, verbose=True):
     """
     Produce doublets from hits only from the specified layers
     using the cuts on phi slope and z0.
@@ -40,12 +40,10 @@ def process(evtid, config_dir, remove_duplicated_hits=False):
 
     eff_purity_of_edge_selection2(evtid, evt_dir,
                                   phi_slope_max, z0_max, layers, min_hits,
-                                  verbose=True,
+                                  verbose=verbose,
                                   outdir=outdir,
                                   remove_duplicated_hits=remove_duplicated_hits,
                                  )
-
-
 
 if __name__ == "__main__":
     import os
@@ -57,6 +55,7 @@ if __name__ == "__main__":
     add_arg('--workers', type=int, help='workers', default=1)
     add_arg('--mpi', action='store_true', help='use MPI')
     add_arg('--noduplicate', action='store_true', help='remove duplicate hits')
+    add_arg('-q', '--quiet', action='store_true', help='quiet')
 
     args = parser.parse_args()
     config_dir = args.config
@@ -106,8 +105,8 @@ if __name__ == "__main__":
 
     if n_workers > 1:
         with  mp.Pool(processes=n_workers) as pool:
-            pp_func = partial(process, config_dir=config_dir, remove_duplicated_hits=no_dup)
+            pp_func = partial(process, config_dir=config_dir, remove_duplicated_hits=no_dup, verbose=not args.quiet)
             pool.map(pp_func, evtids)
     else:
         for evtid in evtids:
-            process(evtid, config_dir, no_dup)
+            process(evtid, config_dir, no_dup, verbose=not args.quiet)

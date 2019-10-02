@@ -127,9 +127,9 @@ def eff_purity_of_edge_selection2(evtid, evt_dir,
         efficiency = sel_true.shape[0]/tot.shape[0]
         purity = sel_true.shape[0]/sel.shape[0]
         if verbose:
-            print("pair ({}, {}), {} true segments, {} selected, {} true ones selected\n\
+            print("event {}: pair ({}, {}), {} true segments, {} selected, {} true ones selected\n\
                   segment efficiency {:.2f}% and purity {:.2f}%".format(
-                      layer_pair[0], layer_pair[1],
+                      evtid, layer_pair[0], layer_pair[1],
                       tot.shape[0], sel.shape[0], sel_true.shape[0],
                       100.*efficiency, 100.*purity
                   )
