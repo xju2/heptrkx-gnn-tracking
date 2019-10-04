@@ -101,20 +101,22 @@ if __name__ == "__main__":
     #with mp.Pool(processes=n_workers) as pool:
     #    all_pt_eta = pool.map(track_parameters, [x[1] for x in df_all.iterrows()])
     #    df_all_pt_eta = pd.DataFrame(all_pt_eta)
-
-    print(df_all.shape)
-
-    df_all_pt_eta = df_all[['x_in', 'x_out', 'y_in', 'y_out', 'z_in', 'z_out']].apply(track_parameters, axis=1)
-
-    print("finding tracking parameters takes {:.0f} mins".format((time.time() - now)/60))
-    df = df_all[['hit_idx_in', 'hit_idx_out', 'hit_id_in', 'hit_id_out', 'true']].assign(
-        pred_all=pred_all, pred_cluster=pred_cluster, pred_location=pred_location)
-    segments = df.assign(avg_pt=np.abs(df_all_pt_eta['trk_pT']), avg_eta=np.abs(df_all_pt_eta['trk_eta']))
-    with pd.HDFStore(os.path.join(outdir, "all_segments.h5")) as store:
-        store['data'] = segments
+    outname = os.path.join(outdir, "all_segments.h5")
+    if os.path.exists(outname):
+        with pd.HDFStore(outname) as store:
+            segments = store['data']
+    else:
+        print(df_all.shape)
+        df_all_pt_eta = df_all[['x_in', 'x_out', 'y_in', 'y_out', 'z_in', 'z_out']].apply(track_parameters, axis=1)
+        print("finding tracking parameters takes {:.0f} mins".format((time.time() - now)/60))
+        df = df_all[['hit_idx_in', 'hit_idx_out', 'hit_id_in', 'hit_id_out', 'true']].assign(
+            pred_all=pred_all, pred_cluster=pred_cluster, pred_location=pred_location)
+        segments = df.assign(avg_pt=np.abs(df_all_pt_eta['trk_pT']), avg_eta=np.abs(df_all_pt_eta['trk_eta']))
+        with pd.HDFStore(outname) as store:
+            store['data'] = segments
 
     ## start to make some plots
-    pt_range = [0.1, 0.5, 1., 1000]  # GeV
+    pt_range = [0.0, 0.5, 1., 1000]  # GeV
     eta_range = [0, 1, 1.5, 2.1, 3]
 
     losses = []

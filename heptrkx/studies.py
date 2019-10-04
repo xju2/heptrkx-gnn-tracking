@@ -69,7 +69,26 @@ def eff_purity_of_edge_selection2(evtid, evt_dir,
                                   outdir=None,
                                   remove_duplicated_hits=False
                                  ):
+
     sel_layer_id = select_pair_layers(layers)
+
+    if outdir:
+        ## check if all outputs are alerady there...
+        if os.path.exists(outdir):
+            hits_outname = os.path.join(outdir, "event{:09d}-hits.h5".format(evtid))
+            if os.path.exists(hits_outname):
+                has_all_pairs = True
+                for pair_idx in sel_layer_id:
+                    outname = os.path.join(outdir, "pair{:03d}.h5".format(pair_idx))
+                    if not os.path.exists(outname):
+                        has_all_pairs = False
+                        break
+                if has_all_pairs:
+                    print("Event {} has all output files".format(evtid))
+                    return 
+        else:
+            os.makedirs(outdir, exist_ok=True)
+
 
     try:
         event = Event(evt_dir, evtid)
