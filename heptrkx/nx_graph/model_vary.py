@@ -9,7 +9,7 @@ from graph_nets import blocks
 import sonnet as snt
 
 LATENT_SIZE = 32
-NUM_LAYERS = 2
+NUM_LAYERS = 4
 
 def make_mlp_model():
   """Instantiates a new MLP, followed by LayerNorm.

@@ -22,7 +22,7 @@ def create_loss_ops(target_op, output_ops, weights):
     import tensorflow as tf
     # only use edges
     loss_ops = [
-        tf.losses.log_loss(target_op.edges, output_op.edges, weights=weights)
+        tf.compat.v1.losses.log_loss(target_op.edges, output_op.edges, weights=weights)
         for output_op in output_ops
     ]
     return loss_ops
