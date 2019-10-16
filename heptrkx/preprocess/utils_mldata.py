@@ -234,6 +234,9 @@ def save_segments(input_info, selected_hits_angle, output_pairs_dir, only_true=F
     layer_pair, ii = input_info
     os.makedirs(output_pairs_dir, exist_ok=True)
     out_name = os.path.join(output_pairs_dir, 'pair{:03d}.h5'.format(ii))
+    if os.path.exists(out_name):
+        return
+
     segments = list(create_segments(selected_hits_angle, [layer_pair], only_true=only_true))
     with pd.HDFStore(out_name) as store:
             store['data'] = segments[0]

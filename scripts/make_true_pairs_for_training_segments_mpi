@@ -2,15 +2,6 @@
 """
 create true segments/pairs/doublets by connecting hits in adjacency layers
 """
-def process(input_info, selected_hits_angle, output_dir):
-    layer_pair, ii = input_info
-    segments = list(utils_mldata.create_segments(selected_hits_angle, [layer_pair], only_true=True))
-    os.makedirs(output_dir, exist_ok=True)
-
-    with pd.HDFStore(os.path.join(output_dir, 'pair{:03d}.h5'.format(ii))) as store:
-            store['data'] = segments[0]
-
-
 if __name__ == "__main__":
     import os
     import glob
@@ -83,7 +74,7 @@ if __name__ == "__main__":
         # remove existing ones
         all_existing_files = glob.glob(os.path.join(base_output_dir, '*'))
         existing_evt_ids = set([int(os.path.basename(x)[3:]) for x in all_existing_files
-                                        if len(os.listdir(x)) == len(sel_layer_id)
+                                        if len(os.listdir(x)) == len(sel_layer_id)+1
                                        ])
         set_evt_ids = set(evt_ids.tolist())
         evt_ids = np.array(list(set_evt_ids.difference(existing_evt_ids)))
@@ -111,7 +102,7 @@ if __name__ == "__main__":
 
     for evtid in evt_ids:
         output_dir = os.path.join(base_output_dir, 'evt{}'.format(evtid))
-        if os.path.exists(output_dir) and len(os.listdir(output_dir)) == len(sel_layer_id):
+        if os.path.exists(output_dir) and len(os.listdir(output_dir)) == len(sel_layer_id)+1:
             continue
         hits, particles, truth, cells = utils_mldata.read(data_dir, evtid)
         print(particles.columns)
@@ -131,6 +122,11 @@ if __name__ == "__main__":
 
         local_angles = utils_mldata.cell_angles(selected_hits, module_getter, cells)
         selected_hits_angle = selected_hits.merge(local_angles, on='hit_id', how='left')
+        hits_outname = os.path.join(output_dir, "event{:09d}-hits.h5".format(evtid))
+        if not os.path.exists(hits_outname):
+            with pd.HDFStore(hits_outname, 'w') as store:
+                store['data'] = selected_hits_angle
+
 
         pp_layers_info = [(layer_pairs[ii], ii) for ii in sel_layer_id]
         only_true = True

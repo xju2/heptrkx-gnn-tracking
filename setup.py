@@ -69,5 +69,6 @@ setup(
         'scripts/fit_hits',
         'scripts/peek_models',
         'scripts/train_infomax',
+        'scripts/view_training_log',
     ],
 )

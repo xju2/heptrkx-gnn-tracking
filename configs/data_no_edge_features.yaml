@@ -56,7 +56,7 @@ segment_training:
         batch_size: 1
         iterations: 50000
         iter_per_job: 50000
-        n_iters: 5
+        n_iters: 4
         learning_rate: 0.001
         real_weight: 1.
         fake_weight: 0.5
