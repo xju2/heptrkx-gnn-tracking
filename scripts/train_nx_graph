@@ -63,7 +63,7 @@ if __name__ == "__main__":
     print("Maximum iterations per job: {}".format(iter_per_job))
 
     ## start to build tensorflow sessions
-    tf.reset_default_graph()
+    tf.compat.v1.reset_default_graph()
 
     model = get_model(config['model_name'])
 

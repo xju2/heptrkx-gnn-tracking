@@ -47,11 +47,13 @@ class SegmentClassifier(snt.AbstractModule):
     super(SegmentClassifier, self).__init__(name=name)
 
     self._encoder = MLPGraphIndependent()
+
     self._core = modules.InteractionNetwork(
         edge_model_fn=make_mlp_model,
         node_model_fn=make_mlp_model,
         reducer=tf.unsorted_segment_sum
     )
+
     self._decoder = modules.GraphIndependent(
         edge_model_fn=make_mlp_model,
         node_model_fn=None, global_model_fn=None)
