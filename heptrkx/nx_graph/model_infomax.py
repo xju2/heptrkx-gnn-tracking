@@ -184,4 +184,4 @@ class Discriminator(snt.AbstractModule):
       self._discriminator = modules.GraphIndependent(None, node_fn, None)
 
   def _build(self, latent, target):
-      return self._discriminator(utils_tf.concat([latent, readout_target], axis=1))
+      return self._discriminator(utils_tf.concat([latent, target], axis=1))
