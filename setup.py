@@ -19,8 +19,8 @@ setup(
     url="https://github.com/xju2/hep-gnn-tracking",
     packages=find_packages(),
     install_requires=[
-        "graph_nets@ https://github.com/deepmind/graph_nets/tarball/master",
-        'tensorflow-gpu==1.14.0',
+        "graph_nets",
+        'tensorflow-gpu<2',
         "future",
         "networkx",
         "numpy",
@@ -37,7 +37,7 @@ setup(
         'tables',
         'h5py',
     ],
-    setup_requires=['trackml', 'graph_nets'],
+    setup_requires=['trackml'],
     classifiers=[
         "Programming Language :: Python :: 3.6",
     ],
@@ -67,5 +67,7 @@ setup(
         'scripts/merge_true_fake_pairs',
         'scripts/seeding_eff_purity_comparison',
         'scripts/fit_hits',
+        'scripts/peek_models',
+        'scripts/train_infomax',
     ],
 )

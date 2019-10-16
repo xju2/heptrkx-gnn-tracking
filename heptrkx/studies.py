@@ -84,8 +84,9 @@ def eff_purity_of_edge_selection2(evtid, evt_dir,
                         has_all_pairs = False
                         break
                 if has_all_pairs:
-                    print("Event {} has all output files".format(evtid))
-                    return 
+                    if verbose:
+                        print("Event {} has all output files".format(evtid))
+                    return
         else:
             os.makedirs(outdir, exist_ok=True)
 
@@ -93,7 +94,7 @@ def eff_purity_of_edge_selection2(evtid, evt_dir,
     try:
         event = Event(evt_dir, evtid)
     except Exception as e:
-        print(e[1])
+        print(e)
         return (None, None, None)
 
     hits = event.filter_hits(layers)
@@ -114,7 +115,8 @@ def eff_purity_of_edge_selection2(evtid, evt_dir,
         os.makedirs(outdir, exist_ok=True)
         hits_outname = os.path.join(outdir, "event{:09d}-hits.h5".format(evtid))
         if os.path.exists(hits_outname):
-            print("Found {}".format(hits_outname))
+            if verbose:
+                print("Found {}".format(hits_outname))
         else:
             with pd.HDFStore(hits_outname, 'w') as store:
                 store['data'] = hits
@@ -123,7 +125,8 @@ def eff_purity_of_edge_selection2(evtid, evt_dir,
         if outdir:
             outname = os.path.join(outdir, "pair{:03d}.h5".format(pair_idx))
             if os.path.exists(outname):
-                print("Found {}".format(outname))
+                if verbose:
+                    print("Found {}".format(outname))
                 continue
 
         layer_pair = layer_pairs[pair_idx]

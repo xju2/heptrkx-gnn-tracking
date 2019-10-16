@@ -36,7 +36,11 @@ if __name__ == "__main__":
     det_dir  = os.path.expandvars(config['track_ml']['detector'])
     base_output_dir = os.path.expandvars(config['true_hits']['dir'])
 
-    layers = config['layers']
+    if 'layers' in config:
+        layers = config['layers']
+    else:
+        layers = config['true_hits']['layers']
+
     sel_layer_id = select_pair_layers(layers)
 
     n_pids = args.n_pids
@@ -78,7 +82,9 @@ if __name__ == "__main__":
 
         # remove existing ones
         all_existing_files = glob.glob(os.path.join(base_output_dir, '*'))
-        existing_evt_ids = set([int(os.path.basename(x)[3:]) for x in all_existing_files])
+        existing_evt_ids = set([int(os.path.basename(x)[3:]) for x in all_existing_files
+                                        if len(os.listdir(x)) == len(sel_layer_id)
+                                       ])
         set_evt_ids = set(evt_ids.tolist())
         evt_ids = np.array(list(set_evt_ids.difference(existing_evt_ids)))
         print("Left Events:", len(evt_ids))
@@ -133,7 +139,7 @@ if __name__ == "__main__":
             with mp.Pool(processes=n_workers) as pool:
                 pp_func=partial(utils_mldata.save_segments,
                                 selected_hits_angle=selected_hits_angle,
-                                output_dir=output_dir,
+                                output_pairs_dir=output_dir,
                                 only_true=only_true)
                 pool.map(pp_func, pp_layers_info)
         else:

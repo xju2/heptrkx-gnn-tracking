@@ -29,8 +29,10 @@ def process(evtid, pairs_input_dir,
            ):
     out_name = prepare.get_nx_outname(output_dir, evtid)
     if os.path.exists(out_name):
-        print("[{}] find {}".format(prog, out_name))
+        # print("[{}] find {}".format(prog, out_name))
         return
+    else:
+        os.makedirs(output_dir, exist_ok=True)
 
     pairs_input_dir = os.path.join(pairs_input_dir, 'evt{:03d}'.format(evtid))
 
@@ -59,7 +61,7 @@ def process(evtid, pairs_input_dir,
         solution_name='true', use_digraph=True, bidirection=args.bidirection
     )
 
-    prepare.save_nx(graph, output_dir, evtid)
+    prepare.save_nx(graph, output_dir, evtid, no_edge_feature=no_edge_feature)
     #utils_io.save_nx_to_hdf5(graph, out_name)
 
 
@@ -106,7 +108,7 @@ if __name__ == "__main__":
     import multiprocessing as mp
     from functools import partial
 
-    print("{} workers processing {} events".format(n_workers, len(evtids)))
+    print("{} workers processing {:,} events".format(n_workers, len(evtids)))
 
     if n_workers > 1:
         with  mp.Pool(processes=n_workers) as pool:

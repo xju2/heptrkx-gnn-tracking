@@ -18,7 +18,12 @@ import random
 
 def load_data_dicts(file_name):
     with np.load(file_name) as f:
-        return dict(f.items())
+        dd = dict(f.items())
+        feature_scale = np.array([1000., np.pi, 1000.])
+        dd['nodes'] = dd['nodes']/feature_scale
+
+        return dd
+
 
 def graph_to_input_target(graph, no_edge_feature=False):
     def create_feature(attr, fields):
