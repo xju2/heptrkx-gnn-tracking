@@ -111,7 +111,7 @@ if __name__ == "__main__":
 
     for evtid in evt_ids:
         output_dir = os.path.join(base_output_dir, 'evt{}'.format(evtid))
-        if os.path.exists(output_dir):
+        if os.path.exists(output_dir) and len(os.listdir(output_dir)) == len(sel_layer_id):
             continue
         hits, particles, truth, cells = utils_mldata.read(data_dir, evtid)
         print(particles.columns)
