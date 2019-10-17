@@ -45,8 +45,16 @@ def process(evtid, pairs_input_dir,
 
     # get hits
     hit_file_name = os.path.join(pairs_input_dir, 'event{:09d}-hits.h5'.format(evtid))
-    with pd.HDFStore(hit_file_name) as store:
-        hits = store['data']
+    if not os.path.exists(hit_file_name):
+        print("hit_file_name is not there")
+        return
+
+    try:
+        with pd.HDFStore(hit_file_name) as store:
+            hits = store['data']
+    except KeyError:
+        print("{} does not have data".format(hit_file_name))
+        raise
 
     if not quiet:
         print("[{}] processing event {}".format(prog, evtid))

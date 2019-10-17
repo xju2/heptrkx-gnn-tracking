@@ -127,8 +127,12 @@ if __name__ == "__main__":
 
 
     ratio = get_ratio(sel_vals, tot_vals)
+    print(ratio)
     xvals = [0.5*(x[0]+x[1]) for x in pairwise(bins)][1:]
     line_configs = {'lw': 2}
     lstype = '-o'
     plt.plot(xvals, ratio, lstype, **line_configs)
+    for i,j in zip(xvals, ratio):
+        plt.text(i+0.02, j, "{:.2f}".format(j))
+
     plt.savefig(output)
