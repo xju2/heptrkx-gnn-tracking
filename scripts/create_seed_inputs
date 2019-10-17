@@ -18,7 +18,7 @@ if __name__ == "__main__":
         evtid = event.evtid
         hits = event.hits[event.hits.particle_id != 0]
         hits = hits[hits.layer.isin([7, 8, 9])]
-        # hits = hits[np.abs(hits.eta) < 1.1]
+        hits = hits[np.abs(hits.eta) < 1.2]
         a = hits.groupby('particle_id')['hit_idx'].count() > 2
         print(hits.shape)
         print(a[a].shape)
@@ -26,4 +26,3 @@ if __name__ == "__main__":
 
         out_name = 'hits4seeding_{}.csv'.format(evtid)
         output_hits[['lxyz', 'layer', 'x', 'y', 'z', 'covr', 'covz']].to_csv(out_name, header=False, index=False, sep=" ")
-
