@@ -21,6 +21,8 @@ if __name__ == "__main__":
         evtid = event.evtid
         if no_noise:
             hits = event.hits[event.hits.particle_id != 0]
+        else:
+            hits = event.hits
         hits = hits[hits.layer.isin([7, 8, 9])]
         hits = hits[np.abs(hits.eta) < 1.2]
         a = hits.groupby('particle_id')['hit_idx'].count() > 2

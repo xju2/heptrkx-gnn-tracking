@@ -104,6 +104,7 @@ if __name__ == "__main__":
 
     total_particles = np.array(total_good_particles)
     n_total_particles = total_particles.shape[0]
+    print("Total particles: {}".format(n_total_particles))
     print("Efficiency: {:.2f}%".format(n_true_seeds*100./n_total_particles))
 
     df_unique_true_seeds = pd.DataFrame(unique_true_seeds, columns=['particle_id'])

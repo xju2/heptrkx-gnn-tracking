@@ -48,14 +48,14 @@ make_graph:
 segment_training:
     output_dir: /project/projectdirs/m3443/usr/xju//heptrkx/codalab/models/segments
     model_name: VARY
-    prod_name: v4_noEdgeFeaturesOneBarrelGraph_VARY
+    prod_name: v5_noEdgeFeaturesOneBarrelGraph_VARY
     log_name: big.log
     input_type: 'data_dict'
     parameters:
         time_lapse:  120 # how often save checkpoint in seconds
         batch_size: 1
         iterations: 100000
-        iter_per_job: 50000
+        iter_per_job: 90000
         n_iters: 4
         learning_rate: 0.001
         real_weight: 1.
