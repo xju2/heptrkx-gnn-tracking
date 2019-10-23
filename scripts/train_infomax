@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+
 import os
 import sys
 prog_name = os.path.basename(sys.argv[0])
@@ -25,7 +26,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='Train nx-graph with configurations')
     add_arg = parser.add_argument
-    add_arg('config',  nargs='?', default='configs/data_5000evts.yaml')
+    add_arg('config',  nargs='?', default='configs/data_infomax.yaml')
 
     args = parser.parse_args()
 
@@ -70,10 +71,11 @@ if __name__ == "__main__":
     input_graphs, target_graphs = generate_input_target(n_graphs)
     input_ph  = utils_tf.placeholders_from_data_dicts(input_graphs, force_dynamic_num_graphs=True)
     input_ph_cp = utils_tf.placeholders_from_data_dicts(input_graphs, force_dynamic_num_graphs=True)
+    ## not needed, just put here for now
     target_ph = utils_tf.placeholders_from_data_dicts(target_graphs, force_dynamic_num_graphs=True)
 
     # build the InfoMax model
-    corrupt_input_ph = corruptor(input_ph_cp)
+    corrupt_input_ph = nn_corruptor(input_ph_cp)
     latent = nn_dgi(input_ph, num_processing_steps_tr)
     latent_corrupt = nn_dgi(corrupt_input_ph, num_processing_steps_tr)
     global_summary = nn_readout(input_ph)
@@ -81,7 +83,9 @@ if __name__ == "__main__":
     score_true = nn_discriminator(latent, global_summary)
     score_fake = nn_discriminator(latent_corrupt, global_summary)
 
-    loss_ops_tr = -tf.log(score_true) + tf.log(1 - score_fake)
+    # create a lose
+    min_value = 1e-6
+    loss_op_tr = - tf.log(tf.clip_by_value(score_true.nodes, min_value, 1-min_value))  - tf.log(1 - tf.clip_by_value(score_fake.nodes, min_value, 1-min_value))
 
 
     # Optimizer, with decaying learning rate
@@ -110,10 +114,6 @@ if __name__ == "__main__":
         # saver must be created before init_ops is run!
         sess.run(init_ops)
 
-    logged_iterations = []
-    losses_tr = []
-    corrects_tr = []
-    solveds_tr = []
 
 
     out_str  = time.strftime('%d %b %Y %H:%M:%S', time.localtime())
@@ -140,17 +140,39 @@ if __name__ == "__main__":
         last_iteration = iteration
         data_start_time = time.time()
 
-        feed_dict = utils_train.create_feed_dict(generate_input_target, batch_size, input_ph, target_ph)
+        # feed_dict = utils_train.create_feed_dict(generate_input_target, batch_size, input_ph, target_ph)
+        inputs, targets = generate_input_target(batch_size,  True)
+        feed_dict = {
+            input_ph: utils_np.data_dicts_to_graphs_tuple(inputs),
+            input_ph_cp: utils_np.data_dicts_to_graphs_tuple(inputs),
+            target_ph: utils_np.data_dicts_to_graphs_tuple(targets)
+        }
         all_data_taking_time += time.time() - data_start_time
 
         # timing the run time only
         run_start_time = time.time()
         train_values = sess.run({
             "step": step_op,
-            "target": target_ph,
             "loss": loss_op_tr,
-            "outputs": output_ops_tr
+            # "input": input_ph,
+            # "corrupted": corrupt_input_ph,
+            # "latent": latent,
+            # "latent_fake": latent_corrupt,
+            # "global": global_summary,
+            # "score_true": score_true,
+            # "score_fake": score_fake,
         }, feed_dict=feed_dict)
+        # print("input: ", train_values['input'].nodes.shape)
+        # print("input: ", train_values['input'].nodes)
+        # print("corrupted: ", train_values['corrupted'].nodes)
+        # print("latent: ", train_values['latent'].nodes)
+        # print("latent_fake: ", train_values['latent_fake'].nodes)
+        # print("global: ", train_values['global'].nodes)
+        # print("score true: ", train_values['score_true'].nodes)
+        # print("score fake: ", train_values['score_fake'].nodes)
+        # print("loss: ", train_values['loss'])
+        # print("loss: ", train_values['loss'].shape)
+
         run_time = time.time() - run_start_time
         all_run_time += run_time
 
@@ -160,22 +182,46 @@ if __name__ == "__main__":
         if elapsed_since_last_log > log_every_seconds:
             # save a checkpoint
             last_log_time = the_time
-            feed_dict = utils_train.create_feed_dict(generate_input_target,
-                                         batch_size, input_ph, target_ph, is_trained=False)
+            #feed_dict = utils_train.create_feed_dict(generate_input_target,
+            #                             batch_size, input_ph, target_ph, is_trained=False)
+            inputs, targets = generate_input_target(batch_size,  False)
+            input_graphs = utils_np.data_dicts_to_graphs_tuple(inputs)
+            target_graphs = utils_np.data_dicts_to_graphs_tuple(targets)
+            feed_dict = {
+                input_ph: input_graphs,
+                input_ph_cp: input_graphs,
+                target_ph: target_graphs
+            }
+            # print(input_graphs.nodes)
+            # print(target_graphs.nodes)
+
             test_values = sess.run({
-                "target": target_ph,
                 "loss": loss_op_tr,
-                "outputs": output_ops_tr
+                # "input": input_ph,
+                # "corrupted": corrupt_input_ph,
+                # "latent": latent,
+                # "latent_fake": latent_corrupt,
+                # "global": global_summary,
+                # "score_true": score_true,
+                # "score_fake": score_fake,
             }, feed_dict=feed_dict)
-            correct_tr, solved_tr = utils_train.compute_matrics(
-                test_values["target"], test_values["outputs"][-1])
+
+            # print("input: ", test_values['input'].nodes)
+            # print("corrupted: ", test_values['corrupted'].nodes)
+            # print("latent: ", test_values['latent'].nodes)
+            # print("latent_fake: ", test_values['latent_fake'].nodes)
+            # print("global: ", test_values['global'].nodes)
+            # print("score true: ", test_values['score_true'].nodes)
+            # print("score fake: ", test_values['score_fake'].nodes)
+            # print("loss: ", test_values['loss'])
+
+            #correct_tr, solved_tr = utils_train.compute_matrics(
+            #    test_values["target"], test_values["outputs"][-1])
+            correct_tr = 0.0
+            solved_tr = 0.0
             elapsed = time.time() - start_time
-            losses_tr.append(train_values["loss"])
-            corrects_tr.append(correct_tr)
-            solveds_tr.append(solved_tr)
-            logged_iterations.append(iteration)
             out_str = "# {:05d}, T {:.1f}, Ltr {:.4f}, Lge {:.4f}, Precision {:.4f}, Recall {:.4f}\n".format(
-                iteration, elapsed, train_values["loss"], test_values["loss"],
+                iteration, elapsed, np.sum(train_values["loss"]), np.sum(test_values["loss"]),
                 correct_tr, solved_tr)
 
             run_cost_time = all_run_time - start_time

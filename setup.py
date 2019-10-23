@@ -43,6 +43,7 @@ setup(
     ],
     scripts=[
         'scripts/make_true_pairs_for_training_segments_mpi',
+        'scripts/make_true_pairs',
         'scripts/merge_true_pairs',
         'scripts/make_pairs_for_training_segments',
         'scripts/select_pairs',

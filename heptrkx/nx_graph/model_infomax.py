@@ -152,7 +152,7 @@ class DeepGraphInfoMax(snt.AbstractModule):
         name='node_encoder_block'
     )
 
-    self._core = InteractionNetwork(
+    self._core = modules.InteractionNetwork(
         edge_model_fn=make_mlp_model,
         node_model_fn=make_mlp_model,
         reducer=tf.unsorted_segment_sum

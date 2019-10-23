@@ -95,7 +95,7 @@ def inputs_generator(base_dir_, n_train_fraction=-1):
 
     def get_sections(xx):
         section_patten = base_dir.format(xx, 0).replace('_g000000000', '*')
-        print(section_patten)
+        # print(section_patten)
         return int(len(glob.glob(section_patten)))
 
     if len(evt_ids) < 100:
