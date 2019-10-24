@@ -11,17 +11,14 @@ import multiprocessing as mp
 from functools import partial
 
 # Externals
-import yaml
 import numpy as np
 import pandas as pd
-import h5py
 
 
-from heptrkx import load_yaml, pairwise, select_pair_layers, layer_pairs, list_from_str
+from heptrkx import load_yaml, list_from_str
 
-from heptrkx import seeding
-from heptrkx import master
 from heptrkx.studies import eff_purity_of_edge_selection
+from heptrkx.doublets import CutBasedSegments
 
 def process(evtid, config_dir, remove_duplicated_hits=False, verbose=True):
     """
@@ -47,9 +44,6 @@ def process(evtid, config_dir, remove_duplicated_hits=False, verbose=True):
                                  )
 
 if __name__ == "__main__":
-    import os
-    import argparse
-
     parser = argparse.ArgumentParser(description='make doublets using cut-based methods')
     add_arg = parser.add_argument
     add_arg('config', type=str, help='data configuration, configs/data.yaml')
@@ -63,6 +57,12 @@ if __name__ == "__main__":
     n_workers = args.workers
     use_mpi = args.mpi
     no_dup = args.noduplicate
+    verbose = not args.quiet
+
+    segment_maker = CutBasedSegments()
+    segment_maker.set_verbose(verbose)
+
+    segment_maker.setup_from_config(config_dir)
 
     if use_mpi:
         try:
@@ -88,6 +88,10 @@ if __name__ == "__main__":
         else:
             evtids = [evtids]
 
+        print("[] Total events: {}".format(rank, len(evtids)))
+        # check if results are already there
+        evtids = [x for x in evtids if not segment_maker.is_exist(x)]
+        print("[] Events Left: {}".format(rank, len(evtids)))
         ## split evtids based on the world-size
         evtids = [x.tolist() for x in np.array_split(evtids, size)]
     else:
@@ -106,8 +110,7 @@ if __name__ == "__main__":
 
     if n_workers > 1:
         with  mp.Pool(processes=n_workers) as pool:
-            pp_func = partial(process, config_dir=config_dir, remove_duplicated_hits=no_dup, verbose=not args.quiet)
-            pool.map(pp_func, evtids)
+            pool.map(segment_maker, evtids)
     else:
         for evtid in evtids:
-            process(evtid, config_dir, no_dup, verbose=not args.quiet)
+            segment_maker(evtid)
