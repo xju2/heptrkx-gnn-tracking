@@ -137,3 +137,15 @@ def plot_log(info, name, axs=None):
         ax.tick_params(width=2, grid_alpha=0.5, labelsize=minor_size)
 
     return axs
+
+def select_hits(event, no_noise, eta_cut=1.2):
+    if no_noise:
+        hits = event.hits[event.hits.particle_id != 0]
+    else:
+        hits = event.hits
+
+    hits = hits[hits.layer.isin([7, 8, 9])]
+    hits = hits[np.abs(hits.eta) < eta_cut]
+    # a = hits.groupby('particle_id')['hit_idx'].count() > 2
+    # n_particles = a[a].shape[0]
+    return hits

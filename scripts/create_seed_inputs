@@ -1,8 +1,11 @@
 #!/usr/bin/env python
 from heptrkx import master
+from heptrkx import utils
 import numpy as np
 import os
 import argparse
+
+
 
 if __name__ == "__main__":
 
@@ -19,15 +22,11 @@ if __name__ == "__main__":
     all_events = master.get_event(data_dir, n_events)
     for event in all_events:
         evtid = event.evtid
-        if no_noise:
-            hits = event.hits[event.hits.particle_id != 0]
-        else:
-            hits = event.hits
-        hits = hits[hits.layer.isin([7, 8, 9])]
-        hits = hits[np.abs(hits.eta) < 1.2]
-        a = hits.groupby('particle_id')['hit_idx'].count() > 2
-        print(hits.shape)
-        print(a[a].shape)
+        hits = utils.select_hits(event, no_noise, eta_cut=1.2)
+        #aa = hits.groupby['particle_id']['hit_id'].count() > 2
+        aa = hit.groupby(['particle_id'])['layer_id'].apply(lambda x: len(np.unique(x)))
+        n_particles = aa[aa > 2].shape[0]
+        print("total particles: {}".format(n_particles))
         output_hits = hits[['layer', 'x', 'y', 'z']].assign(lxyz='lxyz', covr=0.01, covz=0.05)
 
         out_name = 'hits4seeding_{}.csv'.format(evtid)

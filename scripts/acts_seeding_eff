@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from heptrkx import utils
 def read_candidates(file_name):
     h1 = []
     h2 = []
@@ -55,6 +56,7 @@ if __name__ == "__main__":
     add_arg('-d', '--data',  help="original tracking ML data",
             default='/global/project/projectdirs/m3443/usr/xju/heptrkx/codalab/inputs/train_all'
            )
+    add_arg('--no-noise', action='store_true', help='Exclude noise hits')
 
     args = parser.parse_args()
     seed_candidates = args.candiate
@@ -62,11 +64,16 @@ if __name__ == "__main__":
     data_input_dir = args.data
     output = args.output
     evtid = args.evtid
+    no_noise = args.no_noise
 
     event = master.Event(data_input_dir, evtid)
+    hits = utils.select_hits(event, no_noise, eta_cut=1.2)
+    aa = hits.groupby(['particle_id'])['layer_id'].apply(lambda x: len(np.unique(x)))
+    total_particles = aa[aa > 2].index
+    total_particles = total_particles[total_particles != 0]
+    n_total_particles = total_particles.shape[0]
 
     h1, h2, h3 = read_candidates(seed_candidates)
-    hits = event.hits
 
     h1_idx = []
     h2_idx = []
@@ -95,15 +102,15 @@ if __name__ == "__main__":
     print("Fraction of duplicated seeds: {:.2f}%".format(100 - n_unique_true_seeds*100/n_true_seeds))
     print("Purity: {:.2f}%".format(n_true_seeds*100./n_total_seeds))
 
-    total_particles = np.unique(np.concatenate([df_all.p1, df_all.p2, df_all.p3]))
-    total_good_particles = []
-    for pp in total_particles:
-        matched_hits = np.unique(np.concatenate([df_all[df_all.p1==pp]['h1_idx'], df_all[df_all.p2==pp]['h2_idx'], df_all[df_all.p3==pp]['h3_idx']]))
-        if matched_hits.shape[0] > 2:
-            total_good_particles.append(pp)
+    #total_particles = np.unique(np.concatenate([df_all.p1, df_all.p2, df_all.p3]))
+    #total_good_particles = []
+    #for pp in total_particles:
+    #    matched_hits = np.unique(np.concatenate([df_all[df_all.p1==pp]['h1_idx'], df_all[df_all.p2==pp]['h2_idx'], df_all[df_all.p3==pp]['h3_idx']]))
+    #    if matched_hits.shape[0] > 2:
+    #        total_good_particles.append(pp)
 
-    total_particles = np.array(total_good_particles)
-    n_total_particles = total_particles.shape[0]
+    # total_particles = np.array(total_good_particles)
+    #n_total_particles = total_particles.shape[0]
     print("Total particles: {}".format(n_total_particles))
     print("Efficiency: {:.2f}%".format(n_true_seeds*100./n_total_particles))
 
