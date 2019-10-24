@@ -11,7 +11,7 @@ from functools import partial
 import numpy as np
 
 from heptrkx import load_yaml, select_pair_layers, layer_pairs
-from heptrkx.studies import eff_purity_of_edge_selection2
+from heptrkx.studies import eff_purity_of_edge_selection
 from heptrkx.nx_graph.utils_plot import plot_ratio
 from heptrkx.utils import evtids_at_disk
 

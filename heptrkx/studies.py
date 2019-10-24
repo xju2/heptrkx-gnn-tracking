@@ -29,41 +29,7 @@ def fraction_of_duplicated_hits(evtid, config_name):
     return sel
 
 
-def eff_purity_of_edge_selection(evtid, config_name):
-    config = load_yaml(config_name)
-    evt_dir = config['track_ml']['dir']
-    layers = config['doublets_from_cuts']['layers']
-    sel_layer_id = select_pair_layers(layers)
-
-    event = Event(evt_dir, evtid)
-    barrel_hits = event.filter_hits(layers)
-
-    phi_slope_max = config['doublets_from_cuts']['phi_slope_max']
-    z0_max = config['doublets_from_cuts']['z0_max']
-
-    tot_list = []
-    sel_true_list = []
-    sel_list = []
-    for pair_idx in sel_layer_id:
-        pairs = layer_pairs[pair_idx]
-        df = seeding.create_segments(barrel_hits, pairs)
-        tot = df[df.true].pt.to_numpy()
-        sel_true = df[
-            (df.true)\
-            & (df.phi_slope.abs() < phi_slope_max)\
-            & (df.z0.abs() < z0_max)
-        ].pt.to_numpy()
-        sel = df[
-            (df.phi_slope.abs() < phi_slope_max)\
-            & (df.z0.abs() < z0_max)
-        ].pt.to_numpy()
-        tot_list.append(tot)
-        sel_true_list.append(sel_true)
-        sel_list.append(sel)
-
-    return (tot_list, sel_true_list, sel_list)
-
-def eff_purity_of_edge_selection2(evtid, evt_dir,
+def eff_purity_of_edge_selection(evtid, evt_dir,
                                   phi_slope_max, z0_max,
                                   layers=None, min_hits=0,
                                   verbose=False,

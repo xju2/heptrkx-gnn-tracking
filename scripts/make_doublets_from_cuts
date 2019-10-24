@@ -21,7 +21,7 @@ from heptrkx import load_yaml, pairwise, select_pair_layers, layer_pairs, list_f
 
 from heptrkx import seeding
 from heptrkx import master
-from heptrkx.studies import eff_purity_of_edge_selection2
+from heptrkx.studies import eff_purity_of_edge_selection
 
 def process(evtid, config_dir, remove_duplicated_hits=False, verbose=True):
     """
@@ -38,7 +38,7 @@ def process(evtid, config_dir, remove_duplicated_hits=False, verbose=True):
     min_hits = config['doublets_from_cuts']['min_hits']
     outdir = os.path.join(config['doublets_from_cuts']['selected'], 'evt{}'.format(evtid))
 
-    eff_purity_of_edge_selection2(evtid, evt_dir,
+    eff_purity_of_edge_selection(evtid, evt_dir,
                                   phi_slope_max, z0_max, layers, min_hits,
                                   verbose=verbose,
                                   outdir=outdir,
