@@ -18,7 +18,7 @@ import pandas as pd
 from heptrkx import load_yaml, list_from_str
 
 from heptrkx.studies import eff_purity_of_edge_selection
-from heptrkx.doublets import CutBasedSegments
+from heptrkx.doublet import CutBasedSegments
 
 def process(evtid, config_dir, remove_duplicated_hits=False, verbose=True):
     """
@@ -88,10 +88,10 @@ if __name__ == "__main__":
         else:
             evtids = [evtids]
 
-        print("[] Total events: {}".format(rank, len(evtids)))
+        print("[{}] Total {} events.".format(rank, len(evtids)))
         # check if results are already there
         evtids = [x for x in evtids if not segment_maker.is_exist(x)]
-        print("[] Events Left: {}".format(rank, len(evtids)))
+        print("[{}] {} Events Left.".format(rank, len(evtids)))
         ## split evtids based on the world-size
         evtids = [x.tolist() for x in np.array_split(evtids, size)]
     else:

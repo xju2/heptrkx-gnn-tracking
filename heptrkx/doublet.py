@@ -2,11 +2,12 @@
 Class to make doublet
 """
 
-from heptrkx import master
+from heptrkx.master import Event
 from heptrkx import load_yaml, select_pair_layers, layer_pairs
 from heptrkx import seeding
 
 import os
+import pandas as pd
 
 class CutBasedSegments(object):
     def __init__(self):
@@ -22,27 +23,34 @@ class CutBasedSegments(object):
         phi_slope_max = config['doublets_from_cuts']['phi_slope_max']
         z0_max = config['doublets_from_cuts']['z0_max']
         min_hits = config['doublets_from_cuts']['min_hits']
-        outdir = os.path.join(config['doublets_from_cuts']['selected'], 'evt{}'.format(evtid))
-        self.setup(evt_dir, phi_slope_max, z0_max, layers, outdir)
+        base_outdir = config['doublets_from_cuts']['selected']
+        self.setup(evt_dir, phi_slope_max, z0_max, layers, min_hits, base_outdir)
 
     def setup(self, evt_dir, phi_slope_max, z0_max,
-              layers=None, min_hit=3,
+              layers=None, min_hits=3,
               outdir="doublets"):
         self._evt_dir = evt_dir
         self._phi_slope_max = phi_slope_max
         self._z0_max = z0_max
         self._layers = layers
-        self._outdir = outdir
+        self._base_outdir = outdir
         if self._layers:
             self._sel_layer_id = select_pair_layers(layers)
         else:
             self._sel_layer_id = list(range(len(layer_pairs)))
         self._min_hits = min_hits
 
+    @property
+    def evt_dir(self):
+        return self._evt_dir
+
+    def get_outdir(self, evtid):
+        return os.path.join(self._base_outdir, 'evt{}'.format(evtid))
+
     def is_exist(self, evtid):
-        out_dir = self._outdir
         verbose = self._verbose
         res = False
+        outdir = self.get_outdir(evtid)
         if os.path.exists(outdir):
             hits_outname = os.path.join(outdir, "event{:09d}-hits.h5".format(evtid))
             if os.path.exists(hits_outname):
@@ -62,6 +70,10 @@ class CutBasedSegments(object):
         return res
 
     def __call__(self, evtid, call_back=False):
+        if self.is_exist(evtid):
+            return (None, None, None)
+
+        outdir = self.get_outdir(evtid)
         try:
             event = Event(self._evt_dir, evtid)
         except Exception as e:
@@ -87,7 +99,7 @@ class CutBasedSegments(object):
             sel_true_list = []
             sel_list = []
 
-        os.makedirs(self._outdir, exist_ok=True)
+        os.makedirs(outdir, exist_ok=True)
         hits_outname = os.path.join(outdir, "event{:09d}-hits.h5".format(evtid))
         if os.path.exists(hits_outname):
             if verbose:
