@@ -64,10 +64,12 @@ def eff_purity_of_edge_selection(evtid, config_name):
     return (tot_list, sel_true_list, sel_list)
 
 def eff_purity_of_edge_selection2(evtid, evt_dir,
-                                  phi_slope_max, z0_max, layers=None, min_hits=0,
+                                  phi_slope_max, z0_max,
+                                  layers=None, min_hits=0,
                                   verbose=False,
                                   outdir=None,
-                                  remove_duplicated_hits=False
+                                  remove_duplicated_hits=False,
+                                  call_back=True,
                                  ):
 
     sel_layer_id = select_pair_layers(layers)
@@ -107,10 +109,13 @@ def eff_purity_of_edge_selection2(evtid, evt_dir,
     if verbose:
         print("event {} has {} particles with at least {} hits".format(
             evtid, len(pids), min_hits))
+    del cut
 
-    tot_list = []
-    sel_true_list = []
-    sel_list = []
+    if call_back:
+        tot_list = []
+        sel_true_list = []
+        sel_list = []
+
     if outdir:
         os.makedirs(outdir, exist_ok=True)
         hits_outname = os.path.join(outdir, "event{:09d}-hits.h5".format(evtid))
@@ -141,13 +146,15 @@ def eff_purity_of_edge_selection2(evtid, evt_dir,
         ].pt.to_numpy()
         df_sel = df[(df.phi_slope.abs() < phi_slope_max) &\
                     (df.z0.abs() < z0_max)]
-        sel = df_sel.pt.to_numpy()
-        tot_list.append(tot)
-        sel_true_list.append(sel_true)
-        sel_list.append(sel)
+        if call_back:
+            tot_list.append(tot)
+            sel_true_list.append(sel_true)
+
+            sel = df_sel.pt.to_numpy()
+            sel_list.append(sel)
 
         efficiency = sel_true.shape[0]/tot.shape[0]
-        purity = sel_true.shape[0]/sel.shape[0]
+        purity = sel_true.shape[0]/df_sel.shape[0]
         if verbose:
             print("event {}: pair ({}, {}), {} true segments, {} selected, {} true ones selected\n\
                   segment efficiency {:.2f}% and purity {:.2f}%".format(
@@ -161,7 +168,10 @@ def eff_purity_of_edge_selection2(evtid, evt_dir,
                 store['data'] = df_sel
                 store['info'] = pd.Series([efficiency, purity], index=['efficiency', 'purity'])
 
-    return (tot_list, sel_true_list, sel_list)
+    if call_back:
+        return (tot_list, sel_true_list, sel_list)
+    else:
+        return None
 
 
 def track_eff_of_edge_selected(evtid, config_name, matching_cut=0.8, remove_duplicated_hits=False):

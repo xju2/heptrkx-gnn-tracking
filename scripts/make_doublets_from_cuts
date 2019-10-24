@@ -43,6 +43,7 @@ def process(evtid, config_dir, remove_duplicated_hits=False, verbose=True):
                                   verbose=verbose,
                                   outdir=outdir,
                                   remove_duplicated_hits=remove_duplicated_hits,
+                                  call_back=False
                                  )
 
 if __name__ == "__main__":
