@@ -26,6 +26,9 @@ def load_data_dicts(file_name):
     except ValueError:
         print(file_name, "cannot be read!")
         return None
+    except FileNotFoundError:
+        print(file_name, "not there")
+        return None
 
 
 def graph_to_input_target(graph, no_edge_feature=False):
