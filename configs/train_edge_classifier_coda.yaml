@@ -4,11 +4,11 @@ make_graph:
 segment_training:
     output_dir: /project/projectdirs/m3443/usr/xju//heptrkx/codalab/models/segments
     model_name: default
-    prod_name: barrel_test0
+    prod_name: barrel_test1
     log_name: big.log
     parameters:
         time_lapse:  240 # how often save checkpoint in seconds
-        batch_size: 1
+        batch_size: 4
         iterations: 80000
         iter_per_job: 80000
         n_iters: 8

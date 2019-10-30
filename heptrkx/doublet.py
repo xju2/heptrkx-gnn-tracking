@@ -85,6 +85,8 @@ class CutBasedSegments(object):
         hits = event.hits
         verbose = self._verbose
         min_hits = self._min_hits
+        phi_slope_max = self._phi_slope_max
+        z0_max = self._z0_max
 
         ## particles having at least mininum number of hits associated
         cut = hits[hits.particle_id != 0].groupby('particle_id')['hit_id'].count() > min_hits

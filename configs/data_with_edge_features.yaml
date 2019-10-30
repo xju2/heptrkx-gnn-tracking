@@ -39,7 +39,7 @@ doublets_from_cuts:
     z0_max: 100
 
 make_graph:
-    nevts: 1500
+    nevts: 3000
     out_graph: /global/project/projectdirs/m3443/usr/xju/heptrkx/codalab/output/graphs/Digraph_Barrel_noDup
     input_segments: /global/project/projectdirs/m3443/usr/xju/heptrkx/codalab/output/segments/noDup_from_cuts
     input_data: /global/project/projectdirs/m3443/usr/xju/heptrkx/codalab/inputs/train_all
@@ -47,16 +47,16 @@ make_graph:
 
 segment_training:
     output_dir: /project/projectdirs/m3443/usr/xju//heptrkx/codalab/models/segments
-    model_name: VARY
-    prod_name: OneBarrelGraph_VARY_v1
+    model_name: default 
+    prod_name: v1_default
     log_name: big.log
     input_type: 'data_dict'
     parameters:
         time_lapse:  120 # how often save checkpoint in seconds
         batch_size: 1
-        iterations: 50000
-        iter_per_job: 50000
-        n_iters: 5
+        iterations: 100000
+        iter_per_job: 90000
+        n_iters: 8
         learning_rate: 0.001
         real_weight: 1.
         fake_weight: 0.5

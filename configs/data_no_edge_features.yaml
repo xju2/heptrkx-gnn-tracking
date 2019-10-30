@@ -31,7 +31,7 @@ doublets_for_graph: ## input pairs from all_pairs
     threshold: /global/cscratch1/sd/xju/heptrkx/trained_models/doublet_moreVar/merged_info.txt
 
 doublets_from_cuts:
-    evtid: "21001-25999"
+    evtid: "21001-29999"
     selected: /global/project/projectdirs/m3443/usr/xju/heptrkx/codalab/output/segments/noDup_from_cuts
     layers: [7, 8, 9, 10, 24, 25, 26, 27, 40, 41]
     min_hits: 3

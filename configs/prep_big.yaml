@@ -1,7 +1,7 @@
 # Input/output configuration
 input_dir: /global/project/projectdirs/m3443/usr/xju/heptrkx/codalab/inputs/train_all
 output_dir: /global/project/projectdirs/m3443/usr/xju/heptrkx/codalab/outputs/hitgraphs_big_000
-n_files: 3000
+n_files: 9000
 
 # Graph building configuration
 selection:
