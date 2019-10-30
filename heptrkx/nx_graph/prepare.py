@@ -17,12 +17,15 @@ import random
 
 
 def load_data_dicts(file_name):
-    with np.load(file_name) as f:
-        dd = dict(f.items())
-        feature_scale = np.array([1000., np.pi, 1000.])
-        dd['nodes'] = dd['nodes']/feature_scale
-
-        return dd
+    try:
+        with np.load(file_name) as f:
+            dd = dict(f.items())
+            feature_scale = np.array([1000., np.pi, 1000.])
+            # dd['nodes'] = dd['nodes']/feature_scale
+            return dd
+    except ValueError:
+        print(file_name, "cannot be read!")
+        return None
 
 
 def graph_to_input_target(graph, no_edge_feature=False):
@@ -148,10 +151,12 @@ def inputs_generator(base_dir_, n_train_fraction=-1):
             if not os.path.exists(file_name):
                 continue
 
-            input_graphs.append(load_data_dicts(file_name))
-            target_graphs.append(load_data_dicts(file_name.replace("INPUT", "TARGET")))
-
-            igraphs += 1
+            input_file = load_data_dicts(file_name)
+            target_file = load_data_dicts(file_name.replace("INPUT", "TARGET"))
+            if input_file and target_file:
+                input_graphs.append(input_file)
+                target_graphs.append(target_file)
+                igraphs += 1
 
         return input_graphs, target_graphs
 

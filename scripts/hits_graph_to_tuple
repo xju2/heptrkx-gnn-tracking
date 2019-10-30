@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import os
 import numpy as np
+import pandas as pd
 from functools import partial
 
 from heptrkx.nx_graph import utils_data
@@ -15,9 +16,19 @@ def process_event(evt_id, input_dir, n_sections, output, bidirection):
         input_name = os.path.join(
             input_dir,
             'event{:09d}_g{:03d}.npz'.format(evt_id, isec))
+        ID_input_name = os.path.join(
+            input_dir,
+            'event{:09d}_g{:03d}_ID.npz'.format(evt_id, isec))
         if os.path.exists(input_name) and not saver_fn(evt_id, isec, None):
+            try:
+                with np.load(ID_input_name) as f:
+                    IDs = pd.DataFrame(data=f['ID'], columns=['ID'])
+            except ValueError:
+                print(ID_input_name)
+                raise
+
             graph = utils_data.hitsgraph_to_nx(
-                load_graph(input_name), bidirection=bidirection)
+                load_graph(input_name), IDs=IDs, bidirection=bidirection)
 
             saver_fn(evt_id, isec, graph)
 

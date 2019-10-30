@@ -70,7 +70,7 @@ def zdists(a, b):
     return abs(b.z-a.z-a.z*ang_ab/ang_a)
 
 
-def get_edge_features(in_node, out_node, add_angles=False):
+def get_edge_features2(in_node, out_node, add_angles=False):
     # input are the features of incoming and outgoing nodes
     # they are ordered as [r, phi, z]
     v_in = pos_transform(*in_node)
@@ -97,6 +97,25 @@ def get_edge_features(in_node, out_node, add_angles=False):
         results['angles'] = np.array([wd0, wd1, zd0, wdr])
 
     return results
+
+def get_edge_features(in_node, out_node):
+    # input are the features of incoming and outgoing nodes
+    # they are ordered as [r, phi, z]
+    in_r, in_phi, in_z    = in_node
+    out_r, out_phi, out_z = out_node
+
+    in_r3 = np.sqrt(in_r**2 + in_z**2)
+    out_r3 = np.sqrt(out_r**2 + out_z**2)
+
+    in_theta = np.arccos(in_z/in_r3)
+    in_eta = -np.log(np.tan(in_theta/2.0))
+    out_theta = np.arccos(out_z/out_r3)
+    out_eta = -np.log(np.tan(out_theta/2.0))
+    deta = out_eta - in_eta
+    dphi = calc_dphi(out_phi, in_phi)
+    dR = np.sqrt(deta**2 + dphi**2)
+    dZ = in_z - out_z
+    return np.array([deta, dphi, dR, dZ])
 
 
 def data_dict_to_nx(dd_input, dd_target, use_digraph=True, bidirection=True):
@@ -274,7 +293,7 @@ def pairs_to_df(pairs, hits):
     return edges
 
 
-def hitsgraph_to_nx(G, IDs=None, use_digraph=True, bidirection=True):
+def hitsgraph_to_nx2(G, IDs=None, use_digraph=True, bidirection=True):
     n_nodes, n_edges = G.Ri.shape
 
     graph = nx.DiGraph() if use_digraph else nx.Graph()
@@ -304,6 +323,40 @@ def hitsgraph_to_nx(G, IDs=None, use_digraph=True, bidirection=True):
     graph.graph['features'] = np.array([0.])
     return graph
 
+def hitsgraph_to_nx(G, IDs=None, bidirection=True):
+    n_nodes, n_edges = G.Ri.shape
+
+    graph = nx.DiGraph()
+
+    ## it is essential to add nodes first
+    # the node ID must be [0, N_NODES]
+    if IDs is None:
+        for i in range(n_nodes):
+            graph.add_node(i, pos=G.X[i], solution=0.0)
+    else:
+        for i in range(n_nodes):
+            graph.add_node(i, pos=G.X[i],
+                           hit_id=IDs.iloc[i],
+                           solution=[0.0])
+
+    for iedge in range(n_edges):
+        in_node_id  = G.Ri[:, iedge].nonzero()[0][0]
+        out_node_id = G.Ro[:, iedge].nonzero()[0][0]
+
+        # distance as features
+        in_node_features  = G.X[in_node_id]
+        out_node_features = G.X[out_node_id]
+        distance = get_edge_features(in_node_features, out_node_features)
+        # add edges, bi-directions
+        graph.add_edge(in_node_id, out_node_id, distance=distance, solution=G.y[iedge])
+        graph.add_edge(out_node_id, in_node_id, distance=distance, solution=G.y[iedge])
+        # add "solution" to nodes
+        graph.node[in_node_id].update(solution=G.y[iedge])
+        graph.node[out_node_id].update(solution=G.y[iedge])
+
+    # add global features, not used for now
+    graph.graph['features'] = np.array([0.])
+    return graph
 
 def segments_to_nx(hits, segments,
                    sender_hitid_name,
