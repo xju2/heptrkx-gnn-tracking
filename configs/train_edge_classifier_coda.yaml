@@ -1,5 +1,5 @@
 make_graph:
-    out_graph: /project/projectdirs/m3443/usr/xju//heptrkx/codalab/outputs/nxgraphs_bigs_000
+    out_graph: /global/cscratch1/sd/xju/heptrkx/codalab/outputs/nxgraphs_bigs_000 
 
 segment_training:
     output_dir: /project/projectdirs/m3443/usr/xju//heptrkx/codalab/models/segments
