@@ -20,7 +20,7 @@ setup(
     packages=find_packages(),
     install_requires=[
         "graph_nets",
-        'tensorflow-gpu<2',
+        'tensorflow-gpu==1.14.0',
         "future",
         "networkx",
         "numpy",
