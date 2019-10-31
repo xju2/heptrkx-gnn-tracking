@@ -1,4 +1,8 @@
 #!/usr/bin/env python
+"""
+Use models defined at heptrkx.nx_graph.shadow_model
+to classify doublets/pairs.
+"""
 
 
 if __name__ == "__main__":

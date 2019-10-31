@@ -1,0 +1,17 @@
+# subdirectory of base_dir storing true pairs and all pairs
+doublets_for_training:
+    base_dir: /global/cscratch1/sd/xju/heptrkx/codalab/outputs/pairs
+    true_pairs: merged_true_pairs
+    all_pairs: all_pairs # all pairs, used for training, testing, for Graph
+
+doublet_training:
+    batch_size: 512
+    epochs: 6
+    eff_cut: 0.98
+    features: ['x_in', 'x_out', 'y_in', 'y_out', 'z_in', 'z_out', 'lx_in', 'lx_out', 'ly_in', 'ly_out', 'lz_in', 'lz_out']
+    bkg_from_evtid: 21000
+    model: fc_with_dropout
+    model_output_dir: /global/cscratch1/sd/xju/heptrkx/codalab/outputs/doublet_NN_all_DropOut
+
+doublets_for_graph:
+    selected: /global/cscratch1/sd/xju/heptrkx/codalab/outputs/seed_studies/all_features_DropOut
