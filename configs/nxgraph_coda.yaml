@@ -1,24 +1,8 @@
-prod_name: nxgraph_big_000
-output_dir: /project/projectdirs/m3443/usr/xju/heptrkx/codalab/outputs/trained_results
 data:
     name: hitgraphs
-    input_hitsgraph_dir:  /global/project/projectdirs/m3443/usr/xju/heptrkx/codalab/outputs/hitgraphs_big_000
-    output_nxgraph_dir: /global/cscratch1/sd/xju/heptrkx/codalab/outputs/nxgraphs_bigs_001
+    input_hitsgraph_dir: /global/project/projectdirs/m3443/usr/xju/heptrkx/codalab/outputs/hitgraphs_big_000
+    output_nxgraph_dir:  /global/project/projectdirs/m3443/usr/xju/heptrkx/codalab/outputs/nxgraphs_bigs_001
     input_evt_dir: /global/project/projectdirs/m3443/usr/xju/heptrkx/codalab/inputs/train_all
     log_name: data_process.log
     n_tasks: 1
     n_workers: 68
-
-model:
-    name: default
-
-train:
-    log_name: big.log
-    time_lapse:  120 # how often save checkpoint in seconds
-    batch_size: 4
-    iterations: 270000
-    iter_per_job: 20000
-    n_iters: 8
-    learning_rate: 0.0001
-    real_weight: 1.0
-    fake_weight: 0.5

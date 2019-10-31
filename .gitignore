@@ -4,7 +4,6 @@
 logs
 *checkpoint*
 trained_results
-notebooks
 images
 
 # setuptools distribution folder

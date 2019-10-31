@@ -19,8 +19,8 @@ def create_evaluator(config_name, iteration, input_ckpt=None):
     @config: configuration for train_nx_graph
     """
     # load configuration file
-    config = load_yaml(config_name)
-    config = config['segment_training']
+    all_config = load_yaml(config_name)
+    config = all_config['segment_training']
     config_tr = config['parameters']
 
     batch_size = n_graphs   = config_tr['batch_size']   # need optimization
@@ -31,11 +31,11 @@ def create_evaluator(config_name, iteration, input_ckpt=None):
 
 
     # generate inputs
-    generate_input_target = inputs_generator(config['make_graph']['out_graph'], n_train_fraction=0.8)
+    generate_input_target = inputs_generator(all_config['make_graph']['out_graph'], n_train_fraction=0.8)
 
     # build TF graph
     tf.compat.v1.reset_default_graph()
-    model = get_model(config['model_name']['name'])
+    model = get_model(config['model_name'])
 
     input_graphs, target_graphs = generate_input_target(n_graphs)
     input_ph  = utils_tf.placeholders_from_data_dicts(input_graphs, force_dynamic_num_graphs=True)
