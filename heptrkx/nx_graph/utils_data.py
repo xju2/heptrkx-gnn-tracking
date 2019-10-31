@@ -371,6 +371,7 @@ def segments_to_nx(hits, segments,
     graph.graph['features'] = np.array([0.])
 
     feature_names = ['r', 'phi', 'z']
+    truth_features = ['pt', 'particle_id', 'nhits']
 
     n_hits = hits.shape[0]
     hits_id_dict = {}
@@ -379,6 +380,7 @@ def segments_to_nx(hits, segments,
         graph.add_node(idx,
                        pos=hits.iloc[idx][feature_names].values,
                        hit_id=hit_id,
+                       info=hits.iloc[idx][truth_features],
                        solution=[0.0])
         hits_id_dict[hit_id] = idx
 

@@ -27,6 +27,7 @@ if __name__ == "__main__":
     from heptrkx.nx_graph import prepare
     from heptrkx.nx_graph import get_model
     from heptrkx import load_yaml
+    from heptrkx.nx_graph.utils_io import ckpt_name
 
     parser = argparse.ArgumentParser(description='Train nx-graph with configurations')
     add_arg = parser.add_argument
@@ -103,7 +104,6 @@ if __name__ == "__main__":
     sess = tf.Session()
 
     saver = tf.train.Saver()
-    ckpt_name = 'checkpoint_{:05d}.ckpt'
     if last_iteration > 0:
         print("loading checkpoint:", os.path.join(output_dir, ckpt_name.format(last_iteration)))
         saver.restore(sess, os.path.join(output_dir, ckpt_name.format(last_iteration)))
