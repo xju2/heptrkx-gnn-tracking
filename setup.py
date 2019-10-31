@@ -21,6 +21,7 @@ setup(
     install_requires=[
         "graph_nets",
         'tensorflow-gpu==1.14.0',
+        'gast==0.2.2',
         "future",
         "networkx",
         "numpy",
