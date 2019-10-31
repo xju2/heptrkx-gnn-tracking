@@ -1,4 +1,11 @@
 #!/usr/bin/env python
+"""
+Training GNN
+"""
+
+import tensorflow as tf
+tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
+
 import os
 import sys
 prog_name = os.path.basename(sys.argv[0])
@@ -12,7 +19,6 @@ if __name__ == "__main__":
     import numpy as np
     import sklearn.metrics
 
-    import tensorflow as tf
 
     from graph_nets import utils_tf
     from graph_nets import utils_np
@@ -47,10 +53,7 @@ if __name__ == "__main__":
 
     # default 2/3 for training and 1/3 for testing
     input_nxgraphs_dir = all_config['make_graph']['out_graph']
-    if 'input_type' not in config or config['input_type'] == 'data_dict':
-        generate_input_target = prepare.inputs_generator(input_nxgraphs_dir, n_train_fraction=0.8)
-    else:
-        generate_input_target = prepare.inputs_generator2(input_nxgraphs_dir, n_train_fraction=0.8)
+    generate_input_target = prepare.inputs_generator(input_nxgraphs_dir, n_train_fraction=0.8)
 
     config_tr = config['parameters']
     # How much time between logging and printing the current results.
