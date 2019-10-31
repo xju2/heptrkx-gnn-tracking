@@ -7,7 +7,7 @@ segment_training:
     prod_name: barrel_test2
     log_name: big.log
     parameters:
-        time_lapse:  240 # how often save checkpoint in seconds
+        time_lapse:  60 # how often save checkpoint in seconds
         batch_size: 4
         iterations: 80000
         iter_per_job: 80000

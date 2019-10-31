@@ -5,7 +5,7 @@ if __name__ == "__main__":
     import argparse
     import sys
 
-    parser = argparse.ArgumentParser(description='Train nx-graph with configurations')
+    parser = argparse.ArgumentParser(description='evalute GNN models')
     add_arg = parser.add_argument
     add_arg('config',  nargs='?', default='configs/nxgraph_default.yaml')
     add_arg('--iteration',  type='int', default=-1)

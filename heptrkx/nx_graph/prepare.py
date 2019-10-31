@@ -134,23 +134,48 @@ def inputs_generator(base_dir_, n_train_fraction=-1):
         print("Testing data:  [{}, {}] events, total {} files".format(n_max_evt_id_tr, n_events, n_test*n_sections))
     print("Training and testing graphs are selected randomly from their corresponding pools")
 
+    # keep track of training events
+    global _evt_id_tr_
+    _evt_id_tr_ = 0
+    global _sec_id_tr_
+    _sec_id_tr_ = 0
+    ## keep track of testing events
+    global _evt_id_te_
+    _evt_id_te_ = n_max_evt_id_tr if not split_section else 0
+    global _sec_id_te_
+    _sec_id_te_ = 0
 
     def generate_input_target(n_graphs, is_train=True):
+        global _evt_id_tr_
+        global _sec_id_tr_
+        global _evt_id_te_
+        global _sec_id_te_
+
         input_graphs = []
         target_graphs = []
         igraphs = 0
         while igraphs < n_graphs:
             # determine while file to read
-            sec_id = random.randint(0, n_sections-1)
+            ### dot not use random excess
             if is_train:
-                evt_id = random.randint(0, n_max_evt_id_tr-1)
+                # for training
+                file_name = base_dir.format(evt_ids[_evt_id_tr_], _sec_id_tr_)
+                _sec_id_tr_ += 1
+                if _sec_id_tr_ == n_sections:
+                    _evt_id_tr_ += 1
+                    _sec_id_tr_ = 0
+                    if _evt_id_tr_ >= n_max_evt_id_tr:
+                        _evt_id_tr_ = 0
             else:
-                if split_section:
-                    evt_id = random.randint(0, n_events-1)
-                else:
-                    evt_id = random.randint(n_max_evt_id_tr, n_events-1)
+                ## for testing
+                file_name = base_dir.format(evt_ids[_evt_id_te_], _sec_id_te_)
+                _sec_id_te_ += 1
+                if _sec_id_te_ == n_sections:
+                    _evt_id_te_ += 1
+                    _sec_id_te_ = 0
+                    if _evt_id_te_ >= n_events:
+                        _evt_id_te_ = n_max_evt_id_tr if not split_section else 0
 
-            file_name = base_dir.format(evt_ids[evt_id], sec_id)
             if not os.path.exists(file_name):
                 continue
 

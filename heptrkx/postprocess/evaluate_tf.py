@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import tensorflow as tf
 
 from graph_nets import utils_tf
@@ -7,10 +8,10 @@ import yaml
 import os
 import numpy as np
 
-from ..nx_graph.prepare import inputs_generator
-from ..nx_graph import get_model, utils_data, utils_train, utils_io
-from ..nx_graph.utils_io import ckpt_name
-from .. import load_yaml
+from heptrkx.nx_graph.prepare import inputs_generator
+from heptrkx.nx_graph import get_model, utils_data, utils_train, utils_io
+from heptrkx.nx_graph.utils_io import ckpt_name
+from heptrkx import load_yaml
 
 
 def create_evaluator(config_name, iteration, input_ckpt=None):
@@ -19,7 +20,8 @@ def create_evaluator(config_name, iteration, input_ckpt=None):
     """
     # load configuration file
     config = load_yaml(config_name)
-    config_tr = config['train']
+    config = config['segment_training']
+    config_tr = config['parameters']
 
     batch_size = n_graphs   = config_tr['batch_size']   # need optimization
     num_processing_steps_tr = config_tr['n_iters']      ## level of message-passing
@@ -29,11 +31,11 @@ def create_evaluator(config_name, iteration, input_ckpt=None):
 
 
     # generate inputs
-    generate_input_target = inputs_generator(config['data']['output_nxgraph_dir'], n_train_fraction=0.8)
+    generate_input_target = inputs_generator(config['make_graph']['out_graph'], n_train_fraction=0.8)
 
     # build TF graph
-    tf.reset_default_graph()
-    model = get_model(config['model']['name'])
+    tf.compat.v1.reset_default_graph()
+    model = get_model(config['model_name']['name'])
 
     input_graphs, target_graphs = generate_input_target(n_graphs)
     input_ph  = utils_tf.placeholders_from_data_dicts(input_graphs, force_dynamic_num_graphs=True)
