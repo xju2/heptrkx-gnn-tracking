@@ -6,7 +6,7 @@ from graph_nets import utils_np, utils_tf
 
 from heptrkx import load_yaml
 from heptrkx.nx_graph import utils_plot, utils_data, utils_train, prepare, utils_test
-from heptrkx.postprocess import wrangler, analysis
+from heptrkx.postprocess import wrangler, analysis, inference
 from heptrkx import master
 
 import os
@@ -126,8 +126,8 @@ if __name__ == "__main__":
     all_true_tracks = []
     all_predict_tracks = []
     for G in all_graphs:
-        all_true_tracks += wrangler.get_tracks(G, feature_name='solution')
-        all_predict_tracks += wrangler.get_tracks(G, feature_name='predict')
+        all_true_tracks += wrangler.get_tracks(G, feature_name='solution', with_fit=False)
+        all_predict_tracks += wrangler.get_tracks(G, feature_name='predict', with_fit=False)
 
     true_df = analysis.graphs_to_df(all_true_tracks)
     pred_df = analysis.graphs_to_df(all_predict_tracks)
