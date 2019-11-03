@@ -5,6 +5,7 @@ logs
 *checkpoint*
 trained_results
 images
+bak
 
 # setuptools distribution folder
 /dist/

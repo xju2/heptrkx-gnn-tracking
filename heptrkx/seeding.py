@@ -5,7 +5,11 @@ from __future__ import print_function
 import pandas as pd
 import numpy as np
 
-def create_segments(hits, layer_pair, gid_keys='layer', only_true=False):
+def create_segments(hits, layer_pair, gid_keys='layer',
+                    only_true=False, cluster_info=True,
+                    origin_pos=True,
+                    verbose=False
+                   ):
     """Return all segments from all hits in the layer pair.
     only_true --  option to return only true segments, otherwise return all segments.
     """
@@ -66,16 +70,19 @@ def create_segments(hits, layer_pair, gid_keys='layer', only_true=False):
     selected_features = [
         'evtid', 'index_in', 'index_out',
         'hit_id_in', 'hit_id_out',
-        'x_in', 'x_out',
-        'y_in', 'y_out',
-        'z_in', 'z_out',
-        'layer_in', 'layer_out',
         'particle_id_in',
         'pt_in',
-        'r_in', 'r_out',
-        'phi_in', 'phi_out',
     ]
-    if 'lx_in' in hit_pairs.columns:
+    if origin_pos:
+        selected_features += [
+            'x_in', 'x_out',
+            'y_in', 'y_out',
+            'z_in', 'z_out',
+            'r_in', 'r_out',
+            'phi_in', 'phi_out',
+            'layer_in', 'layer_out',
+        ]
+    if cluster_info and 'lx_in' in hit_pairs.columns:
         selected_features += [
             'lx_in', 'lx_out',
             'ly_in', 'ly_out',
@@ -95,12 +102,18 @@ def create_segments(hits, layer_pair, gid_keys='layer', only_true=False):
             'pt_in':"pt",
         }
     )
-    try:
-        deta1 = hit_pairs.geta_out - hit_pairs.geta_in
-        dphi1 = hit_pairs.gphi_out - hit_pairs.gphi_in
-    except (KeyError, AttributeError):
-        pass
-    else:
-        df_pairs = df_pairs.assign(deta1=deta1, dphi1=dphi1)
+    if cluster_info:
+        try:
+            deta1 = hit_pairs.geta_out - hit_pairs.geta_in
+            dphi1 = hit_pairs.gphi_out - hit_pairs.gphi_in
+        except (KeyError, AttributeError):
+            pass
+        else:
+            df_pairs = df_pairs.assign(deta1=deta1, dphi1=dphi1)
+    if verbose:
+        n_true = df_pairs[df_pairs['true']].shape[0]
+        n_fake = df_pairs[~df_pairs['true']].shape[0]
+        print('Layer:({}, {}), {:,} ({:.3f}% of total edges) True edges and {:,} fake edges,'.format(
+            l1, l2, n_true, 100*n_true/(n_true+n_fake), n_fake))
 
     return df_pairs

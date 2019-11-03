@@ -8,6 +8,7 @@ import numbers
 import os
 from collections import namedtuple
 
+from graph_nets import utils_np
 
 Point = namedtuple('Point', ['x', 'y', 'z'])
 Pos = namedtuple('Pos', ['x', 'y', 'z', 'eta', 'phi', 'theta', 'r3', 'r'])
@@ -119,7 +120,6 @@ def get_edge_features(in_node, out_node):
 
 
 def data_dict_to_nx(dd_input, dd_target, use_digraph=True, bidirection=True):
-    from graph_nets import utils_np
     input_nx  = utils_np.data_dict_to_networkx(dd_input)
     target_nx = utils_np.data_dict_to_networkx(dd_target)
 
@@ -371,6 +371,7 @@ def segments_to_nx(hits, segments,
     graph.graph['features'] = np.array([0.])
 
     feature_names = ['r', 'phi', 'z']
+    truth_features = ['pt', 'particle_id', 'nhits']
 
     n_hits = hits.shape[0]
     hits_id_dict = {}
@@ -379,6 +380,7 @@ def segments_to_nx(hits, segments,
         graph.add_node(idx,
                        pos=hits.iloc[idx][feature_names].values,
                        hit_id=hit_id,
+                       info=hits.iloc[idx][truth_features],
                        solution=[0.0])
         hits_id_dict[hit_id] = idx
 
@@ -409,14 +411,14 @@ def _add_edge(G, sender, receiver, solution, bidirection, edge_features=None):
         sender, receiver = receiver, sender
         f1, f2 = f2, f1
 
-    this_edge_features = get_edge_features(f1, f2)
+    this_edge_features = get_edge_features2(f1, f2)
     if edge_features is not None:
         for key,value in edge_features.items():
             this_edge_features[key] = value
 
     G.add_edge(sender,  receiver, solution=solution, **this_edge_features)
     if bidirection:
-        edge_features = get_edge_features(f2, f1)
+        edge_features = get_edge_features2(f2, f1)
         G.add_edge(receiver,  sender, solution=solution, **edge_features)
 
     G.node[sender].update(solution=solution)
@@ -424,7 +426,6 @@ def _add_edge(G, sender, receiver, solution, bidirection, edge_features=None):
 
 
 def predicted_graphs_to_nxs(gnn_output, input_graphs, target_graphs, **kwargs):
-    from graph_nets import utils_np
     output_nxs = utils_np.graphs_tuple_to_networkxs(gnn_output)
     input_dds  = utils_np.graphs_tuple_to_data_dicts(input_graphs)
     target_dds = utils_np.graphs_tuple_to_data_dicts(target_graphs)

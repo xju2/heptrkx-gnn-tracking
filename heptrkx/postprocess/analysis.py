@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import pandas as pd
 import numpy as np
 
@@ -48,7 +49,7 @@ def graphs_to_df(nx_graphs):
     return df
 
 
-def summary_on_prediction(G, truth, prediction, matching_cut=0.0, min_hits=3):
+def summary_on_prediction2(G, truth, prediction, matching_cut=0.0, min_hits=1):
     """Find number of track candidates that can match to a true track.
     The matching requires the track candidate contains at least *mathching_cut*
     percentange of hits from the true track.
@@ -82,6 +83,60 @@ def summary_on_prediction(G, truth, prediction, matching_cut=0.0, min_hits=3):
     }
 
 
+def summary_on_prediction(G, truth, prediction, do_detail=True):
+    """
+    truth: DataFrame, contains only good tracks,
+    prediction: DataFrame, ['hit_id', 'track_id']
+    """
+    aa = truth.merge(prediction, on='hit_id', how='inner').sort_values('particle_id')
+    ss = aa.groupby('particle_id')[['track_id']].apply(lambda x: len(np.unique(x))) == 1
+    wrong_particles = ss[~ss].index
+    n_total_predictions = len(np.unique(prediction['track_id']))
+    correct_particles = ss[ss].index
+    n_correct = len(correct_particles)
+    n_wrong = len(wrong_particles)
+    if not do_detail:
+        return {
+            "n_correct": n_correct,
+            "n_wrong": n_wrong,
+            "correct_pids": correct_particles,
+            "wrong_pids": wrong_particles,
+            'total_predictions': n_total_predictions
+        }
+    # are wrong particles due to missing edges (i.e they are isolated)
+    connected_pids = []
+    isolated_pids = []
+    broken_pids = []
+    for pp in wrong_particles:
+        jj = aa[aa['particle_id'] == pp]
+        is_isolated = True
+        is_broken = False
+        for hit_id in jj['hit_id']:
+            node = find_hit_id(G, hit_id)
+            if node < 0:
+                continue
+            nbrss = list(G.neighbors(node))
+            if nbrss is None or len(nbrss) < 1:
+                is_broken = True
+            else:
+                is_isolated = False
+        if is_isolated:
+            isolated_pids.append(pp)
+        if is_broken:
+            broken_pids.append(pp)
+        else:
+            connected_pids.append(pp)
+    return {
+        "n_correct": n_correct,
+        "n_wrong": n_wrong,
+        "isolated_pids": isolated_pids,
+        "broken_pids": broken_pids,
+        "connected_pids": connected_pids,
+        "correct_pids": correct_particles,
+        "wrong_pids": wrong_particles,
+        'total_predictions': n_total_predictions
+    }
+
 def label_particles(hits, truth, threshold=1.0, ignore_noise=True):
     """
     hits only include a subset of hits in truth.
@@ -110,21 +165,12 @@ def label_particles(hits, truth, threshold=1.0, ignore_noise=True):
     return good_pids, bad_pids
 
 
-def score_nxgraphs(nx_graphs, truth):
+def score_nxgraphs(nx_graphs, truth, verbose=False):
     """nx_graphs: a list of networkx graphs, with node feature hit_id
     each graph is a track"""
     total_tracks = len(nx_graphs)
 
     new_df = graphs_to_df(nx_graphs)
-
-    results = []
-    for itrk, track in enumerate(nx_graphs):
-        results += [(track.node[x]['hit_id'], itrk) for x in track.nodes()]
-
-    new_df = pd.DataFrame(results, columns=['hit_id', 'track_id'])
-
-    #df_sub = hits[['hit_id']]
-    #df_sub = df_sub.merge(new_df, on='hit_id', how='outer').fillna(total_tracks+1)
     matched = truth.merge(new_df, on='hit_id', how='inner')
     tot_truth_weight = np.sum(matched['weight'])
 
@@ -142,7 +188,15 @@ def score_nxgraphs(nx_graphs, truth):
         if hits_from_reco.shape[0] != hits_from_true.shape[0]:
             w_broken_trk += w_used_hits
 
-    return [score_event(truth, new_df), tot_truth_weight, reduced_weights, w_broken_trk]
+    results = [score_event(truth, new_df),
+               tot_truth_weight, reduced_weights, w_broken_trk]
+    if verbose:
+        print("Trk ML Score: {:.2f}: \n"
+              "\tSummed weights of all hits: {:.2f},\n"
+              "\tSummed weights of all hits that comprises of 50% of hits of the associated particle: {:.2f},\n"
+              "\tSummed weights of uncomplete reco. trks {:.2f}".format(*results))
+
+    return results
 
 
 def trk_eff_purity(true_tracks, predict_tracks):
@@ -218,3 +272,5 @@ def inspect_events(hits, particles, truth, min_hits=3):
         print("# of good particles: {} ({:.1f}%)".format(n_good_p, 100.*n_good_p/n_p))
 
     return n_hits, n_noise_hits, n_p, n_dp, n_good_p, good_particles.index.to_numpy(), pp
+
+

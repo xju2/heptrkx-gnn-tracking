@@ -1,4 +1,3 @@
-
 track_ml:
     dir:      /global/project/projectdirs/m3443/usr/xju/heptrkx/codalab/inputs/train_all
     detector: /global/project/projectdirs/m3443/usr/xju/heptrkx/codalab/inputs/detector.csv
@@ -40,7 +39,7 @@ doublets_from_cuts:
 
 make_graph:
     nevts: 3000
-    out_graph: /global/project/projectdirs/m3443/usr/xju/heptrkx/codalab/output/graphs/Digraph_noEdgeFeatures_Barrel_noDup
+    out_graph: /global/cscratch1/sd/xju/heptrkx/codalab/outputs/graphs/Digraph_noEdgeFeatures_Barrel_noDup
     input_segments: /global/project/projectdirs/m3443/usr/xju/heptrkx/codalab/output/segments/noDup_from_cuts
     input_data: /global/project/projectdirs/m3443/usr/xju/heptrkx/codalab/inputs/train_all
     layers: [7, 8, 9, 10, 24, 25, 26, 27, 40, 41]
