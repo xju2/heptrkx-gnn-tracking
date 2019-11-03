@@ -38,8 +38,9 @@ def get_event(data_dir, n_events):
 
 class Event(object):
     """An object saving Event info, including hits, particles, truth and cell info"""
-    def __init__(self, evtdir, evtid):
+    def __init__(self, evtdir, evtid, blacklist_dir=None):
         self._evt_dir = evtdir
+        self._blacklist_dir = blacklist_dir
         if not self.read(evtid):
             msg="Failed to read {} with event ID {}".format(evtdir, evtid)
             raise Exception('Event', msg)
@@ -54,6 +55,15 @@ class Event(object):
 
         hits, particles, truth, cells = all_data
         hits = hits.assign(evtid=evtid)
+
+        if self._blacklist_dir:
+            prefix_bl = os.path.join(os.path.expandvars(self._blacklist_dir),
+                                     'event{:09d}-blacklist_'.format(evtid))
+            hits_exclude = pd.read_csv(prefix_bl+'hits.csv')
+            particles_exclude = pd.read_csv(prefix_bl+'particles.csv')
+            hits = hits[~hits['hit_id'].isin(hits_exclude['hit_id'])]
+            particles = particles[~particles['particle_id'].isin(particles_exclude['particle_id'])]
+
 
         ## add pT to particles
         px = particles.px

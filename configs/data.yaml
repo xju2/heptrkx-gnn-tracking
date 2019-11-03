@@ -1,4 +1,3 @@
-
 track_ml:
     dir:      /global/project/projectdirs/m3443/usr/xju/heptrkx/codalab/inputs/train_all
     detector: /global/project/projectdirs/m3443/usr/xju/heptrkx/codalab/inputs/detector.csv

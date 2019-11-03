@@ -132,7 +132,7 @@ def inputs_generator(base_dir_, n_train_fraction=-1):
         print("Testing data:  [{}, {}] events, total {} files".format(0, n_events-1, n_test*n_sections))
     else:
         print("Testing data:  [{}, {}] events, total {} files".format(n_max_evt_id_tr, n_events, n_test*n_sections))
-    print("Training and testing graphs are selected randomly from their corresponding pools")
+    print("Training and testing graphs are selected sequantially from their corresponding pools")
 
     # keep track of training events
     global _evt_id_tr_

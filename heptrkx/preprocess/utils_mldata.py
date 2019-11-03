@@ -46,7 +46,8 @@ def reconstructable_pids(particles, truth):
     return np.unique(reconstructable_particles.particle_id)
 
 
-def create_segments(hits, layer_pairs, gid_keys='layer', only_true=False):
+def create_segments(hits, layer_pairs, gid_keys='layer',
+                    only_true=False):
     hit_gid_groups = hits.groupby(gid_keys)
 
     def calc_dphi(phi1, phi2):
