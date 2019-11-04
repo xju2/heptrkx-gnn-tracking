@@ -9,7 +9,11 @@ from heptrkx import seeding
 import os
 import pandas as pd
 
-class CutBasedSegments(object):
+class Segments(object):
+    def create_segments(hits, layer_pair, gid_keys='layer'):
+        raise NotImplementedError
+
+class CutBasedSegments(Segments):
     def __init__(self):
         self._verbose = False
 

@@ -23,7 +23,7 @@ if __name__ == "__main__":
     add_arg = parser.add_argument
     add_arg('config', help="configuration file")
     add_arg('evtid', type=int, help="event id")
-    add_arg('--min-hits', type=int, default=0, help="minimum number of hits")
+    add_arg('--min-hits', type=int, default=1, help="minimum number of hits")
     args = parser.parse_args()
 
     config_file = args.config
@@ -83,6 +83,12 @@ if __name__ == "__main__":
     print("{:,} duplicated hits, "
           "{:.2f}% of total non-noise hits".format(
               n_duplicated_hits, n_duplicated_hits*100/n_nonnoise_hits))
+    ## summarize number of hits and number of particles with min_hits
+    good_particles = hits_barrel_no_dup.groupby('particle_id')['hit_id'].count() >= min_hits
+    n_good_particles = np.sum(good_particles)
+    print("Summary: {:,} particles "
+          "with minimum {} hit(s) and {:,} hits".format(
+              n_good_particles, min_hits, n_nodes))
 
     ## create doublets
     selected_pairs_idx = select_pair_layers(layers)
