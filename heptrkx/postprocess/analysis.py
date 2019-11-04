@@ -65,7 +65,7 @@ def summary_on_prediction2(G, truth, prediction, matching_cut=0.50, min_hits=1):
     """
     truth_hit_id = truth[truth.hit_id.isin(prediction.hit_id)]
     tracks = analyze_tracks(truth_hit_id, prediction)
-    print("Track ML score: ", score_event(truth_hit_id, prediction))
+    print("Track ML score: {:.4f}".format(score_event(truth_hit_id, prediction)))
     true_nhits = truth_hit_id[truth_hit_id.particle_id > 0].groupby('particle_id')['hit_id'].count()
     n_total_predictions = true_nhits[true_nhits > min_hits-1].shape[0]
 
