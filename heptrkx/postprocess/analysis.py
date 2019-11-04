@@ -49,7 +49,7 @@ def graphs_to_df(nx_graphs):
     return df
 
 
-def summary_on_prediction2(G, truth, prediction, matching_cut=0.0, min_hits=1):
+def summary_on_prediction2(G, truth, prediction, matching_cut=0.50, min_hits=1):
     """Find number of track candidates that can match to a true track.
     The matching requires the track candidate contains at least *mathching_cut*
     percentange of hits from the true track.

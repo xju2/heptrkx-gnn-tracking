@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Use GNN to evaluate one event
+Study one event, to find the segment purity, number of reconstrutable tracks
 """
 
 import numpy as np
@@ -19,16 +19,21 @@ if __name__ == "__main__":
     import argparse
     import sys
 
-    parser = argparse.ArgumentParser(description='Use GNN model to calculate efficiency and purity for one event')
+    parser = argparse.ArgumentParser(description='event studies')
     add_arg = parser.add_argument
     add_arg('config', help="configuration file")
     add_arg('evtid', type=int, help="event id")
     add_arg('--min-hits', type=int, default=1, help="minimum number of hits")
+    add_arg('--matching_pct', type=float, default=0.8,
+            help="percentage of hits from the true track being found in the reconstructed track candidate")
+    add_arg('--no-split', action='store_true', help="do not split into different sections")
     args = parser.parse_args()
 
     config_file = args.config
     evtid = args.evtid
     min_hits = args.min_hits
+    matching_cut = args.matching_pct
+    do_split = not args.no_split
 
     # read configuration, extract used parameters
     config = load_yaml(config_file)
@@ -117,52 +122,57 @@ if __name__ == "__main__":
               100*n_seg_sel_true/n_seg_sel
           ))
 
-    ## split selected segments into [eta, phi] regions
-    phi_edges = np.linspace(*phi_range, num=n_phi_sections+1)
-    eta_edges = np.linspace(*eta_range, num=n_eta_sections+1)
-    hits_sections = hitsgraph.split_detector_sections(
-        hits_barrel_no_dup, phi_edges, eta_edges)
+    if do_split: 
+        ## split selected segments into [eta, phi] regions
+        phi_edges = np.linspace(*phi_range, num=n_phi_sections+1)
+        eta_edges = np.linspace(*eta_range, num=n_eta_sections+1)
+        hits_sections = hitsgraph.split_detector_sections(
+            hits_barrel_no_dup, phi_edges, eta_edges)
 
-    # construct hits graph
-    feature_scale = np.array([1000., np.pi / n_phi_sections, 1000.])
-    feature_names = ['r', 'phi', 'z']
-    # hitsgraphs = [hitsgraph.construct_graph(section_hits, selected_pairs,
-    #                                         phi_slope_max=phi_slope_max, z0_max=z0_max,
-    #                                         feature_names=feature_names,
-    #                                         feature_scale=feature_scale)
-    #               for section_hits in hits_sections]
+        #now recreate segments from the splitted graphs
+        splitted_segments = [[seeding.create_segments(section_hits, layer_pair,
+                                                      cluster_info=False,
+                                                      origin_pos=False,
+                                                      verbose=False)
+                              for layer_pair in selected_pairs]
+                             for section_hits in hits_sections]
+        merged_splitted_segments = pd.concat([item for sublist in splitted_segments for item in sublist], ignore_index=True)
+        sp_true_edges = merged_splitted_segments[merged_splitted_segments['true']]
+        sp_sel_edges = merged_splitted_segments[
+            (merged_splitted_segments.phi_slope.abs() < phi_slope_max)
+            &(merged_splitted_segments.z0.abs() < z0_max)]
+        sp_sel_true_edges = sp_sel_edges[sp_sel_edges['true']]
+        n_seg_sp_truth = sp_true_edges.shape[0]
+        n_seg_sp_sel = sp_sel_edges.shape[0]
+        n_seg_sp_sel_true = sp_sel_true_edges.shape[0]
+        print("Segment selection after spliting into {} regions\n"
+              "\tEfficiency: {:.2f}%\n"
+              "\tPurity: {:.2f}%".format(
+                  n_phi_sections*n_eta_sections,
+                  100*n_seg_sp_sel_true/n_seg_truth,
+                  100*n_seg_sp_sel_true/n_seg_sp_sel
+              ))
+        # construct netowrkx graph and make predictions
+        nx_G = utils_data.segments_to_nx(hits_barrel_no_dup,
+                                         sp_sel_true_edges,
+                                         'hit_id_in', 'hit_id_out',
+                                         'true', use_digraph=False)
+    else:
+        nx_G = utils_data.segments_to_nx(hits_barrel_no_dup,
+                                         selected_true_segments,
+                                         'hit_id_in', 'hit_id_out',
+                                         'true', use_digraph=False)
 
-    #now recreate segments from the splitted graphs
-    splitted_segments = [[seeding.create_segments(section_hits, layer_pair,
-                                                  cluster_info=False,
-                                                  origin_pos=False,
-                                                  verbose=False)
-                          for layer_pair in selected_pairs]
-                         for section_hits in hits_sections]
-    merged_splitted_segments = pd.concat([item for sublist in splitted_segments for item in sublist], ignore_index=True)
-    sp_true_edges = merged_splitted_segments[merged_splitted_segments['true']]
-    sp_sel_edges = merged_splitted_segments[
-        (merged_splitted_segments.phi_slope.abs() < phi_slope_max)
-        &(merged_splitted_segments.z0.abs() < z0_max)]
-    sp_sel_true_edges = sp_sel_edges[sp_sel_edges['true']]
-    n_seg_sp_truth = sp_true_edges.shape[0]
-    n_seg_sp_sel = sp_sel_edges.shape[0]
-    n_seg_sp_sel_true = sp_sel_true_edges.shape[0]
-    print("Segment selection after spliting into {} regions\n"
-          "\tEfficiency: {:.2f}%\n"
-          "\tPurity: {:.2f}%".format(
-              n_phi_sections*n_eta_sections,
-              100*n_seg_sp_sel_true/n_seg_truth,
-              100*n_seg_sp_sel_true/n_seg_sp_sel
-          ))
-
-    # construct netowrkx graph and make predictions
-    nx_G_splitted = utils_data.segments_to_nx(hits_barrel_no_dup,
-                                              sp_sel_true_edges,
-                                              'hit_id_in', 'hit_id_out',
-                                              'true', use_digraph=False)
-    results_on_truth = inference.get_corrected_trks(nx_G_splitted, truth,
-                                                    hits_barrel_no_dup)
-
-
-    inference.print_info(results_on_truth)
+    all_true_tracks = wrangler.get_tracks(nx_G,
+                                          feature_name='solution', with_fit=False)
+    true_df = analysis.graphs_to_df(all_true_tracks)
+    n_total_predictions = len(np.unique(true_df['track_id']))
+    print("total reconstructed tracks:", n_total_predictions)
+    res_truth = analysis.summary_on_prediction2(nx_G, hits_barrel_no_dup,
+                                                true_df,
+                                                matching_cut=matching_cut,
+                                                min_hits=min_hits)
+    print("{:,} recostructed tracks matched to truth particles "
+          "with minimum of {} hits at the threshold that {:.1f}% "
+          "of hits from the true particle is presented in the reconstructed track".format(
+        res_truth['n_correct'], min_hits, matching_cut*100))

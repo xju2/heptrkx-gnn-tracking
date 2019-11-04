@@ -12,18 +12,13 @@ def get_corrected_trks(nx_G, truth, hits_in_question,
     true_df = analysis.graphs_to_df(all_true_tracks)
     n_total_predictions = len(np.unique(true_df['track_id']))
     print("total predictions:", n_total_predictions)
-    res_truth = analysis.summary_on_prediction(nx_G, hits_in_question, true_df)
+    res_truth = analysis.summary_on_prediction2(nx_G, hits_in_question, true_df)
     return res_truth
 
 
 def print_info(res_pred):
     print("Correct {}, "
-          "Wrong {}, "
-          "Isolated {}, "
-          "Broken {}, "
-          "Connected {}".format(
+          "Wrong {}, ".format(
               res_pred['n_correct'],
-              res_pred['n_wrong'],
-              len(res_pred['isolated_pids']),
-              len(res_pred['broken_pids']),
-              len(res_pred['connected_pids'])))
+              res_pred['n_wrong']
+          ))
