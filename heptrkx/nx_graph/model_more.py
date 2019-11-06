@@ -10,8 +10,8 @@ from graph_nets import blocks
 
 import sonnet as snt
 
-NUM_LAYERS = 4    # Hard-code number of layers in the edge/node/global models.
-LATENT_SIZE = 64  # Hard-code latent layer sizes for demos.
+NUM_LAYERS = 2    # Hard-code number of layers in the edge/node/global models.
+LATENT_SIZE = 128 # Hard-code latent layer sizes for demos.
 
 
 def make_mlp_model():

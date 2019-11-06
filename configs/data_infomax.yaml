@@ -1,4 +1,3 @@
-
 track_ml:
     dir:      /global/project/projectdirs/m3443/usr/xju/heptrkx/codalab/inputs/train_all
     detector: /global/project/projectdirs/m3443/usr/xju/heptrkx/codalab/inputs/detector.csv
@@ -9,7 +8,7 @@ true_hits:
 
 make_graph:
     nevts: 50 
-    out_graph: /global/project/projectdirs/m3443/usr/xju/heptrkx/codalab/output/graphs/Graph4InfoMax
+    out_graph: /global/cscratch1/sd/xju/heptrkx/codalab/outputs/graphs/Graph4InfoMax
     input_segments: /global/project/projectdirs/m3443/usr/xju/heptrkx/codalab/outputs/true_pairs
     input_data: /global/project/projectdirs/m3443/usr/xju/heptrkx/codalab/inputs/train_all
     layers: [7, 8, 9, 10, 24, 25, 26, 27, 40, 41]

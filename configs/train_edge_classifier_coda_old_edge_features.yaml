@@ -1,3 +1,25 @@
+track_ml:
+    dir:      /global/project/projectdirs/m3443/usr/xju/heptrkx/codalab/inputs/train_all
+    detector: /global/project/projectdirs/m3443/usr/xju/heptrkx/codalab/inputs/detector.csv
+    layers: [7, 8, 9, 10, 24, 25, 26, 27, 40, 41]
+
+data:
+    name: hitgraphs
+    input_hitsgraph_dir: /global/project/projectdirs/m3443/usr/xju/heptrkx/codalab/outputs/hitgraphs_big_000
+    output_nxgraph_dir:  /global/project/projectdirs/m3443/usr/xju/heptrkx/codalab/outputs/nxgraphs_bigs_001
+    input_evt_dir: /global/project/projectdirs/m3443/usr/xju/heptrkx/codalab/inputs/train_all
+    log_name: data_process.log
+    n_tasks: 1
+    n_workers: 68
+
+selection:
+    pt_min: 0. # GeV
+    phi_slope_max: 0.0006
+    z0_max: 100
+    n_phi_sections: 8
+    n_eta_sections: 2
+    eta_range: [-5, 5]
+
 make_graph:
     out_graph: /global/project/projectdirs/m3443/usr/xju/heptrkx/codalab/outputs/nxgraphs_bigs_001
 

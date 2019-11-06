@@ -47,8 +47,8 @@ make_graph:
 
 segment_training:
     output_dir: /project/projectdirs/m3443/usr/xju//heptrkx/codalab/models/segments
-    model_name: default 
-    prod_name: v1_default
+    model_name: VARY
+    prod_name: withEdgeFeatureOneGraph_v0
     log_name: big.log
     input_type: 'data_dict'
     parameters:
