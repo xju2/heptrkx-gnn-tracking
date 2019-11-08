@@ -14,8 +14,8 @@ from graph_nets import utils_tf
 from graph_nets import blocks
 import sonnet as snt
 
-LATENT_SIZE = 64
-NUM_LAYERS = 4
+LATENT_SIZE = 32
+NUM_LAYERS = 2
 
 def make_mlp_model():
   """Instantiates a new MLP, followed by LayerNorm.
@@ -75,7 +75,7 @@ class InteractionNetwork(snt.AbstractModule):
           edge_model_fn=edge_model_fn, use_globals=False)
       self._node_block = blocks.NodeBlock(
           node_model_fn=node_model_fn,
-          use_received_edges=False,
+          use_received_edges=True,
           use_sent_edges=True,
           use_globals=False,
           received_edges_reducer=reducer)

@@ -93,7 +93,9 @@ class SegmentClassifier(snt.AbstractModule):
         super(SegmentClassifier, self).__init__(name=name)
 
         self._edge_block = blocks.EdgeBlock(
-            edge_model_fn=lambda : snt.nets.MLP([LATENT_SIZE, LATENT_SIZE], activation=tf.nn.relu, activate_final=True),
+            edge_model_fn=lambda : snt.nets.MLP([LATENT_SIZE, LATENT_SIZE],
+                                                activation=tf.nn.relu,
+                                                activate_final=True),
             use_edges=False,
             use_receiver_nodes=True,
             use_sender_nodes=True,
@@ -105,7 +107,8 @@ class SegmentClassifier(snt.AbstractModule):
             use_received_edges=False,
             use_sent_edges=False,
             use_nodes=True,
-            use_globals=False, name='node_encoder_block'
+            use_globals=False,
+            name='node_encoder_block'
         )
 
         self._core = InteractionNetwork(
