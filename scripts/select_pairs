@@ -20,10 +20,14 @@ if __name__ == "__main__":
     add_arg('cut_on_score', type=float, help='selection criteria')
     add_arg('evtid', type=int, help='event id')
     add_arg('-q', '--quiet', action='store_true', help='in quiet mode')
+    add_arg('-s', '--simple', action='store_true', help='only save selected doublets')
+    add_arg('-t', '--true', action='store_true', help='only save true doublets')
 
     args = parser.parse_args()
     prog = os.path.basename(sys.argv[0])
     quiet = args.quiet
+    simple = args.simple
+    only_truth = args.true
 
     config = load_yaml(args.config)
     cfg = config['doublets_for_graph']
@@ -87,7 +91,11 @@ if __name__ == "__main__":
                  outname=os.path.join(output_dir, 'roc{:03d}_{}-{}.png'.format(pair_idx, *pair_info)))
 
     df_input = df_input.assign(prediction=prediction, selected=(prediction > cut))
-    # df_input = df_input[df_input.selected | df_input.true]
+    if simple:
+        df_input = df_input[prediction > cut]
+
+    if only_truth:
+        df_input = df_input[df_input.true]
 
     with pd.HDFStore(outname) as store:
         store['data'] = df_input

@@ -14,27 +14,15 @@ doublets_for_training:
 
 doublet_training:
     batch_size: 512
-    epochs: 6
+    epochs: 50
     eff_cut: 0.98
-    model_output_dir: /global/cscratch1/sd/xju/heptrkx/codalab/outputs/trained_models/doublet_location_only
+    model_output_dir: /global/project/projectdirs/atlas/xju/tracking/PairsFromNN/model
+    model: fully_connected_classifier
     features: ['dphi', 'dz', 'dr', 'phi_slope', 'z0', 'deta', 'deta1', 'dphi1']
-    bkg_from_evtid: 6600
+    bkg_from_evtid: 21000
 
-# Not up-to-date! Do not use
 doublets_for_graph: ## input pairs from all_pairs
-    evtid: 1000
-    selected: /global/cscratch1/sd/xju/heptrkx/output_graphs_moreVar2/selected_pairs
-    layers: [7, 8, 9, 10, 24, 25, 26, 27, 40, 41]
-    min_hits: 3
-    threshold: /global/cscratch1/sd/xju/heptrkx/trained_models/doublet_moreVar/merged_info.txt
-
-doublets_from_cuts:
-    evtid: "21001-24999"
-    selected: /global/project/projectdirs/m3443/usr/xju/heptrkx/codalab/output/segments/noDup_from_cuts
-    layers: [7, 8, 9, 10, 24, 25, 26, 27, 40, 41]
-    min_hits: 3
-    phi_slope_max: 0.0006
-    z0_max: 100
+    selected: /global/cscratch1/sd/xju/heptrkx/output_graphs
 
 make_graph:
     nevts: 1500

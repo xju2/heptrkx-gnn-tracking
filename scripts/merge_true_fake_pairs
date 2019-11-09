@@ -23,7 +23,9 @@ if __name__ == "__main__":
     df_inputs = []
     for file_name in args.file_names:
         with pd.HDFStore(file_name) as store:
-            df_inputs.append(store['data'])
+            df = store['data']
+            print("{} contains {} events".format(file_name, df.shape[0]))
+            df_inputs.append(df)
 
     now = time.time()
     df_all = pd.concat(df_inputs, ignore_index=True)

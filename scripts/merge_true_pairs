@@ -58,7 +58,7 @@ if __name__ == "__main__":
     #evt_ids = [int(os.path.basename(x)[3:]) for x in dir_names]
     n_total = len(evt_ids)
     print("Total events:", len(evt_ids))
-    print("80% for training, 10% for validation and 10% for testing")
+    #print("80% for training, 10% for validation and 10% for testing")
 
     tr_dir_name = 'training'
     os.makedirs(os.path.join(output_dir, tr_dir_name), exist_ok=True)
