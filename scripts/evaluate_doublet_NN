@@ -1,0 +1,83 @@
+#!/usr/bin/env python
+import os
+
+import numpy as np
+import pandas as pd
+
+from heptrkx.preprocess import utils_mldata
+import sklearn.metrics
+import matplotlib.pyplot as plt
+from heptrkx import load_yaml
+from heptrkx import master
+from bisect import bisect
+from heptrkx import layer_pairs
+
+if __name__ == "__main__":
+    from heptrkx import load_yaml
+    parser = argparse.ArgumentParser(description='Efficiency and Fake rate for pairs selected by NN')
+    add_arg = parser.add_argument
+    add_arg('config', type=str, help='configs/data_NN_segments.yaml')
+    add_arg('evtid', type=int, help='event id')
+    add_arg('pair_idx', type=int, help='pair index')
+    add_arg('--outdir', help='output directory', default='NNSegmentPerf')
+
+    args = parser.parse_args()
+
+    config_dir = args.config
+    evtid = args.evtid
+    pair_idx = args.pair_idx
+    outdir = args.outdir
+
+    pair_name = 'pair{:3d}.h5'.format(pair_idx)
+    config = load_yaml(args.config)
+    data_dir = config['track_ml']['dir']
+    file_name = '{}/evt{}/{}'.format(config['doublets_for_graph']['selected'], evtid, pair_name)
+    with pd.HDFStore(file_name) as store:
+        df_all = store.get('data')
+
+    ## cut-based selections
+    phi_slope_max = 0.0006
+    z0_max = 100
+    cut_based = (df_all.phi_slope.abs() < phi_slope_max) & (df_all.z0.abs() < z0_max)
+    n_sel_true = df_all[cut_based & df_all.true].shape[0]
+    n_true = df_all[df_all.true].shape[0]
+    n_sel = df_all[cut_based].shape[0]
+    cut_eff = n_sel_true/n_true
+    cut_purity = n_sel_true/n_sel
+    print("Cut-based: ")
+    print("Efficiency: {:.2f}".format(cut_eff))
+    print("Purity: {:.2f}".format(cut_purity))
+
+    ## NN based results
+    y_true = df.true.values > 0.5
+    predictions = df.prediction
+    purity, efficiency, thresholds = sklearn.metrics.precision_recall_curve(y_true, predictions)
+    fig, axs = plt.subplots(1, 1, figsize=(8, 8), constrained_layout=True)
+    fontsize=16
+    minor_size=14
+    ax3 = axs
+    ax3.plot(purity,  efficiency,  lw=2, label='Layer: {}-{}'.format(*layer_pairs[pair_idx]))
+    ax3.set_xlabel('Purity', fontsize=fontsize)
+    ax3.set_ylabel('Efficiency', fontsize=fontsize)
+    ax3.tick_params(width=2, grid_alpha=0.5, labelsize=minor_size)
+    ax3.legend(fontsize=fontsize, loc='upper right')
+    ax3.plot([0, 1], [cut_eff, cut_eff], '--', color='gray', alpha=0.5)
+    ax3.plot([cut_purity, cut_purity], [0, 1], '--', color='gray', alpha=0.5)
+    ax3.grid()
+    ax3.plot(cut_purity, cut_eff, 'go')
+    ax3.text(cut_purity+0.03, cut_eff-0.04, "Cut-based: ({:.2f},{:.2f})".format(cut_purity, cut_eff), fontsize=fontsize)
+
+    # find the point to have the same efficiency or purity
+    ti = bisect(list(reversed(efficiency.tolist())), cut_eff)
+    ti = len(efficiency) - ti
+    NN_purity = purity[ti]
+
+    ti2 = bisect(list(purity.tolist()), cut_purity)
+    NN_eff = efficiency[ti2]
+
+    ax3.plot(cut_purity, NN_eff, 'bo')
+    ax3.plot(NN_purity, cut_eff, 'bo')
+
+    ax3.text(cut_purity+0.03, NN_eff-0.04, "NN-based: ({:.2f},{:.2f})".format(cut_purity, NN_eff), fontsize=fontsize, color='b')
+    ax3.text(NN_purity+0.03, cut_eff+0.04, "NN-based: ({:.2f},{:.2f})".format(NN_purity, cut_eff), fontsize=fontsize, color='b')
+    plt.savefig(os.path.join(outdir, "perf_pair{:03d}.pdf".format(pair_idx)))

@@ -48,7 +48,7 @@ setup(
         'scripts/duplicated_hits',
         'scripts/evaluate_gnn_models',
         'scripts/evaluate_event',
-        'scripts/eval_doublet_NN',
+        'scripts/evaluate_doublet_NN',
         'scripts/fit_hits',
         'scripts/get_total_segments',
         'scripts/hits_graph_to_tuple',
