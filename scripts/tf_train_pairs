@@ -74,9 +74,13 @@ if __name__ == "__main__":
     pair_info = layer_info[pair_idx]
 
     outname = os.path.join(output_dir, 'info{:03d}-{}-{}.txt'.format(pair_idx, *pair_info))
-    out_predictions = os.path.join(output_dir, 'test_prediction.h5')
+    #out_predictions = os.path.join(output_dir,
+    #                               'prediction_pair{}-{}-{{}.h5'.format(pair_idx, *pair_info))
 
-    if os.path.exists(checkpoint_path+".index") and not args.resume_train and os.path.exists(outname) and os.path.exists(out_predictions):
+       #and os.path.exists(out_predictions):
+    if os.path.exists(checkpoint_path+".index") \
+       and not args.resume_train \
+       and os.path.exists(outname):
         print("model is trained and evaluated")
         exit()
 
@@ -192,5 +196,5 @@ if __name__ == "__main__":
 
 
     # save prediction and test result
-    with pd.HDFStore(out_predictions) as store:
-        store['data'] = test_inputs
+    #with pd.HDFStore(out_predictions) as store:
+    #    store['data'] = test_inputs
