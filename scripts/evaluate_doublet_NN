@@ -31,6 +31,11 @@ if __name__ == "__main__":
     if not os.path.exists(outdir):
         os.makedirs(outdir)
 
+    outname = os.path.join(outdir, "perf_pair{:03d}.pdf".format(pair_idx))
+    if os.path.exists(outname):
+        print(outname, "is there")
+        exit(0)
+
     pair_name = 'pair{:03d}.h5'.format(pair_idx)
     config = load_yaml(args.config)
     data_dir = config['track_ml']['dir']
@@ -88,4 +93,4 @@ if __name__ == "__main__":
 
     ax3.text(cut_purity+0.03, NN_eff-0.04, "NN-based: ({:.2f},{:.2f})".format(cut_purity, NN_eff), fontsize=fontsize, color='b')
     ax3.text(NN_purity+0.03, cut_eff+0.04, "NN-based: ({:.2f},{:.2f})".format(NN_purity, cut_eff), fontsize=fontsize, color='b')
-    plt.savefig(os.path.join(outdir, "perf_pair{:03d}.pdf".format(pair_idx)))
+    plt.savefig(outname)
