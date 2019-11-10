@@ -20,6 +20,12 @@ if __name__ == "__main__":
     args = parser.parse_args()
     print(args.file_names)
     print(args.outname)
+    outname = args.outname
+
+    if os.path.exists(outname):
+        print(outname, "is there")
+        exit(0)
+
     df_inputs = []
     for file_name in args.file_names:
         with pd.HDFStore(file_name) as store:
@@ -34,5 +40,5 @@ if __name__ == "__main__":
 
     df_input = shuffle(df_all, random_state=10)
     print("Takes {:.0f} second to shuffling".format(time.time() - time_stop2))
-    with pd.HDFStore(args.outname) as store:
+    with pd.HDFStore(outname) as store:
         store['data'] = df_input

@@ -65,6 +65,7 @@ setup(
         'scripts/peek_models',
         'scripts/plot_graph',
         'scripts/prepare_hitsgraph',
+        'scripts/run_NN_segments',
         'scripts/seeding_eff_purity_comparison',
         'scripts/segment_eff_purity',
         'scripts/select_pairs',
