@@ -11,6 +11,8 @@ if __name__ == "__main__":
     import tables
     from functools import partial
     import multiprocessing as mp
+    import threading
+    import time
 
     from heptrkx import layer_pairs, select_pair_layers, load_yaml
     from heptrkx.nx_graph import utils_data
@@ -107,9 +109,26 @@ if __name__ == "__main__":
     local_angles = utils_mldata.cell_angles(selected_hits, module_getter, cells)
     selected_hits_angle = selected_hits.merge(local_angles, on='hit_id', how='left')
 
+    tasks = []
+    itask = 0
+    while itask < len(pp_layers_info):
+        if len(tasks) < n_workers:
+            l_pairs = pp_layers_info[itask][0]
+            job_id = threading.Thread(target=utils_mldata.save_segments,
+                                      args=(pp_layers_info[itask],
+                                            selected_hits_angle,
+                                            output_pairs_dir
+                                           ))
+            job_id.start()
+            tasks.append(job_id)
+            itask += 1
+            time.sleep(1)
+        else:
+            while len(tasks) == n_workers:
+                for task in tasks:
+                    if not task.is_alive():
+                        tasks.remove(task)
+                time.sleep(30)
 
-    with mp.Pool(processes=n_workers) as pool:
-        pp_func=partial(utils_mldata.save_segments,
-                        selected_hits_angle=selected_hits_angle,
-                        output_pairs_dir=output_pairs_dir)
-        pool.map(pp_func, pp_layers_info)
+    while any([task.is_alive() for task in tasks]):
+        time.sleep(60)

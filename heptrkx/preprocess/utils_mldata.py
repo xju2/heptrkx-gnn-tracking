@@ -104,24 +104,26 @@ def create_segments(hits, layer_pairs, gid_keys='layer',
         if 'lx_in' in hit_pairs.columns:
             selected_features += ['lx_in', 'lx_out', 'ly_in', 'ly_out', 'lz_in', 'lz_out']
 
-        # Put the results in a new dataframe
-        df_pairs = hit_pairs[selected_features].assign(
-            dphi=dphi, dz=dz, dr=dr, true=y, phi_slope=phi_slope, z0=z0, deta=deta)
-
-
         #n_true_edges = df_pairs[df_pairs['true']==True].shape[0]
         #n_fake_edges = df_pairs[df_pairs['true']==False].shape[0]
         # print('processed:', gid1, gid2, "True edges {} and Fake Edges {}, purity {:.3f} %".format(n_true_edges, n_fake_edges, n_true_edges*100/n_fake_edges))
 
-        df_pairs = df_pairs.rename(columns={'index_in': 'hit_idx_in', "index_out": 'hit_idx_out'})
         try:
             deta1 = hit_pairs.geta_out - hit_pairs.geta_in
             dphi1 = hit_pairs.gphi_out - hit_pairs.gphi_in
-            df_pairs = df_pairs.assign(deta1=deta1, dphi1=dphi1)
-        except KeyError:
-            pass
-#        print(df_pairs.columns)
-        yield df_pairs
+        except [KeyError, AttributeError]:
+            deta1 = None
+            dphi1 = None
+
+        # Put the results in a new dataframe
+        hit_pairs = hit_pairs[selected_features].assign(
+            dphi=dphi, dz=dz, dr=dr, true=y, phi_slope=phi_slope, z0=z0, deta=deta)
+        if deta1 is not None:
+            hit_pairs = hit_pairs.assign(deta1=deta1, dphi1=dphi1)
+
+        hit_pairs = hit_pairs.rename(columns={'index_in': 'hit_idx_in', "index_out": 'hit_idx_out'})
+
+        yield hit_pairs
 
 
 def get_track_parameters(x, y, z):
