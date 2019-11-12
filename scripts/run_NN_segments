@@ -20,7 +20,7 @@ if __name__ == "__main__":
     base_dir = config['doublets_for_training']['base_dir']
     bkg_evtid = config['doublet_training']['bkg_from_evtid']
 
-    true_pairs_dir = os.path.join(base_dir, config['doublets_for_training']['true_pairs'])
+    true_pairs_dir = os.path.join(base_dir, config['doublets_for_training']['true_pairs'], 'training')
     fake_pairs_dir = os.path.join(base_dir,
                                   config['doublets_for_training']['all_pairs'],
                                   'evt{}'.format(bkg_evtid))
@@ -40,19 +40,32 @@ if __name__ == "__main__":
         pair_name = "pair{:03d}.h5".format(pair_idx)
         true_file = os.path.join(true_pairs_dir, pair_name)
         fake_file = os.path.join(fake_pairs_dir, pair_name)
+
+        ## merge truth and fake files for training
         merged_file_name = os.path.join(base_dir, 'pairs4TrainingNN_{}'.format(pair_name))
         cmd = ['merge_true_fake_pairs', true_file, fake_file,
                '--outname', merged_file_name]
-        cmd2 = ['tf_train_pairs', config_dir, pair_idx, '--input', merged_file_name]
-        threshold = find_threshold(pair_idx)
-        cmd3 = ['select_pairs', config_dir, pair_idx, threshold, evtid]
-        cmd4 = ['evaluate_doublet_NN', config_dir, evtid, pair_idx]
         print(cmd)
+        subprocess.run(cmd)
+
+        ## train the model
+        cmd2 = ['tf_train_pairs', config_dir, str(pair_idx), '--input', merged_file_name]
         print(cmd2)
+        subprocess.run(cmd2)
+
+        ## find the threshold and evaluate a new event
+        threshold = find_threshold(pair_idx)
+        cmd3 = ['select_pairs', config_dir, str(pair_idx), threshold, evtid]
         print(cmd3)
+        subprocess.run(cmd3)
+
+        ## get efficiency and purity for the evaluated event
+        cmd4 = ['evaluate_doublet_NN', config_dir, str(evtid), str(pair_idx)]
         print(cmd4)
+        subprocess.run(cmd4)
 
     sel_layers_idx = select_pair_layers(layers)
     for pair_idx in sel_layers_idx:
+        if pair_idx < 4:
+            continue
         run_pairs(pair_idx)
-

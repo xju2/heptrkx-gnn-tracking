@@ -1,10 +1,13 @@
-layers: [7, 8, 9, 10, 24, 25, 26, 27, 40, 41]
+#layers: [7, 8, 9, 10, 24, 25, 26, 27, 40, 41]
+layers: [7, 8, 9, 10, 24]
+#layers: [24, 25, 26, 27, 40, 41]
 track_ml:
     dir:      /global/project/projectdirs/m3443/usr/xju/heptrkx/codalab/inputs/train_all
     detector: /global/project/projectdirs/m3443/usr/xju/heptrkx/codalab/inputs/detector.csv
 
 true_hits:
-    layers: [7, 8, 9, 10, 24, 25, 26, 27, 40, 41]
+    #layers: [7, 8, 9, 10, 24, 25, 26, 27, 40, 41]
+    layers: [24, 25, 26, 27, 40, 41]
     dir: /global/project/projectdirs/atlas/xju/heptrkx/codalab/outputs/true_pairs
 
 doublets_for_training:

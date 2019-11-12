@@ -22,7 +22,7 @@ if __name__ == "__main__":
     add_arg('evtid', type=int, help='event id')
     add_arg('--n-pids', type=int, help='how many particles should be used',
             default=-1)
-    add_arg('--workers', type=int, help='workers', default=1)
+    add_arg('-w', '--workers', type=int, help='workers', default=1)
     add_arg('-q', '--quiet', action='store_true', help='quiet mode')
 
     args = parser.parse_args()

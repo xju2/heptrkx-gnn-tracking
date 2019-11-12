@@ -172,8 +172,6 @@ if __name__ == "__main__":
     test_inputs = df_input[n_training+n_validating:]
     test_inputs = test_inputs.assign(prediction=prediction)
 
-
-
     plot_metrics(prediction, y_test,
                  outname=os.path.join(output_dir, 'roc{:03d}_{}-{}.pdf'.format(pair_idx, *pair_info)),
                  off_interactive=True)

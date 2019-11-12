@@ -13,7 +13,7 @@ if __name__ == "__main__":
     from heptrkx.nx_graph import shadow_model
     from heptrkx.nx_graph.utils_plot import plot_metrics
 
-    parser = argparse.ArgumentParser(description='Keras train pairs for each layer-pairs')
+    parser = argparse.ArgumentParser(description='Select doublets based on trained NN')
     add_arg = parser.add_argument
     add_arg('config', type=str, help='configs/data.yaml')
     add_arg('pair_idx', nargs='?', type=int, help='pair idx', default=0)
