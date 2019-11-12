@@ -105,7 +105,6 @@ if __name__ == "__main__":
 
     module_getter = utils_mldata.module_info(det_dir)
 
-
     local_angles = utils_mldata.cell_angles(selected_hits, module_getter, cells)
     selected_hits_angle = selected_hits.merge(local_angles, on='hit_id', how='left')
 
@@ -114,6 +113,7 @@ if __name__ == "__main__":
     while itask < len(pp_layers_info):
         if len(tasks) < n_workers:
             l_pairs = pp_layers_info[itask][0]
+            print("dealing with", l_pairs)
             job_id = threading.Thread(target=utils_mldata.save_segments,
                                       args=(pp_layers_info[itask],
                                             selected_hits_angle,

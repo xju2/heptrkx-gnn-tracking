@@ -104,10 +104,6 @@ def create_segments(hits, layer_pairs, gid_keys='layer',
         if 'lx_in' in hit_pairs.columns:
             selected_features += ['lx_in', 'lx_out', 'ly_in', 'ly_out', 'lz_in', 'lz_out']
 
-        #n_true_edges = df_pairs[df_pairs['true']==True].shape[0]
-        #n_fake_edges = df_pairs[df_pairs['true']==False].shape[0]
-        # print('processed:', gid1, gid2, "True edges {} and Fake Edges {}, purity {:.3f} %".format(n_true_edges, n_fake_edges, n_true_edges*100/n_fake_edges))
-
         try:
             deta1 = hit_pairs.geta_out - hit_pairs.geta_in
             dphi1 = hit_pairs.gphi_out - hit_pairs.gphi_in
