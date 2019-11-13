@@ -56,8 +56,8 @@ if __name__ == "__main__":
             try:
                 with pd.HDFStore(file_name) as store:
                     df = store.get('data')
-                if df is not None:
-                    continue
+                    if df is not None:
+                        continue
             except tables.exceptions.HDF5ExtError:
                 if not quiet:
                     print("{} is not good".format(file_name))
