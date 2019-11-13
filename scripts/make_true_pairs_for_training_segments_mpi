@@ -2,6 +2,7 @@
 """
 create true segments/pairs/doublets by connecting hits in adjacency layers
 """
+
 if __name__ == "__main__":
     import os
     import glob

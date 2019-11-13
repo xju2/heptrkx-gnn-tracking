@@ -65,7 +65,7 @@ if __name__ == "__main__":
 
         ## find the threshold and evaluate a new event
         threshold = find_threshold(pair_idx)
-        cmd3 = ['select_pairs', config_dir, str(pair_idx), threshold, evtid]
+        cmd3 = ['select_pairs', config_dir, str(pair_idx), threshold, evtid, '--eval-cuts', '--quiet']
         if not no_sel:
             print(cmd3)
             subprocess.run(cmd3)
