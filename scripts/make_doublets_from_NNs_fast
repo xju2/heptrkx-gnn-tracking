@@ -1,0 +1,183 @@
+#!/usr/bin/env python
+"""
+*  srun -n 4 make_doublets_from_NNs_fast configs/data_NN_segments.yaml
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
+import numpy as np
+import pandas as pd
+from sklearn.preprocessing import StandardScaler
+
+from heptrkx import load_yaml, list_from_str
+from heptrkx import layer_pairs, select_pair_layers
+from heptrkx import master
+from heptrkx.preprocess import utils_mldata
+from heptrkx.nx_graph import shadow_model
+
+import subprocess
+import sys
+import os
+import threading
+prog = os.path.basename(sys.argv[0])
+
+def get_segments(hits, l1, l2, model, scaler,
+                 input_features, cut, outname):
+    if os.path.exists(outname):
+        return
+    hits1 = hits[hits.layer == l1]
+    hits2 = hits[hits.layer == l2]
+    hit_pairs = pd.merge(
+        hits1.reset_index(), hits2.reset_index(),
+        how='inner', on='evtid', suffixes=('_in', '_out'))
+
+    y = (hit_pairs.particle_id_in == hit_pairs.particle_id_out) & (hit_pairs.particle_id_in != 0)
+    def calc_dphi(phi1, phi2):
+        """Computes phi2-phi1 given in range [-pi,pi]"""
+        dphi = phi2 - phi1
+        dphi[dphi > np.pi] -= 2*np.pi
+        dphi[dphi < -np.pi] += 2*np.pi
+        return dphi
+
+    dphi = calc_dphi(hit_pairs.phi_in, hit_pairs.phi_out)
+    dz = hit_pairs.z_out - hit_pairs.z_in
+    dr = hit_pairs.r_out - hit_pairs.r_in
+    phi_slope = dphi / dr
+    z0 = hit_pairs.z_in - hit_pairs.r_in * dz / dr
+    deta = hit_pairs.eta_out - hit_pairs.eta_in
+    deta1 = hit_pairs.geta_out - hit_pairs.geta_in
+    dphi1 = hit_pairs.gphi_out - hit_pairs.gphi_in
+    selected_features = ['evtid', 'hit_id_in', 'hit_id_out']
+    hit_pairs = hit_pairs[selected_features].assign(
+            dphi=dphi, dz=dz, dr=dr, true=y, phi_slope=phi_slope, z0=z0, deta=deta, deta1=deta1, dphi1=dphi1)
+
+    ## evaluate with the NN model
+    all_inputs = scaler.fit_transform(
+        hit_pairs[input_features].values)
+    prediction = model.prediction(all_inputs)
+
+    with pd.HDFStore(outname, 'w') as store:
+        store['data'] = all_inputs[prediction > cut]
+
+
+if __name__ == "__main__":
+    import os
+    import argparse
+
+    parser = argparse.ArgumentParser(description='Keras train pairs for each layer-pairs')
+    add_arg = parser.add_argument
+    add_arg('config', type=str, help='data configuration, configs/data.yaml')
+    add_arg('--workers', type=int, help='workers', default=1)
+    add_arg('--mpi', action='store_true', help='use MPI')
+
+    args = parser.parse_args()
+    config_dir = args.config
+    n_workers = args.workers
+    use_mpi = args.mpi
+
+    if use_mpi:
+        try:
+            from mpi4py import MPI
+            comm = MPI.COMM_WORLD
+            size = comm.Get_size()
+            rank = comm.Get_rank()
+            print("World size:", size, ", rank:", rank)
+        except ImportError:
+            rank = 0
+            size = 1
+    else:
+        rank = 0
+        size =1
+
+
+    if rank == 0:
+        config = load_yaml(config_dir)
+        mk_cfg = config['segments_from_NN']
+        evtids = mk_cfg['evtid']
+        output_dir = os.path.expandvars(mk_cfg['selected'])
+        os.makedirs(output_dir, exist_ok=True)
+        if type(evtids) is str:
+            evtids = list_from_str(evtids)
+        else:
+            evtids = [evtids]
+
+        ## split evtids based on the world-size
+        evtids = [x.tolist() for x in np.array_split(evtids, size)]
+    else:
+        evtids = None
+        config = None
+
+    if use_mpi:
+        comm.Barrier()
+        evtids = comm.scatter(evtids, root=0)
+        config = comm.bcast(config, root=0)
+    else:
+        evtids = evtids[0]
+
+    import multiprocessing as mp
+    from functools import partial
+
+    print("rank({}) {} workers:".format(rank, n_workers))
+    print("rank({}) {} events:".format(rank, len(evtids)))
+    data_dir = config['track_ml']['dir']
+    det_dir  = config['track_ml']['detector']
+    layers = config['segments_from_NN']['layers']
+    cuts = config['segments_from_NN']['cuts']
+    output_dir = os.path.expandvars(config['segments_from_NN']['selected'])
+    module_getter = utils_mldata.module_info(det_dir)
+
+    # read in trained neural networks
+    sel_layer_id = select_pair_layers(layers)
+    train_cfg = config['doublet_training']
+    features = train_cfg['features']
+    model_name = train_cfg['model']
+    model_weight_base_dir = os.path.expandvars(train_cfg['model_output_dir'])
+
+    scaler = StandardScaler()
+    models = []
+    for pair_idx in sel_layer_id:
+        # load NN models
+        model_weight_dir = os.path.join(model_weight_base_dir, 'modelpair{:03d}.ckpt'.format(pair_idx))
+        model = getattr(shadow_model, model_name)()
+        model.load_weights(model_weight_dir)
+        models.append(model)
+
+    for evtid in evtids:
+        event = master.Event(data_dir, evtid)
+        event.filter_hits(layers)
+        local_angles = utils_mldata.cell_angles(event.hits, module_getter, event.cells)
+        hit_features = ['evtid', 'hit_id', 'phi', 'z', 'r', 'eta', 'geta', 'gphi']
+        hits = event.hits.merge(local_angles, on='hit_id', how='left')[hit_features]
+        # split the hits into two regions eta > 0 and eta < 0
+        n_sections = 2
+        hits_sections = [hits[hits.eta > 0], hits[hits.eta < 0]]
+        del event
+
+        # now each worker takes care of one pair, one section
+        tasks = []
+        itask = 0
+        n_tot_tasks = len(sel_layer_id)*n_sections
+
+        while itask < n_tot_tasks:
+            pair_idx = sel_layer_id[itask//n_sections]
+            isec = itask%n_sections
+            l1, l2 = layer_pairs[pair_idx]
+            outname = os.path.join(output_dir,'evt{}'.format(evtid),
+                                   'pair{:03d}_g{:03d}.h5'.format(pair_idx, isec))
+            if len(tasks) < n_workers:
+                job_id = threading.Thread(
+                    target=get_segments,
+                    args=(hits_sections[isec], l1, l2, models[pair_idx],
+                          scaler, features, cuts[pair_idx], outname))
+                itask += 1
+            else:
+                while len(tasks) == n_workers:
+                    for task in tasks:
+                        if not task.is_alive():
+                            tasks.remove(task)
+                    time.sleep(30) ## two minutes
+
+        ## finish remaining tasks
+        while any([task.is_alive() for task in tasks]):
+            time.sleep(120)
