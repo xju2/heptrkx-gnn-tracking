@@ -37,7 +37,7 @@ def process(evtid, config_dir):
         try:
             cmd_sel_pairs =['select_pairs', config_dir, str(ii),
                             str(df_threshold[df_threshold.idx == ii]['cut'].values[0]),
-                           str(evtid), '-q']
+                           str(evtid), '-q', '--simple']
         except IndexError:
             print("pair {}-{}-{} is missing MODEL".format(ii, *layer_pair))
         ck_code = subprocess.call(cmd_sel_pairs)

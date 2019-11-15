@@ -121,10 +121,12 @@ if __name__ == "__main__":
         else:
             selected_hits = hh.assign(evtid=evtid)
 
+        local_angles = utils_mldata.cell_angles(selected_hits, module_getter, cells)
+        selected_hits_angle = selected_hits.merge(local_angles, on='hit_id', how='left')
         hits_outname = os.path.join(output_dir, "event{:09d}-hits.h5".format(evtid))
         if not os.path.exists(hits_outname):
             with pd.HDFStore(hits_outname, 'w') as store:
-                store['data'] = selected_hits
+                store['data'] = selected_hits_angle
 
 
         pp_layers_info = [(layer_pairs[ii], ii) for ii in sel_layer_id]
@@ -133,10 +135,10 @@ if __name__ == "__main__":
         if n_workers > 1:
             with mp.Pool(processes=n_workers) as pool:
                 pp_func=partial(utils_mldata.save_segments,
-                                selected_hits_angle=selected_hits,
+                                selected_hits_angle=selected_hits_angle,
                                 output_pairs_dir=output_dir,
                                 only_true=only_true)
                 pool.map(pp_func, pp_layers_info)
         else:
             for layers_info in pp_layers_info:
-                utils_mldata.save_segments(layers_info, selected_hits, output_dir, only_true)
+                utils_mldata.save_segments(layers_info, selected_hits_angle, output_dir, only_true)

@@ -25,7 +25,11 @@ doublet_training:
     bkg_from_evtid: 21000
 
 doublets_for_graph: ## input pairs from all_pairs
-    selected: /global/cscratch1/sd/xju/heptrkx/output_graphs
+    selected: /global/cscratch1/sd/xju/heptrkx/codalab/NNbasedSegments/segments4cuts
+
+segments_from_NN:
+    selected: /global/cscratch1/sd/xju/heptrkx/codalab/NNbasedSegments/segments4graph
+    threshold: /global/project/projectdirs/atlas/xju/heptrkx/codalab/analysis/NNbased_Segments/cuts_v1.txt
 
 make_graph:
     nevts: 1500

@@ -102,7 +102,7 @@ if __name__ == "__main__":
         for target_eff in target_efficiencies:
             ti = bisect(list(reversed(eff_list)), target_eff)
             ti = len(efficiency) - ti
-            out_str += '{} {:.3f} {:.3f} {:.3f}\n'.format(evtid, pair_idx, target_eff, thresholds[ti], purity[ti])
+            out_str += '{} {:d} {:.3f} {:.3f} {:.3f}\n'.format(evtid, pair_idx, target_eff, thresholds[ti], purity[ti])
 
         out_threshold_name = os.path.join(output_dir, "info{:03d}-{}-{}.txt".format(pair_idx, *layer_pairs[pair_idx]))
         with open(out_threshold_name, 'a') as f:

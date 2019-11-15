@@ -10,7 +10,7 @@ description="Use Graph Network to reconstruct tracks"
 
 setup(
     name="heptrkx",
-    version="0.0.1",
+    version="1.0.0",
     description="Library for building tracks with Graph Nural Networks.",
     long_description=description,
     author="HEPTrkx",
@@ -20,7 +20,7 @@ setup(
     packages=find_packages(),
     install_requires=[
         "graph_nets",
-        'tensorflow-gpu==1.14.0',
+        'tensorflow-gpu',
         'gast==0.2.2',
         "future",
         "networkx",
@@ -40,7 +40,7 @@ setup(
     ],
     setup_requires=['trackml'],
     classifiers=[
-        "Programming Language :: Python :: 3.6",
+        "Programming Language :: Python :: 3.7",
     ],
     scripts=[
         'scripts/acts_seeding_eff',
@@ -57,7 +57,6 @@ setup(
         'scripts/make_graph',
         'scripts/make_pairs_for_training_segments',
         'scripts/make_trkx',
-        'scripts/make_true_pairs_for_training_segments_mpi',
         'scripts/make_true_pairs',
         'scripts/merge_true_pairs',
         'scripts/merge_true_fake_pairs',
