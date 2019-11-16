@@ -143,21 +143,52 @@ if __name__ == "__main__":
         model.load_weights(model_weight_dir)
         models.append(model)
 
+    n_sections = 2
     for evtid in evtids:
+        itask = 0
+        n_tot_tasks = len(sel_layer_id)*n_sections
+
+        ## check if output is already there
+        all_hits_there = True
+        for isec in range(n_sections):
+            hits_out = os.path.join(output_dir, 'evt{}'.format(evtid),
+                                    'event{:09d}-hits-g{:03d}.h5'.format(evtid, isec))
+            if not os.path.exists(hits_out):
+                all_hits_there = False
+                break
+
+        all_pairs_there = True
+        while itask < n_tot_tasks:
+            pair_idx = sel_layer_id[itask//n_sections]
+            isec = itask%n_sections
+            outname = os.path.join(output_dir,'evt{}'.format(evtid),
+                                   'pair{:03d}_g{:03d}.h5'.format(pair_idx, isec))
+            if not os.path.exists(outname):
+                all_pairs_there = False
+                break
+            itask += 1
+
+        if all_hits_there and all_pairs_there:
+            continue
+
         event = master.Event(data_dir, evtid)
         event.filter_hits(layers)
         local_angles = utils_mldata.cell_angles(event.hits, module_getter, event.cells)
         hit_features = ['evtid', 'hit_id', 'phi', 'z', 'r', 'eta', 'geta', 'gphi']
         hits = event.hits.merge(local_angles, on='hit_id', how='left')[hit_features]
+
         # split the hits into two regions eta > 0 and eta < 0
-        n_sections = 2
         hits_sections = [hits[hits.eta > 0], hits[hits.eta < 0]]
         del event
+        for isec,hits_sec in enumerate(hits_sections):
+            hits_out = os.path.join(output_dir, 'evt{}'.format(evtid),
+                                    'event{:09d}-hits-g{:03d}.h5'.format(evtid, isec))
+            with pd.HDFStore(hits_out, 'w') as store:
+                store['data'] = hits_sec
 
         # now each worker takes care of one pair, one section
         tasks = []
         itask = 0
-        n_tot_tasks = len(sel_layer_id)*n_sections
 
         while itask < n_tot_tasks:
             pair_idx = sel_layer_id[itask//n_sections]
