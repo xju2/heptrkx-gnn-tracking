@@ -26,6 +26,7 @@ def get_segments(hits, l1, l2, model, scaler,
                  input_features, cut, outname):
     if os.path.exists(outname):
         return
+    print("starting Layer {}-{}", l1, l2)
     hits1 = hits[hits.layer == l1]
     hits2 = hits[hits.layer == l2]
     hit_pairs = pd.merge(
@@ -118,8 +119,7 @@ if __name__ == "__main__":
     import multiprocessing as mp
     from functools import partial
 
-    print("rank({}) {} workers:".format(rank, n_workers))
-    print("rank({}) {} events:".format(rank, len(evtids)))
+    print("rank({}) has {} workers dealing with {} events".format(rank, n_workers, len(evtids)))
     data_dir = config['track_ml']['dir']
     det_dir  = config['track_ml']['detector']
     layers = config['segments_from_NN']['layers']
@@ -145,19 +145,25 @@ if __name__ == "__main__":
 
     n_sections = 2
     for evtid in evtids:
-        itask = 0
         n_tot_tasks = len(sel_layer_id)*n_sections
 
         ## check if output is already there
         all_hits_there = True
         for isec in range(n_sections):
-            hits_out = os.path.join(output_dir, 'evt{}'.format(evtid),
-                                    'event{:09d}-hits-g{:03d}.h5'.format(evtid, isec))
-            if not os.path.exists(hits_out):
-                all_hits_there = False
-                break
+            hits_dir = os.path.join(output_dir, 'evt{}'.format(evtid))
+            if os.path.exists(hits_dir):
+                hits_out = os.path.join(output_dir, 'evt{}'.format(evtid),
+                                        'event{:09d}-hits-g{:03d}.h5'.format(evtid, isec))
+                if not os.path.exists(hits_out):
+                    all_hits_there = False
+                    break
+            else:
+                os.makedirs(hits_dir)
+        if all_hits_there:
+            print("[{}] event {} has hit files".format(rank, evtid))
 
         all_pairs_there = True
+        itask = 0
         while itask < n_tot_tasks:
             pair_idx = sel_layer_id[itask//n_sections]
             isec = itask%n_sections
@@ -169,7 +175,10 @@ if __name__ == "__main__":
             itask += 1
 
         if all_hits_there and all_pairs_there:
+            print("Event {} all there".format(evtid))
             continue
+        else:
+            print("processing Event {}".format(evtid))
 
         event = master.Event(data_dir, evtid)
         event.filter_hits(layers)
@@ -180,16 +189,20 @@ if __name__ == "__main__":
         # split the hits into two regions eta > 0 and eta < 0
         hits_sections = [hits[hits.eta > 0], hits[hits.eta < 0]]
         del event
+
         for isec,hits_sec in enumerate(hits_sections):
             hits_out = os.path.join(output_dir, 'evt{}'.format(evtid),
                                     'event{:09d}-hits-g{:03d}.h5'.format(evtid, isec))
-            with pd.HDFStore(hits_out, 'w') as store:
-                store['data'] = hits_sec
+            if not os.path.exists(hits_out):
+                with pd.HDFStore(hits_out, 'w') as store:
+                    store['data'] = hits_sec
+            else:
+                pass
 
         # now each worker takes care of one pair, one section
         tasks = []
         itask = 0
-
+        print("[{}] dealing with {} jobs".format(rank, n_tot_tasks))
         while itask < n_tot_tasks:
             pair_idx = sel_layer_id[itask//n_sections]
             isec = itask%n_sections
@@ -201,6 +214,7 @@ if __name__ == "__main__":
                     target=get_segments,
                     args=(hits_sections[isec], l1, l2, models[pair_idx],
                           scaler, features, cuts[pair_idx], outname))
+                tasks.append(job_id)
                 itask += 1
             else:
                 while len(tasks) == n_workers:
