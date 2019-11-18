@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-*  srun -n 4 make_doublets_from_NNs_fast configs/data_NN_segments.yaml
+time srun -n 10 make_doublets_from_NNs_fast configs/data_NN_segments.yaml --workers 2 --mpi
 """
 from __future__ import absolute_import
 from __future__ import division
@@ -26,8 +26,9 @@ prog = os.path.basename(sys.argv[0])
 def get_segments(hits, l1, l2, model, scaler,
                  input_features, cut, outname):
     if os.path.exists(outname):
+        print("Layer {}-{} is there".format(l1, l2))
         return
-    print("starting Layer {}-{}", l1, l2)
+    print("starting Layer {}-{}".format(l1, l2))
     hits1 = hits[hits.layer == l1]
     hits2 = hits[hits.layer == l2]
     hit_pairs = pd.merge(
@@ -67,7 +68,7 @@ if __name__ == "__main__":
     import os
     import argparse
 
-    parser = argparse.ArgumentParser(description='Keras train pairs for each layer-pairs')
+    parser = argparse.ArgumentParser(description='select doublets using trained neural networks')
     add_arg = parser.add_argument
     add_arg('config', type=str, help='data configuration, configs/data.yaml')
     add_arg('--workers', type=int, help='workers', default=1)
@@ -136,13 +137,14 @@ if __name__ == "__main__":
     model_weight_base_dir = os.path.expandvars(train_cfg['model_output_dir'])
 
     scaler = StandardScaler()
-    models = []
+    models = {}
     for pair_idx in sel_layer_id:
         # load NN models
         model_weight_dir = os.path.join(model_weight_base_dir, 'modelpair{:03d}.ckpt'.format(pair_idx))
         model = getattr(shadow_model, model_name)()
         model.load_weights(model_weight_dir)
-        models.append(model)
+        models[pair_idx] = model
+        #print(models[pair_idx])
 
     n_sections = 2
     for evtid in evtids:
