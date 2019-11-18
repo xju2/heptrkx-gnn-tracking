@@ -58,7 +58,7 @@ def get_segments(hits, l1, l2, model, scaler,
     ## evaluate with the NN model
     all_inputs = scaler.fit_transform(
         hit_pairs[input_features].values)
-    prediction = model.prediction(all_inputs)
+    prediction = model.predict(all_inputs)
 
     with pd.HDFStore(outname, 'w') as store:
         store['data'] = all_inputs[prediction > cut]
