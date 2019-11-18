@@ -20,6 +20,7 @@ import subprocess
 import sys
 import os
 import threading
+import time
 prog = os.path.basename(sys.argv[0])
 
 def get_segments(hits, l1, l2, model, scaler,
@@ -214,8 +215,10 @@ if __name__ == "__main__":
                     target=get_segments,
                     args=(hits_sections[isec], l1, l2, models[pair_idx],
                           scaler, features, cuts[pair_idx], outname))
+                job_id.start()
                 tasks.append(job_id)
                 itask += 1
+                time.sleep(1)
             else:
                 while len(tasks) == n_workers:
                     for task in tasks:
