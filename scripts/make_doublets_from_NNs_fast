@@ -184,7 +184,8 @@ if __name__ == "__main__":
         event = master.Event(data_dir, evtid)
         event.filter_hits(layers)
         local_angles = utils_mldata.cell_angles(event.hits, module_getter, event.cells)
-        hit_features = ['evtid', 'hit_id', 'phi', 'z', 'r', 'eta', 'geta', 'gphi', 'layer']
+        hit_features = ['evtid', 'hit_id', 'phi', 'z', 'r', 'eta',
+                        'geta', 'gphi', 'layer', 'particle_id']
         hits = event.hits.merge(local_angles, on='hit_id', how='left')[hit_features]
 
         # split the hits into two regions eta > 0 and eta < 0
