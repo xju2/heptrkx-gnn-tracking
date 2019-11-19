@@ -31,8 +31,7 @@ segments_from_NN:
     evtid: "21001-21100"
     selected: /global/cscratch1/sd/xju/heptrkx/codalab/NNbasedSegments/segments4graph
     threshold: /global/project/projectdirs/atlas/xju/heptrkx/codalab/analysis/NNbased_Segments/cuts_v1.txt
-    #layers: [7, 8, 9, 10, 24]
-    layers: [7, 8, 9, 10]
+    layers: [7, 8, 9, 10, 24]
     cuts: [0.99612, 0.99700, 0.99600, 0.99300]
 
 make_graph:
