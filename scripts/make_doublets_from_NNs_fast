@@ -29,7 +29,7 @@ def get_segments(hits, l1, l2, model_dir, scaler,
     if os.path.exists(outname):
         with pd.HDFStore(outname) as store:
             data = store.get('data')
-            if df is not None:
+            if data is not None:
                 print("Layer {}-{} is there".format(l1, l2))
                 return
 
@@ -164,11 +164,18 @@ if __name__ == "__main__":
             if os.path.exists(hits_dir):
                 hits_out = os.path.join(output_dir, 'evt{}'.format(evtid),
                                         'event{:09d}-hits-g{:03d}.h5'.format(evtid, isec))
-                if not os.path.exists(hits_out):
-                    all_hits_there = False
-                    break
+                if os.path.exists(hits_out):
+                    with pd.HDFStore(hits_out) as store:
+                        data = store.get('data')
+                        if data is not None:
+                            continue
+                all_hits_there = False
+                break
             else:
                 os.makedirs(hits_dir)
+                all_hits_there = False
+                break
+
         if all_hits_there:
             print("[{}] event {} has hit files".format(rank, evtid))
 
@@ -179,10 +186,14 @@ if __name__ == "__main__":
             isec = itask%n_sections
             outname = os.path.join(output_dir,'evt{}'.format(evtid),
                                    'pair{:03d}_g{:03d}.h5'.format(pair_idx, isec))
-            if not os.path.exists(outname):
-                all_pairs_there = False
-                break
-            itask += 1
+            if os.path.exists(outname):
+                with pd.HDFStore(outname) as store:
+                    data = store.get('data')
+                    if data is not None:
+                        itask += 1
+                        continue
+            all_pairs_there = False
+            break
 
         if all_hits_there and all_pairs_there:
             print("Event {} all there".format(evtid))
