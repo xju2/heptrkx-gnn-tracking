@@ -363,8 +363,7 @@ def segments_to_nx(hits, segments,
                    receiver_hitid_name,
                    solution_name,
                    use_digraph=True, bidirection=True):
-    """only pairs with both hits presented in hits are used
-    hits: nodes in the graphs
+    """hits: nodes in the graphs
     segments: DataFrame, with columns ['sender_hit_id', 'receiver_hit_id', 'solution_name'], true edge or not
     """
     graph = nx.DiGraph() if use_digraph else nx.Graph()
@@ -384,11 +383,6 @@ def segments_to_nx(hits, segments,
                        solution=[0.0])
         hits_id_dict[hit_id] = idx
 
-    # senders   = [hits_id_dict[x] for x in segments[sender_hitid_name].values]
-    # receivers = [hits_id_dict[x] for x in segments[receiver_hitid_name].values]
-    # edge_features = [{"solution": [x]} for x in segments[solution_name]]
-    # edge_data = zip(senders, receivers, edge_features)
-    # graph.add_edges_from(edge_data)
     n_edges = segments.shape[0]
     for idx in range(n_edges):
         in_hit_idx  = int(segments.iloc[idx][sender_hitid_name])

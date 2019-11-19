@@ -9,12 +9,13 @@ from __future__ import print_function
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
+import tensorflow as tf
+from tensorflow import keras
 
 from heptrkx import load_yaml, list_from_str
 from heptrkx import layer_pairs, select_pair_layers
 from heptrkx import master
 from heptrkx.preprocess import utils_mldata
-from heptrkx.nx_graph import shadow_model
 
 import subprocess
 import sys
@@ -23,12 +24,15 @@ import threading
 import time
 prog = os.path.basename(sys.argv[0])
 
-def get_segments(hits, l1, l2, model, scaler,
+def get_segments(hits, l1, l2, model_dir, scaler,
                  input_features, cut, outname):
     if os.path.exists(outname):
-        print("Layer {}-{} is there".format(l1, l2))
-        return
-    print("starting Layer {}-{}".format(l1, l2))
+        with pd.HDFStore(outname) as store:
+            data = store.get('data')
+            if df is not None:
+                print("Layer {}-{} is there".format(l1, l2))
+                return
+
     hits1 = hits[hits.layer == l1]
     hits2 = hits[hits.layer == l2]
     hit_pairs = pd.merge(
@@ -56,12 +60,24 @@ def get_segments(hits, l1, l2, model, scaler,
             dphi=dphi, dz=dz, dr=dr, true=y, phi_slope=phi_slope, z0=z0, deta=deta, deta1=deta1, dphi1=dphi1)
 
     ## evaluate with the NN model
-    all_inputs = scaler.fit_transform(
-        hit_pairs[input_features].values)
-    prediction = model.predict(all_inputs)
+    all_inputs = scaler.fit_transform(hit_pairs[input_features].values)
+    ## each thread has to create its own session
+    with tf.Session(graph=tf.Graph()) as sess:
+        keras.backend.set_session(sess)
+        ## [TODO] workaround this..
+        model = keras.Sequential()
+        model.add(keras.layers.Dense(128, activation=tf.nn.relu))
+        model.add(keras.layers.Dense(64, activation=tf.nn.relu))
+        model.add(keras.layers.Dense(32, activation=tf.nn.relu))
+        model.add(keras.layers.Dense(1, activation=tf.nn.sigmoid))
+        model.compile(optimizer='adam',
+                      loss='binary_crossentropy',
+                      metrics=['accuracy'])
+        model.load_weights(model_dir)
+        prediction = model.predict(all_inputs)
 
     with pd.HDFStore(outname, 'w') as store:
-        store['data'] = all_inputs[prediction > cut]
+        store['data'] = hit_pairs[prediction > cut]
 
 
 if __name__ == "__main__":
@@ -133,18 +149,9 @@ if __name__ == "__main__":
     sel_layer_id = select_pair_layers(layers)
     train_cfg = config['doublet_training']
     features = train_cfg['features']
-    model_name = train_cfg['model']
     model_weight_base_dir = os.path.expandvars(train_cfg['model_output_dir'])
 
     scaler = StandardScaler()
-    models = {}
-    for pair_idx in sel_layer_id:
-        # load NN models
-        model_weight_dir = os.path.join(model_weight_base_dir, 'modelpair{:03d}.ckpt'.format(pair_idx))
-        model = getattr(shadow_model, model_name)()
-        model.load_weights(model_weight_dir)
-        models[pair_idx] = model
-        #print(models[pair_idx])
 
     n_sections = 2
     for evtid in evtids:
@@ -204,31 +211,46 @@ if __name__ == "__main__":
                 pass
 
         # now each worker takes care of one pair, one section
-        tasks = []
-        itask = 0
         print("[{}] dealing with {} jobs".format(rank, n_tot_tasks))
-        while itask < n_tot_tasks:
-            pair_idx = sel_layer_id[itask//n_sections]
-            isec = itask%n_sections
-            l1, l2 = layer_pairs[pair_idx]
-            outname = os.path.join(output_dir,'evt{}'.format(evtid),
-                                   'pair{:03d}_g{:03d}.h5'.format(pair_idx, isec))
-            if len(tasks) < n_workers:
-                job_id = threading.Thread(
-                    target=get_segments,
-                    args=(hits_sections[isec], l1, l2, models[pair_idx],
-                          scaler, features, cuts[pair_idx], outname))
-                job_id.start()
-                tasks.append(job_id)
-                itask += 1
-                time.sleep(1)
-            else:
-                while len(tasks) == n_workers:
-                    for task in tasks:
-                        if not task.is_alive():
-                            tasks.remove(task)
-                    time.sleep(30) ## two minutes
+        if n_workers < 2:
+            ## use a for-loop and done
+            for itask in range(n_tot_tasks):
+                pair_idx = sel_layer_id[itask//n_sections]
+                isec = itask%n_sections
+                l1, l2 = layer_pairs[pair_idx]
+                print("pair {} and section {}".format(pair_idx, isec))
+                outname = os.path.join(output_dir,'evt{}'.format(evtid),
+                                       'pair{:03d}_g{:03d}.h5'.format(pair_idx, isec))
+                model_dir = os.path.join(model_weight_base_dir, 'modelpair{:03d}.ckpt'.format(pair_idx))
+                get_segments(hits_sections[isec], l1, l2,
+                             model_dir, scaler, features, cuts[pair_idx], outname)
+        else:
+            # use multiple threading
+            tasks = []
+            itask = 0
+            while itask < n_tot_tasks:
+                pair_idx = sel_layer_id[itask//n_sections]
+                isec = itask%n_sections
+                l1, l2 = layer_pairs[pair_idx]
+                outname = os.path.join(output_dir,'evt{}'.format(evtid),
+                                       'pair{:03d}_g{:03d}.h5'.format(pair_idx, isec))
+                model_dir = os.path.join(model_weight_base_dir, 'modelpair{:03d}.ckpt'.format(pair_idx))
+                if len(tasks) < n_workers:
+                    job_id = threading.Thread(
+                        target=get_segments,
+                        args=(hits_sections[isec], l1, l2, model_dir,
+                              scaler, features, cuts[pair_idx], outname))
+                    job_id.start()
+                    tasks.append(job_id)
+                    itask += 1
+                    time.sleep(1)
+                else:
+                    while len(tasks) == n_workers:
+                        for task in tasks:
+                            if not task.is_alive():
+                                tasks.remove(task)
+                        time.sleep(30) ## two minutes
 
-        ## finish remaining tasks
-        while any([task.is_alive() for task in tasks]):
-            time.sleep(120)
+            ## finish remaining tasks
+            while any([task.is_alive() for task in tasks]):
+                time.sleep(120)
