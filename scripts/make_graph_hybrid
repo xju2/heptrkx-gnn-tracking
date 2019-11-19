@@ -27,7 +27,11 @@ def process(evtid, pairs_input_dir,
             quiet=True,
             no_edge_feature=False
            ):
-    out_name = prepare.get_nx_outname(output_dir, evtid)
+
+    n_sections = 2
+    all_there = 
+    for isec in range(n_sections):
+        out_name = prepare.get_nx_outname(output_dir, evtid)
     if os.path.exists(out_name):
         # print("[{}] find {}".format(prog, out_name))
         return
@@ -43,7 +47,6 @@ def process(evtid, pairs_input_dir,
     all_segments = [load_seg(file_name) for file_name in file_names if load_seg(file_name) is not None]
     segments = pd.concat(all_segments, ignore_index=True)
 
-    # find number of sections
 
     # get hits
     hit_file_name = os.path.join(pairs_input_dir, 'event{:09d}-hits.h5'.format(evtid))

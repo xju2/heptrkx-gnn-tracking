@@ -149,3 +149,12 @@ def select_hits(event, no_noise, eta_cut=1.2):
     # a = hits.groupby('particle_id')['hit_idx'].count() > 2
     # n_particles = a[a].shape[0]
     return hits
+
+def is_df_there(file_name):
+    res = False
+    if os.path.exists(file_name):
+        with pd.HDFStore(file_name) as store:
+            data = store.get('data')
+            if data is not None:
+                res = True
+    return res

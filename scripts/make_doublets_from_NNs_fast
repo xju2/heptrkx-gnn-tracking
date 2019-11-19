@@ -16,6 +16,7 @@ from heptrkx import load_yaml, list_from_str
 from heptrkx import layer_pairs, select_pair_layers
 from heptrkx import master
 from heptrkx.preprocess import utils_mldata
+from heptrkx import utils
 
 import subprocess
 import sys
@@ -26,12 +27,8 @@ prog = os.path.basename(sys.argv[0])
 
 def get_segments(hits, l1, l2, model_dir, scaler,
                  input_features, cut, outname):
-    if os.path.exists(outname):
-        with pd.HDFStore(outname) as store:
-            data = store.get('data')
-            if data is not None:
-                print("Layer {}-{} is there".format(l1, l2))
-                return
+    if utils.is_df_there(outname):
+        return
 
     hits1 = hits[hits.layer == l1]
     hits2 = hits[hits.layer == l2]
@@ -164,11 +161,8 @@ if __name__ == "__main__":
             if os.path.exists(hits_dir):
                 hits_out = os.path.join(output_dir, 'evt{}'.format(evtid),
                                         'event{:09d}-hits-g{:03d}.h5'.format(evtid, isec))
-                if os.path.exists(hits_out):
-                    with pd.HDFStore(hits_out) as store:
-                        data = store.get('data')
-                        if data is not None:
-                            continue
+                if utils.is_df_there(hits_out):
+                    continue
                 all_hits_there = False
                 break
             else:
@@ -186,12 +180,9 @@ if __name__ == "__main__":
             isec = itask%n_sections
             outname = os.path.join(output_dir,'evt{}'.format(evtid),
                                    'pair{:03d}_g{:03d}.h5'.format(pair_idx, isec))
-            if os.path.exists(outname):
-                with pd.HDFStore(outname) as store:
-                    data = store.get('data')
-                    if data is not None:
-                        itask += 1
-                        continue
+            if utils.is_df_there(outname):
+                itask += 1
+                continue
             all_pairs_there = False
             break
 
