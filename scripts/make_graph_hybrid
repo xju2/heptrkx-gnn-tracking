@@ -9,6 +9,7 @@ from heptrkx import layer_pairs, select_pair_layers, load_yaml
 from heptrkx.nx_graph import utils_data
 from heptrkx.nx_graph import utils_io
 from heptrkx.nx_graph import prepare
+from heptrkx import utils
 
 prog = os.path.basename(sys.argv[0])
 
@@ -29,53 +30,62 @@ def process(evtid, pairs_input_dir,
            ):
 
     n_sections = 2
-    all_there = 
+    all_there = True
     for isec in range(n_sections):
         out_name = prepare.get_nx_outname(output_dir, evtid)
-    if os.path.exists(out_name):
-        # print("[{}] find {}".format(prog, out_name))
+        if not utils.is_df_there(out_name):
+            all_there = False
+            break
+
+    if all_there:
+        print("[{}] find all {}".format(prog, out_name))
         return
     else:
         os.makedirs(output_dir, exist_ok=True)
 
     pairs_input_dir = os.path.join(pairs_input_dir, 'evt{:03d}'.format(evtid))
-
-    # find layer pairs
+    ## all segments beyond layer-pair 10-24, i.e. pair-idx > 3
     sel_layer_id = select_pair_layers(layers)
     file_names = [os.path.join(pairs_input_dir, 'pair{:03d}.h5'.format(i))
-                  for i in sel_layer_id]
-    all_segments = [load_seg(file_name) for file_name in file_names if load_seg(file_name) is not None]
-    segments = pd.concat(all_segments, ignore_index=True)
+                  for i in sel_layer_id if i > 3]
+    all_segments = [load_seg(file_name) for file_name in file_names]
+    ## segments = pd.concat(all_segments, ignore_index=True)
 
+    for isec in range(n_sections):
+        # get hits
+        hit_file_name = os.path.join(pairs_input_dir, 'event{:09d}-hits-g{:03d}.h5'.format(evtid, isec))
+        if not os.path.exists(hit_file_name):
+            print("{} is not there".format(hit_file_name))
+            continue
+        try:
+            with pd.HDFStore(hit_file_name) as store:
+                hits = store['data']
+        except KeyError:
+            print("{} does not have data".format(hit_file_name))
+            raise
+        # get segments for this section
 
-    # get hits
-    hit_file_name = os.path.join(pairs_input_dir, 'event{:09d}-hits.h5'.format(evtid))
-    if not os.path.exists(hit_file_name):
-        print("hit_file_name is not there")
-        return
+        file_names = [os.path.join(pairs_input_dir, 'pair{:03d}_g{:03d}.h5'.format(i, isec))
+                  for i in range(4)]
+        all_doublets = [load_seg(file_name) for file_name in file_names] + \
+                [segment[(segment.hit_id_in.isin(hits.hit_id)) & (segment.hit_id_out.isin(hits.hit_id))]
+                 for segment in all_segments]
+        doublets = pd.concat(all_doublets, ignore_index=True, sort=False)
+        print(doublets.columns)
 
-    try:
-        with pd.HDFStore(hit_file_name) as store:
-            hits = store['data']
-    except KeyError:
-        print("{} does not have data".format(hit_file_name))
-        raise
+        if not quiet:
+            print("[{}] processing event {}".format(prog, evtid))
+            print("\t section {} with total hits: {}".format(isec, hits.shape[0]))
+            print("\t section {} total edges: {}".format(isec, doublets.shape[0]))
 
-    if not quiet:
-        print("[{}] processing event {}".format(prog, evtid))
-        print("\t total hits: {}".format(hits.shape[0]))
-        print("\t total edges: {}".format(segments.shape[0]))
+        # make a graph and save to disk
+        graph = utils_data.segments_to_nx(
+            hits, doublets,
+            sender_hitid_name='hit_id_in',
+            receiver_hitid_name='hit_id_out',
+            solution_name='true', use_digraph=True, bidirection=args.bidirection)
 
-    # make a graph and save to disk
-    graph = utils_data.segments_to_nx(
-        hits, segments,
-        sender_hitid_name='hit_id_in',
-        receiver_hitid_name='hit_id_out',
-        solution_name='true', use_digraph=True, bidirection=args.bidirection
-    )
-
-    prepare.save_nx(graph, output_dir, evtid, no_edge_feature=no_edge_feature)
-    #utils_io.save_nx_to_hdf5(graph, out_name)
+        prepare.save_nx(graph, output_dir, evtid, isec=isec, no_edge_feature=no_edge_feature)
 
 
 if __name__ == "__main__":
@@ -102,12 +112,14 @@ if __name__ == "__main__":
     layers = config['make_graph']['layers']
     sel_layer_id = select_pair_layers(layers)
     output_dir = config['make_graph']['out_graph']
+    n_sections = 2
+    n_exp_pairs = 13
 
     ## find event IDs
     evtids = []
     for evt_dir_name in glob.glob(os.path.join(pairs_selected_dir, 'evt*')):
         n_pairs = len(glob.glob(os.path.join(evt_dir_name, 'pair*.h5')))
-        if n_pairs == len(sel_layer_id):
+        if n_pairs == n_exp_pairs:
             evtid = int(os.path.basename(evt_dir_name)[3:])
             evtids.append(evtid)
 
@@ -122,6 +134,7 @@ if __name__ == "__main__":
     from functools import partial
 
     print("{} workers processing {:,} events".format(n_workers, len(evtids)))
+
 
     if n_workers > 1:
         with  mp.Pool(processes=n_workers) as pool:

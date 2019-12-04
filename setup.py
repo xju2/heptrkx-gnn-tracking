@@ -55,6 +55,7 @@ setup(
         'scripts/make_doublets_from_NNs',
         'scripts/make_doublets_from_cuts',
         'scripts/make_graph',
+        'scripts/make_graph_hybrid',
         'scripts/make_pairs_for_training_segments',
         'scripts/make_trkx',
         'scripts/make_true_pairs',

@@ -10,10 +10,12 @@ if __name__ == "__main__":
     add_arg('target_dict', type=str, help='TARGET.npz')
     add_arg('outname', type=str, help='output name, graph.pdf')
     add_arg('--truth', action='store_true', help='plot only true')
+    add_arg('--indir', help='input directory', default='./')
 
     args = parser.parse_args()
-    input_dict = args.input_dict
-    target_dict = args.target_dict
+    in_dir = args.indir
+    input_dict = os.path.join(in_dir, args.input_dict)
+    target_dict = os.path.join(in_dir, args.target_dict)
     outname = args.outname
     only_true = args.truth
 

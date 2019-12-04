@@ -118,6 +118,7 @@ if __name__ == "__main__":
         else:
             evtids = [evtids]
 
+        print("Total {} events".format(len(evtids)))
         ## split evtids based on the world-size
         evtids = [x.tolist() for x in np.array_split(evtids, size)]
     else:
@@ -161,10 +162,9 @@ if __name__ == "__main__":
             if os.path.exists(hits_dir):
                 hits_out = os.path.join(output_dir, 'evt{}'.format(evtid),
                                         'event{:09d}-hits-g{:03d}.h5'.format(evtid, isec))
-                if utils.is_df_there(hits_out):
-                    continue
-                all_hits_there = False
-                break
+                if not utils.is_df_there(hits_out):
+                    all_hits_there = False
+                    break
             else:
                 os.makedirs(hits_dir)
                 all_hits_there = False
@@ -180,11 +180,11 @@ if __name__ == "__main__":
             isec = itask%n_sections
             outname = os.path.join(output_dir,'evt{}'.format(evtid),
                                    'pair{:03d}_g{:03d}.h5'.format(pair_idx, isec))
-            if utils.is_df_there(outname):
+            if not utils.is_df_there(outname):
+                all_pairs_there = False
+                break
+            else:
                 itask += 1
-                continue
-            all_pairs_there = False
-            break
 
         if all_hits_there and all_pairs_there:
             print("Event {} all there".format(evtid))
@@ -196,7 +196,7 @@ if __name__ == "__main__":
         event.filter_hits(layers)
         local_angles = utils_mldata.cell_angles(event.hits, module_getter, event.cells)
         hit_features = ['evtid', 'hit_id', 'phi', 'z', 'r', 'eta',
-                        'geta', 'gphi', 'layer', 'particle_id']
+                        'geta', 'gphi', 'layer', 'particle_id', 'nhits', 'pt']
         hits = event.hits.merge(local_angles, on='hit_id', how='left')[hit_features]
 
         # split the hits into two regions eta > 0 and eta < 0

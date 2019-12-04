@@ -14,7 +14,7 @@ from graph_nets import utils_tf
 from graph_nets import blocks
 import sonnet as snt
 
-LATENT_SIZE = 32
+LATENT_SIZE = 128
 NUM_LAYERS = 2
 
 def make_mlp_model():
