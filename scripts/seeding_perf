@@ -127,7 +127,7 @@ if __name__ == "__main__":
 
         df_unique_true_seeds = pd.DataFrame(unique_true_seeds, columns=['particle_id'])
         df_unique_true_seeds = df_unique_true_seeds.merge(event.hits, on='particle_id', how='left')
-        df_total_particles = pd.DataFrame(total_particles, columns=['particle_id'])
+        df_total_particles = pd.DataFrame(good_particles, columns=['particle_id'])
         df_total_particles = df_total_particles.merge(event.hits, on='particle_id', how='left')
 
         particle_pT_list.append(df_total_particles.pt)
@@ -142,9 +142,8 @@ if __name__ == "__main__":
     tot_seeds = sum(n_seeds_list)
     tot_true_seeds = sum(n_true_seeds_list)
 
-    if verbose:
-        print("Purity: {:.2f}%".format(tot_true_seeds*100./tot_seeds))
-        print("Efficiency: {:.2f}%".format(tot_matched_particles*100./tot_particles))
+    print("Purity: {:.2f}%".format(tot_true_seeds*100./tot_seeds))
+    print("Efficiency: {:.2f}%".format(tot_matched_particles*100./tot_particles))
 
     tot_pt = np.concatenate(particle_pT_list, axis=0)
     matched_pt = np.concatenate(matched_particle_pT_list, axis=0)
