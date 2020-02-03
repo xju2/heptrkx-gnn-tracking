@@ -1,0 +1,171 @@
+#!/usr/bin/env python
+import argparse
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+
+from heptrkx import utils
+from heptrkx import master
+from heptrkx import pairwise
+
+def find_hit_idx(X):
+    return hits[(hits.x==X[0]) & (hits.y==X[1]) & (hits.z==X[2])]['hit_idx'].values[0]
+
+def get_ratio(x_vals, y_vals):
+    res = [x/y if y!=0 else 0.0 for x,y in zip(x_vals, y_vals)]
+    return res[1:]
+
+
+if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser(description='calculate seeding efficiency')
+    add_arg = parser.add_argument
+    add_arg('candiate',  help="seeding candidates")
+    add_arg('output',  help="output name")
+    add_arg('-d', '--data',  help="original tracking ML data",
+            default='/global/project/projectdirs/m3443/usr/xju/heptrkx/codalab/inputs/train_all')
+    add_arg('--no-noise', action='store_true', help='Exclude noise hits')
+    add_arg('--min-hits', type=int,
+            help='minimum number of hits for a particle to be reconstructable', default=5)
+    add_arg('--layers', nargs='?',
+            help='use hits in the specific layers', default=None, const='7,8,9')
+    add_arg('-v', '--verbose', action='store_true', help='print debug info')
+
+    args = parser.parse_args()
+    seed_candidates = args.candiate
+    data_input_dir = args.data
+    output = args.output
+    no_noise = args.no_noise
+    min_hits = args.min_hits
+    layers = args.layers
+    verbose = args.verbose
+
+    if args.layers is not None:
+        print("select hits in following layers")
+        print(layers)
+        layers = [int(x) for x in args.layers.split(',')]
+
+    df_seed = pd.read_csv(seed_candidates, header=None,
+                          names=['evtid', 'h1', 'h2', 'h3'])
+
+    evt_list = np.unique(df_seed.evtid)
+    print("Total {} events".format(evt_list.shape[0]))
+
+    n_particles_list = []
+    n_matched_particles_list = []
+    n_seeds_list = []
+    n_true_seeds_list = []
+    pT_bins = [-0.1, 0.1, 0.3, 0.5, 0.7, 0.9, 1.1, 1.5, 1.9, 2.4, 5]
+    particle_pT_list = []
+    matched_particle_pT_list = []
+    for evtid in evt_list:
+        if verbose:
+            print("Processing Event {}".format(evtid))
+
+        event = master.Event(data_input_dir, evtid)
+        hits = utils.select_hits(event, no_noise, eta_cut=1.2)
+        all_particles = np.unique(hits.particle_id).shape[0]
+        all_hits = hits.shape[0]
+        if verbose:
+            print("Total particles: {}, with {} hits".format(all_particles, all_hits))
+
+        aa = hits.groupby(['particle_id'])['hit_id'].count()
+        total_particles = aa[aa > min_hits].index
+
+        total_particles = total_particles[total_particles != 0]
+        n_total_particles = total_particles.shape[0]
+        if verbose:
+            print("Event {} has {} particles with minimum of {} hits".format(
+                evtid, n_total_particles, min_hits))
+
+
+        df = df_seed[df_seed.evtid == evtid]
+        if verbose:
+            print("Event {} has {} seed candidates".format(evtid, df.shape[0]))
+
+        if layers is not None:
+            ## now select the hits in specified layers
+            hits = hits[hits.layer.isin(layers)]
+
+        # particles leaving 3 hits in three layers
+        bb = hits.groupby(['particle_id'])['layer'].count()
+        good_particles = bb[bb > 2].index
+        n_particles_list.append(good_particles.shape[0])
+
+        good_particles_pT = np.unique(hits[hits.particle_id.isin(good_particles) \
+                                           & hits.pt.abs() >= 1].particle_id)
+        if verbose:
+            print("Event {} has {} particles leaving hits at inner 3 layers".format(
+                evtid, good_particles.shape[0]))
+            print("Event {} has {} particles leaving hits at inner 3 layers, with pT > 1 GeV".format(
+                evtid, good_particles_pT.shape[0]))
+
+        df1 = df.merge(hits, left_on='h1', right_on='hit_id', how='left')
+        df2 = df.merge(hits, left_on='h2', right_on='hit_id', how='left')
+        df3 = df.merge(hits, left_on='h3', right_on='hit_id', how='left')
+        p1 = df1.particle_id.astype('int64')
+        p2 = df2.particle_id.astype('int64')
+        p3 = df3.particle_id.astype('int64')
+
+        n_total_seeds = df.shape[0]
+        #true_seeds = df[(df_all.p1 != 0) & (df_all.p1==df_all.p2) & (df_all.p2==df_all.p3)]
+        true_seeds = p1[(p1 != 0) & (p1==p2) & (p2==p3)]
+        n_true_seeds = true_seeds.shape[0]
+
+        unique_true_seeds = np.unique(true_seeds)
+        n_unique_true_seeds = unique_true_seeds.shape[0]
+
+        n_matched_particles_list.append(n_unique_true_seeds)
+        n_seeds_list.append(n_total_seeds)
+        n_true_seeds_list.append(n_true_seeds)
+
+        if verbose:
+            print("{} particles matched".format(n_unique_true_seeds))
+            print("Fraction of duplicated seeds: {:.2f}%".format(100 - n_unique_true_seeds*100/n_true_seeds))
+            print("Purity: {:.2f}%".format(n_true_seeds*100./n_total_seeds))
+            print("Efficiency: {:.2f}%".format(n_unique_true_seeds*100./good_particles.shape[0]))
+
+        df_unique_true_seeds = pd.DataFrame(unique_true_seeds, columns=['particle_id'])
+        df_unique_true_seeds = df_unique_true_seeds.merge(event.hits, on='particle_id', how='left')
+        df_total_particles = pd.DataFrame(total_particles, columns=['particle_id'])
+        df_total_particles = df_total_particles.merge(event.hits, on='particle_id', how='left')
+
+        particle_pT_list.append(df_total_particles.pt)
+        matched_particle_pT_list.append(df_unique_true_seeds.pt)
+        del df
+        del event
+
+
+    ## make a summary plot
+    tot_particles = sum(n_particles_list)
+    tot_matched_particles = sum(n_matched_particles_list)
+    tot_seeds = sum(n_seeds_list)
+    tot_true_seeds = sum(n_true_seeds_list)
+
+    if verbose:
+        print("Purity: {:.2f}%".format(tot_true_seeds*100./tot_seeds))
+        print("Efficiency: {:.2f}%".format(tot_matched_particles*100./tot_particles))
+
+    tot_pt = np.concatenate(particle_pT_list, axis=0)
+    matched_pt = np.concatenate(matched_particle_pT_list, axis=0)
+    hist_configs = {
+        'bins': pT_bins,
+        'histtype': 'step',
+        'lw': 2,
+        'log': True
+    }
+    fig, ax = plt.subplots(figsize=(8, 8), constrained_layout=True)
+    tot_vals, bins, _ = ax.hist(tot_pt, **hist_configs)
+    sel_vals, bins, _ = ax.hist(matched_pt, **hist_configs)
+    plt.clf()
+    ratio = get_ratio(sel_vals, tot_vals)
+    xvals = [0.5*(x[0]+x[1]) for x in pairwise(bins)][1:]
+    line_configs = {'lw': 2}
+    lstype = '-o'
+    plt.plot(xvals, ratio, lstype, **line_configs)
+    for i,j in zip(xvals, ratio):
+        plt.text(i, j+0.02, "{:.2f}".format(j))
+
+    plt.xlabel("pT [GeV]")
+    plt.ylabel("Efficiency")
+    plt.savefig(output, bbox_inches='tight')

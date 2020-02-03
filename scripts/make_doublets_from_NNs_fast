@@ -193,7 +193,9 @@ if __name__ == "__main__":
             print("processing Event {}".format(evtid))
 
         event = master.Event(data_dir, evtid)
-        event.filter_hits(layers)
+        # TODO: hardcoded for barrel regions
+        barrel_layers = [7, 8, 9, 10, 24, 25, 26, 27, 40, 41]
+        event.filter_hits(barrel_layers)
         local_angles = utils_mldata.cell_angles(event.hits, module_getter, event.cells)
         hit_features = ['evtid', 'hit_id', 'phi', 'z', 'r', 'eta',
                         'geta', 'gphi', 'layer', 'particle_id', 'nhits', 'pt']

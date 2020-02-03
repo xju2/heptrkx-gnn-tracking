@@ -13,21 +13,32 @@ if __name__ == "__main__":
     add_arg = parser.add_argument
     add_arg('nevts', type=int, help='number of events to be processed')
     add_arg('--no-noise', action='store_true', help="Exclude noise hits")
+    add_arg('--layers', nargs='?', help='use hits in the specific layers', default=None,
+            const='7,8,9')
     args = parser.parse_args()
 
     no_noise = args.no_noise
+    layers = args.layers
+    if args.layers is not None:
+        print("select hits in following layers")
+        print(layers)
+        layers = [int(x) for x in args.layers.split(',')]
 
-    data_dir = '/global/cscratch1/sd/xju/heptrkx/codalab/inputs/train_all'
+    data_dir = '/global/cfs/projectdirs/m3443/usr/xju/heptrkx/codalab/inputs/train_all'
     n_events = args.nevts
     all_events = master.get_event(data_dir, n_events)
     for event in all_events:
         evtid = event.evtid
         hits = utils.select_hits(event, no_noise, eta_cut=1.2)
+        if layers is not None:
+            hits = hits[hits.layer.isin(layers)]
+
         #aa = hits.groupby['particle_id']['hit_id'].count() > 2
-        aa = hit.groupby(['particle_id'])['layer_id'].apply(lambda x: len(np.unique(x)))
-        n_particles = aa[aa > 2].shape[0]
-        print("total particles: {}".format(n_particles))
-        output_hits = hits[['layer', 'x', 'y', 'z']].assign(lxyz='lxyz', covr=0.01, covz=0.05)
+        #aa = hits.groupby(['particle_id'])['layer_id'].apply(lambda x: len(np.unique(x)))
+        #n_particles = aa[aa > 2].shape[0]
+        #print("total particles: {}".format(n_particles))
+
+        output_hits = hits[['hit_id', 'layer', 'x', 'y', 'z']].assign(lxyz='lxyz', covr=0.01, covz=0.05)
 
         out_name = 'hits4seeding_{}.csv'.format(evtid)
-        output_hits[['lxyz', 'layer', 'x', 'y', 'z', 'covr', 'covz']].to_csv(out_name, header=False, index=False, sep=" ")
+        output_hits[['lxyz', 'hit_id', 'layer', 'x', 'y', 'z', 'covr', 'covz']].to_csv(out_name, header=False, index=False, sep=" ")

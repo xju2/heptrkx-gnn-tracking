@@ -32,10 +32,11 @@ segments_from_NN:
     selected: /global/cscratch1/sd/xju/heptrkx/codalab/NNbasedSegments/segments4graph
     threshold: /global/project/projectdirs/atlas/xju/heptrkx/codalab/analysis/NNbased_Segments/cuts_v1.txt
     layers: [7, 8, 9, 10, 24]
-    cuts: [0.99612, 0.99700, 0.99600, 0.99300]
+    cuts: [0.99612, 0.99700, 0.99600, 0.91900]
 
+# make graphs via hybrid approach
 make_graph:
-    nevts: 1500
+    nevts: 100
     out_graph: /global/project/projectdirs/atlas/xju/heptrkx/codalab/outputs/graphs/GraphsFromHybridSources
     input_segments: /global/cscratch1/sd/xju/heptrkx/codalab/NNbasedSegments/segments4graph
     input_data: /global/project/projectdirs/m3443/usr/xju/heptrkx/codalab/inputs/train_all
@@ -48,11 +49,11 @@ segment_training:
     log_name: big.log
     input_type: 'data_dict'
     parameters:
-        time_lapse:  30 # how often save checkpoint in seconds
+        time_lapse:  180 # how often save checkpoint in seconds
         batch_size: 1
         iterations: 200000
         iter_per_job: 20000
-        n_iters: 6
+        n_iters: 8
         learning_rate: 0.001
         real_weight: 10.0
         fake_weight: 1.

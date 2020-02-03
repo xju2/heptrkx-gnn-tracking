@@ -1,4 +1,7 @@
 #!/usr/bin/env python
+"""
+This construct graphs using NN-based selections for pixel layers and cut-based one for strip layers
+"""
 
 import pandas as pd
 import numpy as np
@@ -64,13 +67,16 @@ def process(evtid, pairs_input_dir,
             print("{} does not have data".format(hit_file_name))
             raise
         # get segments for this section
+        print(hits.columns)
+        print(np.unique(hits.layer))
 
         file_names = [os.path.join(pairs_input_dir, 'pair{:03d}_g{:03d}.h5'.format(i, isec))
                   for i in range(4)]
+
         all_doublets = [load_seg(file_name) for file_name in file_names] + \
                 [segment[(segment.hit_id_in.isin(hits.hit_id)) & (segment.hit_id_out.isin(hits.hit_id))]
                  for segment in all_segments]
-        doublets = pd.concat(all_doublets, ignore_index=True, sort=False)
+        doublets = pd.concat(all_doublets, ignore_index=True, sort=False, join='inner')
         print(doublets.columns)
 
         if not quiet:
@@ -100,12 +106,14 @@ if __name__ == "__main__":
     add_arg('-b', '--bidirection', action='store_true', help='use two-directions in graph')
     add_arg('--no_edge_feature', action='store_true', help='no edge features')
     add_arg('--quiet', action='store_true', help='in a quiet mode')
+    add_arg('--evtid', type=int, nargs='*', default=None, help='make graph for this event id')
 
     args = parser.parse_args()
     config_dir = args.config
     n_workers = args.workers
     quiet = args.quiet
     no_edge_feature = args.no_edge_feature
+    evtid_to_run = args.evtid
 
     config = load_yaml(config_dir)
     pairs_selected_dir = os.path.expandvars(config['make_graph']['input_segments'])
@@ -116,12 +124,15 @@ if __name__ == "__main__":
     n_exp_pairs = 13
 
     ## find event IDs
-    evtids = []
-    for evt_dir_name in glob.glob(os.path.join(pairs_selected_dir, 'evt*')):
-        n_pairs = len(glob.glob(os.path.join(evt_dir_name, 'pair*.h5')))
-        if n_pairs == n_exp_pairs:
-            evtid = int(os.path.basename(evt_dir_name)[3:])
-            evtids.append(evtid)
+    if evtid_to_run is not None:
+        evtids = evtid_to_run
+    else:
+        evtids = []
+        for evt_dir_name in glob.glob(os.path.join(pairs_selected_dir, 'evt*')):
+            n_pairs = len(glob.glob(os.path.join(evt_dir_name, 'pair*.h5')))
+            if n_pairs == n_exp_pairs:
+                evtid = int(os.path.basename(evt_dir_name)[3:])
+                evtids.append(evtid)
 
     if len(evtids) < 1:
         print("[{}] no selected pairs avaiable".format(prog))
@@ -134,6 +145,7 @@ if __name__ == "__main__":
     from functools import partial
 
     print("{} workers processing {:,} events".format(n_workers, len(evtids)))
+    print(evtids)
 
 
     if n_workers > 1:

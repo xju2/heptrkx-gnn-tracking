@@ -43,7 +43,7 @@ setup(
         "Programming Language :: Python :: 3.7",
     ],
     scripts=[
-        'scripts/acts_seeding_eff',
+        'scripts/seeding_perf',
         'scripts/create_seed_inputs',
         'scripts/duplicated_hits',
         'scripts/evaluate_gnn_models',
