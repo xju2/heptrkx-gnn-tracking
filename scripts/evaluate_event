@@ -8,11 +8,10 @@ import pandas as pd
 import networkx as nx
 import matplotlib.pyplot as plt
 
-from heptrkx import master, seeding
-from heptrkx import load_yaml, layer_pairs, select_pair_layers, pairwise
+from heptrkx import master
+from heptrkx import load_yaml, layer_pairs, select_pair_layers
+from trackml.score import score_event
 from heptrkx.nx_graph import utils_data
-from heptrkx.postprocess import wrangler, analysis, inference
-from heptrkx.preprocess import hitsgraph
 
 
 if __name__ == "__main__":
@@ -23,7 +22,7 @@ if __name__ == "__main__":
     add_arg = parser.add_argument
     add_arg('config', help="configuration file")
     add_arg('evtid', type=int, help="event id")
-    add_arg('--min-hits', type=int, default=1, help="minimum number of hits")
+    add_arg('--min-hits', type=int, default=5, help="minimum number of hits")
     add_arg('--matching_pct', type=float, default=0.8,
             help="percentage of hits from the true track being found in the reconstructed track candidate")
     add_arg('--no-split', action='store_true', help="do not split into different sections")
@@ -38,15 +37,10 @@ if __name__ == "__main__":
     # read configuration, extract used parameters
     config = load_yaml(config_file)
     data_dir = config['track_ml']['dir']
-    layers = config['track_ml']['layers']
+    layers = config['layers']
     print("Study Event {}".format(evtid))
     print("Use hits recorded in Layers:", layers)
-    z0_max = config['selection']['z0_max']
-    phi_slope_max = config['selection']['phi_slope_max']
-    n_phi_sections = config['selection']['n_phi_sections']
-    n_eta_sections = config['selection']['n_eta_sections']
-    eta_range = (-5, 5)
-    phi_range = (-np.pi, np.pi)
+    print("Require Minimum of {} hits in a track".format(min_hits))
 
     try:
         black_list_dir = config['track_ml']['blacklist_dir']
@@ -54,125 +48,78 @@ if __name__ == "__main__":
         black_list_dir = None
 
     # read in the event
-    event = master.Event(data_dir, evtid, black_list_dir)
+    event = master.Event(data_dir, black_list_dir)
+    event.read(evtid)
+
     particles = event.particles
-    truth = event.truth
+    hits = event.hits
 
+    # total particles
     n_tot_particles = particles.shape[0]
-    n_tot_hits = event.hits.shape[0]
-    print("Total {:,} hits, {:,} particles".format(
-        n_tot_hits, n_tot_particles))
+    n_tot_hits = hits.shape[0]
 
-    reconstructable_particles = event.reconstructable_pids(min_hits=min_hits)
+    # reconstructable particles
+    reconstructable_particles = event.reconstructable_pids(min_hits=0)
     n_reco_trks = len(reconstructable_particles)
-    print("{:,} ({:.2f}%) reconstructable particles".format(n_reco_trks, n_reco_trks*100/n_tot_particles))
 
-    hits_no_noise = event.remove_noise_hits()
-    n_nonnoise_hits = hits_no_noise.shape[0]
-    n_noise_hits = n_tot_hits - n_nonnoise_hits
-    print("{:,} ({:.2f}%) noise hits, {} non-noise hits".format(
-        n_noise_hits, n_noise_hits*100/n_tot_hits, n_nonnoise_hits))
+    # reconstructable particles with minimum hits
+    reco_pp = event.reconstructable_pids(min_hits=min_hits)
+    n_reco_good_trks = len(reco_pp)
+    hits = hits[hits.particle_id.isin(reco_pp)]
+    n_reco_good_hits = hits.shape[0]
 
-    hits_barrel = event.filter_hits(layers)
-    n_hits = hits_barrel.shape[0]
-    print("{:,} non-noise hits in selected layers, "
-          "{:.2f}% of total non-noise hits".format(
-        n_hits, n_hits*100/n_nonnoise_hits))
+    # barrel hits
+    hits = hits[hits.layer.isin(layers)]
+    n_hits_barrel = hits.shape[0]
+    n_trks_barrel = np.unique(hits.particle_id).shape[0]
 
-    hits_barrel_no_dup = event.remove_duplicated_hits()
-    n_nodes = hits_barrel_no_dup.shape[0]
-    n_duplicated_hits = n_hits - n_nodes
-    print("{:,} non-noise non-duplication hits left, "
-          "{:.2f}% of total non-noise hits".format(
-        n_nodes, n_nodes*100/n_nonnoise_hits))
-    print("{:,} duplicated hits, "
-          "{:.2f}% of total non-noise hits".format(
-              n_duplicated_hits, n_duplicated_hits*100/n_nonnoise_hits))
-    ## summarize number of hits and number of particles with min_hits
-    good_particles = hits_barrel_no_dup.groupby('particle_id')['hit_id'].count() >= min_hits
-    n_good_particles = np.sum(good_particles)
-    print("Summary: {:,} particles "
-          "with minimum {} hit(s) and {:,} hits".format(
-              n_good_particles, min_hits, n_nodes))
+    # eta > 0
+    hits = hits[hits.eta > 0]
+    n_hits_pos_eta = hits.shape[0]
+    n_trks_pos_eta = np.unique(hits.particle_id).shape[0]
 
-    ## create doublets
-    selected_pairs_idx = select_pair_layers(layers)
-    selected_pairs = [layer_pairs[i] for i in selected_pairs_idx]
-    segments = []
-    for pair_idx in selected_pairs_idx:
-        segments.append(
-            seeding.create_segments(hits_barrel_no_dup,
-                                    layer_pairs[pair_idx],
-                                    cluster_info=False,
-                                    origin_pos=False,
-                                    verbose=False))
+    # remove shared
+    hits = hits.loc[hits.groupby(['particle_id', 'layer'], as_index=False).r.idxmin()]
+    n_hits_no_dup = hits.shape[0]
+    n_trks_no_dup = np.unique(hits.particle_id).shape[0]
 
-    pd_segments = pd.concat(segments, ignore_index=True)
-    true_edges = pd_segments[pd_segments['true']]
-    selected_segments = pd_segments[ (pd_segments.phi_slope.abs() < phi_slope_max)
-                                    & (pd_segments.z0.abs() < z0_max) ]
-    selected_true_segments = selected_segments[selected_segments['true']]
-    n_seg_truth = true_edges.shape[0]
-    n_seg_sel = selected_segments.shape[0]
-    n_seg_sel_true = selected_true_segments.shape[0]
-    print("Segment selection\n"
-          "\tEfficiency: {:.2f}%\n"
-          "\tPurity: {:.2f}%".format(
-              100*n_seg_sel_true/n_seg_truth,
-              100*n_seg_sel_true/n_seg_sel
-          ))
+    def create_true_segments(hits, layer_pairs):
+        gid_keys = 'layer'
+        hit_gid_groups = hits.groupby(gid_keys)
+        
+        segments = []
+        for gid1, gid2 in layer_pairs:
+            hits1 = hit_gid_groups.get_group(gid1)
+            hits2 = hit_gid_groups.get_group(gid2)
+            hit_pairs = pd.merge(
+                hits1.reset_index(), hits2.reset_index(),
+                how='inner', on='particle_id', suffixes=('_in', '_out'))
+            true_doublets = hit_pairs[['hit_id_in', 'hit_id_out']].assign(solution=1)
+            print("{}-{} has {:,} doublets".format(gid1, gid2, true_doublets.shape[0]))
+            segments.append(true_doublets)
+        
+        merged_segments = pd.concat(segments, ignore_index=True)
+        return merged_segments
+    
+    selected_layer_pairs = [layer_pairs[i] for i in select_pair_layers(layers)]
+    all_segments = create_true_segments(hits, selected_layer_pairs)
+    G = utils_data.segments_to_nx(hits, 
+                                all_segments, 
+                                'hit_id_in', 'hit_id_out', 
+                                solution_name='solution', 
+                                use_digraph=False, bidirection=False)
+    can_trkx = nx.k_components(G)[1]
+    results = []
+    for itrk, tracks in enumerate(can_trkx):
+        results += [(G.nodes[track]['hit_id'], itrk) for track in tracks]
 
-    if do_split: 
-        ## split selected segments into [eta, phi] regions
-        phi_edges = np.linspace(*phi_range, num=n_phi_sections+1)
-        eta_edges = np.linspace(*eta_range, num=n_eta_sections+1)
-        hits_sections = hitsgraph.split_detector_sections(
-            hits_barrel_no_dup, phi_edges, eta_edges)
-
-        #now recreate segments from the splitted graphs
-        splitted_segments = [[seeding.create_segments(section_hits, layer_pair,
-                                                      cluster_info=False,
-                                                      origin_pos=False,
-                                                      verbose=False)
-                              for layer_pair in selected_pairs]
-                             for section_hits in hits_sections]
-        merged_splitted_segments = pd.concat([item for sublist in splitted_segments for item in sublist], ignore_index=True)
-        sp_true_edges = merged_splitted_segments[merged_splitted_segments['true']]
-        sp_sel_edges = merged_splitted_segments[
-            (merged_splitted_segments.phi_slope.abs() < phi_slope_max)
-            &(merged_splitted_segments.z0.abs() < z0_max)]
-        sp_sel_true_edges = sp_sel_edges[sp_sel_edges['true']]
-        n_seg_sp_truth = sp_true_edges.shape[0]
-        n_seg_sp_sel = sp_sel_edges.shape[0]
-        n_seg_sp_sel_true = sp_sel_true_edges.shape[0]
-        print("Segment selection after spliting into {} regions\n"
-              "\tEfficiency: {:.2f}%\n"
-              "\tPurity: {:.2f}%".format(
-                  n_phi_sections*n_eta_sections,
-                  100*n_seg_sp_sel_true/n_seg_truth,
-                  100*n_seg_sp_sel_true/n_seg_sp_sel
-              ))
-        # construct netowrkx graph and make predictions
-        nx_G = utils_data.segments_to_nx(hits_barrel_no_dup,
-                                         sp_sel_true_edges,
-                                         'hit_id_in', 'hit_id_out',
-                                         'true', use_digraph=False)
-    else:
-        nx_G = utils_data.segments_to_nx(hits_barrel_no_dup,
-                                         selected_true_segments,
-                                         'hit_id_in', 'hit_id_out',
-                                         'true', use_digraph=False)
-
-    all_true_tracks = wrangler.get_tracks(nx_G,
-                                          feature_name='solution', with_fit=False)
-    true_df = analysis.graphs_to_df(all_true_tracks)
-    n_total_predictions = len(np.unique(true_df['track_id']))
-    print("total reconstructed tracks:", n_total_predictions)
-    res_truth = analysis.summary_on_prediction2(nx_G, hits_barrel_no_dup,
-                                                true_df,
-                                                matching_cut=matching_cut,
-                                                min_hits=min_hits)
-    print("{:,} recostructed tracks matched to truth particles "
-          "with minimum of {} hits at the threshold that {:.1f}% "
-          "of hits from the true particle is presented in the reconstructed track".format(
-        res_truth['n_correct'], min_hits, matching_cut*100))
+    df = pd.DataFrame(results, columns=['hit_id', 'track_id'])
+    score = score_event(hits, df)
+    print("start:                     {}, {}".format(n_tot_hits, n_tot_particles))
+    print("reconstructable particles: {}, {}".format(n_tot_hits, n_reco_trks))
+    print("min hits > {}:             {}, {}".format(min_hits, n_reco_good_hits, n_reco_good_trks))
+    print("barrel:                    {}, {}".format(n_hits_barrel, n_trks_barrel))
+    print("positive eta:              {}, {}".format(n_hits_pos_eta, n_trks_pos_eta))
+    print("no duplication:            {}, {}".format(n_hits_no_dup, n_trks_no_dup))
+    print("Score:                     {:.4f}".format(score))
+    print("total segments:            {}".format(all_segments.shape[0]))

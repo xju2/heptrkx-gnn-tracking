@@ -56,8 +56,12 @@ if __name__ == "__main__":
     n_seeds_list = []
     n_true_seeds_list = []
     pT_bins = [-0.1, 0.1, 0.3, 0.5, 0.7, 0.9, 1.1, 1.5, 1.9, 2.4, 5]
+    eta_bins = [-1.2, -0.8, -0.4, 0, 0.4, 0.8, 1.2]
+    eta_bins = []
     particle_pT_list = []
     matched_particle_pT_list = []
+    particle_eta_list = []
+    matched_particle_eta_list = []
     for evtid in evt_list:
         if verbose:
             print("Processing Event {}".format(evtid))
@@ -89,7 +93,8 @@ if __name__ == "__main__":
 
         # particles leaving 3 hits in three layers
         bb = hits.groupby(['particle_id'])['layer'].count()
-        good_particles = bb[bb > 2].index
+        good_particles = bb[(bb > 2) & (aa > min_hits)].index
+        good_particles = good_particles[good_particles != 0]
         n_particles_list.append(good_particles.shape[0])
 
         good_particles_pT = np.unique(hits[hits.particle_id.isin(good_particles) \
@@ -132,8 +137,8 @@ if __name__ == "__main__":
 
         particle_pT_list.append(df_total_particles.pt)
         matched_particle_pT_list.append(df_unique_true_seeds.pt)
-        del df
-        del event
+        particle_eta_list.append(df_total_particles.eta)
+        matched_particle_eta_list.append(df_unique_true_seeds.eta)
 
 
     ## make a summary plot
@@ -167,4 +172,31 @@ if __name__ == "__main__":
 
     plt.xlabel("pT [GeV]")
     plt.ylabel("Efficiency")
-    plt.savefig(output, bbox_inches='tight')
+    plt.savefig(output+"_pT.png", bbox_inches='tight')
+    plt.clf()
+
+    ## make eta bins
+    tot_eta = np.concatenate(particle_eta_list, axis=0)
+    matched_eta = np.concatenate(matched_particle_eta_list, axis=0)
+    hist_configs = {
+        'bins': eta_bins,
+        'histtype': 'step',
+        'lw': 2,
+        'log': True
+    }
+    fig, ax = plt.subplots(figsize=(8, 8), constrained_layout=True)
+    tot_vals, bins, _ = ax.hist(tot_eta, **hist_configs)
+    sel_vals, bins, _ = ax.hist(matched_eta, **hist_configs)
+    plt.clf()
+    ratio = get_ratio(sel_vals, tot_vals)
+    xvals = [0.5*(x[0]+x[1]) for x in pairwise(bins)][1:]
+    line_configs = {'lw': 2}
+    lstype = '-o'
+    plt.plot(xvals, ratio, lstype, **line_configs)
+    for i,j in zip(xvals, ratio):
+        plt.text(i, j+0.02, "{:.2f}".format(j))
+
+    plt.xlabel("Eta")
+    plt.ylabel("Efficiency")
+    plt.savefig(output+"_eta.png", bbox_inches='tight')
+    plt.clf()

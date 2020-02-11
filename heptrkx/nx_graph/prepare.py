@@ -220,7 +220,8 @@ def get_networkx_saver(output_dir_):
 
 
 def get_nx_outname(outdir, evtid, isec=0):
-    return os.path.join(outdir, 'event{:09d}_g{:09d}_{}.npz'.format(evtid, isec, INPUT_NAME))
+    # return os.path.join(outdir, 'event{:09d}_g{:09d}_{}.npz'.format(evtid, isec, INPUT_NAME))
+    return os.path.join(outdir, 'event{:09d}_g{:09d}.pkl'.format(evtid, isec, INPUT_NAME))
 
 
 def save_nx(graph, outdir, evtid, isec=0, no_edge_feature=False):

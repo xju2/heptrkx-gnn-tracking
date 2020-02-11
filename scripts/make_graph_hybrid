@@ -8,6 +8,7 @@ import numpy as np
 import os
 import sys
 
+import networkx as nx
 from heptrkx import layer_pairs, select_pair_layers, load_yaml
 from heptrkx.nx_graph import utils_data
 from heptrkx.nx_graph import utils_io
@@ -35,7 +36,7 @@ def process(evtid, pairs_input_dir,
     n_sections = 2
     all_there = True
     for isec in range(n_sections):
-        out_name = prepare.get_nx_outname(output_dir, evtid)
+        out_name = prepare.get_nx_outname(output_dir, evtid, isec)
         if not utils.is_df_there(out_name):
             all_there = False
             break
@@ -90,8 +91,13 @@ def process(evtid, pairs_input_dir,
             sender_hitid_name='hit_id_in',
             receiver_hitid_name='hit_id_out',
             solution_name='true', use_digraph=True, bidirection=args.bidirection)
+        graph.graph['evtid'] = evtid
 
-        prepare.save_nx(graph, output_dir, evtid, isec=isec, no_edge_feature=no_edge_feature)
+        # write the graph as pickle files
+        out_name = prepare.get_nx_outname(output_dir, evtid, isec)
+        nx.write_gpickle(graph, out_name)
+        # prepare.save_nx(graph, output_dir, evtid, isec=isec, no_edge_feature=no_edge_feature)
+
 
 
 if __name__ == "__main__":

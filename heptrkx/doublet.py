@@ -9,11 +9,14 @@ from heptrkx import seeding
 import os
 import pandas as pd
 
-class Segments(object):
-    def create_segments(hits, layer_pair, gid_keys='layer'):
+class Doublets(object):
+    def create(hits, layer_pair, gid_keys='layer'):
         raise NotImplementedError
 
-class CutBasedSegments(Segments):
+    def save(output_dir):
+        raise NotImplementedError
+
+class CutBasedDoublets(Segments):
     def __init__(self):
         self._verbose = False
 
@@ -21,6 +24,9 @@ class CutBasedSegments(Segments):
         self._verbose = verbose
 
     def setup_from_config(self, config_dir):
+        """
+        setup from a configuration file
+        """
         config = load_yaml(config_dir)
         evt_dir = config['track_ml']['dir']
         layers = config['doublets_from_cuts']['layers']

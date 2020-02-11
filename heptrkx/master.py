@@ -8,18 +8,8 @@ import numpy as np
 import pandas as pd
 
 from trackml.dataset import load_event
+from heptrkx import utils_math
 
-## predefined group info
-vlids = [(7,2), (7,4), (7,6), (7,8), (7,10), (7,12), (7,14),
-         (8,2), (8,4), (8,6), (8,8),
-         (9,2), (9,4), (9,6), (9,8), (9,10), (9,12), (9,14),
-         (12,2), (12,4), (12,6), (12,8), (12,10), (12,12),
-         (13,2), (13,4), (13,6), (13,8),
-         (14,2), (14,4), (14,6), (14,8), (14,10), (14,12),
-         (16,2), (16,4), (16,6), (16,8), (16,10), (16,12),
-         (17,2), (17,4),
-         (18,2), (18,4), (18,6), (18,8), (18,10), (18,12)]
-n_det_layers = len(vlids)
 
 eventid_info = {}
 def get_event(data_dir, n_events):
@@ -36,15 +26,31 @@ def get_event(data_dir, n_events):
     return [Event(data_dir, evtid) for evtid in evt_ids[:n_events]]
 
 
+"""
+Reads tracking ML datasets and make selections in hits or tracks
+"""
+
+## predefined layer info
+# in Tracking ML layer is defined by (volumn id and layer id)
+# now I just use the unique layer id
+vlids = [(7,2), (7,4), (7,6), (7,8), (7,10), (7,12), (7,14),
+         (8,2), (8,4), (8,6), (8,8),
+         (9,2), (9,4), (9,6), (9,8), (9,10), (9,12), (9,14),
+         (12,2), (12,4), (12,6), (12,8), (12,10), (12,12),
+         (13,2), (13,4), (13,6), (13,8),
+         (14,2), (14,4), (14,6), (14,8), (14,10), (14,12),
+         (16,2), (16,4), (16,6), (16,8), (16,10), (16,12),
+         (17,2), (17,4),
+         (18,2), (18,4), (18,6), (18,8), (18,10), (18,12)]
+n_det_layers = len(vlids)
+
+
 class Event(object):
     """An object saving Event info, including hits, particles, truth and cell info"""
-    def __init__(self, evtdir, evtid, blacklist_dir=None):
+    def __init__(self, evtdir, blacklist_dir=None):
         self._evt_dir = evtdir
         self._blacklist_dir = blacklist_dir
-        if not self.read(evtid):
-            msg="Failed to read {} with event ID {}".format(evtdir, evtid)
-            raise Exception('Event', msg)
-
+ 
     def read(self, evtid):
         prefix = os.path.join(os.path.expandvars(self._evt_dir),
                               'event{:09d}'.format(evtid))
@@ -178,16 +184,6 @@ class Event(object):
                                  [  module.rot_zu.values[0], module.rot_zv.values[0], module.rot_zw.values[0]]])
         return rot_matrix, np.linalg.inv(rot_matrix)
 
-    @staticmethod
-    def cartesion_to_spherical(x, y, z):
-        r3 = np.sqrt(x**2 + y**2 + z**2)
-        phi = np.arctan2(y, x)
-        theta = np.arccos(z/r3)
-        return r3, theta, phi
-
-    @staticmethod
-    def theta_to_eta(theta):
-        return -np.log(np.tan(0.5*theta))
 
     def cluster_info(self, detector_dir, inplace=True):
         self._detector = pd.read_csv(os.path.expandvars(detector_dir))
@@ -205,14 +201,22 @@ class Event(object):
             # convert to global coordinates
             module_matrix, module_matrix_inv = self._extract_rotation_matrix(module)
             g_matrix = module_matrix * [l_x, l_y, l_z]
-            _, g_theta, g_phi = cartesion_to_spherical(g_matrix[0][0], g_matrix[1][0], g_matrix[2][0])
-            _, l_theta, l_phi = cartesion_to_spherical(l_x[0], l_y[0], l_z[0])
+            _, g_theta, g_phi = utils_math.cartesion_to_spherical(g_matrix[0][0], g_matrix[1][0], g_matrix[2][0])
+            _, l_theta, l_phi = utils_math.cartesion_to_spherical(l_x[0], l_y[0], l_z[0])
             # to eta and phi...
-            l_eta = theta_to_eta(l_theta)
-            g_eta = theta_to_eta(g_theta[0, 0])
+            l_eta = utils_math.theta_to_eta(l_theta)
+            g_eta = utils_math.theta_to_eta(g_theta[0, 0])
             lx, ly, lz = l_x[0], l_y[0], l_z[0]
             angles.append([int(hit.hit_id), l_eta, l_phi, lx, ly, lz, g_eta, g_phi[0, 0]])
         df_angles = pd.DataFrame(angles, columns=['hit_id', 'leta', 'lphi', 'lx', 'ly', 'lz', 'geta', 'gphi'])
         if inplace:
             self._hits = self._hits.merge(df_angles, on='hit_id', how='left')
         return df_angles
+
+    def save_hits(self, out_dir, replace=False):
+        file_name = os.path.join(out_dir, 'event{:09d}-hits.h5'.format(self._evtid))
+        if replace or (not os.path.exists(file_name)):
+            with pd.HDFStore(file_name) as store:
+                store['data'] = self._hits
+        else:
+            print("{} is there")
