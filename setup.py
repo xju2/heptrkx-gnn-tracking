@@ -76,5 +76,7 @@ setup(
         'scripts/train_infomax',
         'scripts/view_training_log',
         'scripts/make_doublets_from_NNs_fast',
+        'scripts/evaluate_cutbased_doublets',
+        'scripts/create_hit_files',
     ],
 )

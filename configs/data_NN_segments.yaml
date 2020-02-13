@@ -1,5 +1,5 @@
-layers: [7, 8, 9, 10, 24, 25, 26, 27, 40, 41]
-# layers: [7, 8, 9, 10, 24]
+#layers: [7, 8, 9, 10, 24, 25, 26, 27, 40, 41]
+layers: [7, 8, 9, 10, 24]
 #layers: [24, 25, 26, 27, 40, 41]
 track_ml:
     dir:      /global/cfs/projectdirs/m3443/usr/xju/heptrkx/codalab/inputs/train_all
@@ -28,11 +28,11 @@ doublets_for_graph: ## input pairs from all_pairs
     selected: /global/cscratch1/sd/xju/heptrkx/codalab/NNbasedSegments/segments4cuts
 
 segments_from_NN:
-    evtid: "21001-21100"
+    evtid: "21001"
     selected: /global/cscratch1/sd/xju/heptrkx/codalab/NNbasedSegments/segments4graph
     threshold: /global/cfs/projectdirs/atlas/xju/heptrkx/codalab/analysis/NNbased_Segments/cuts_v1.txt
     layers: [7, 8, 9, 10, 24]
-    cuts: [0.99612, 0.99700, 0.99600, 0.91900]
+    cuts: [0.95, 0.95, 0.95, 0.80]
 
 # make graphs via hybrid approach
 make_graph:

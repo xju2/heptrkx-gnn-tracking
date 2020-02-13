@@ -76,16 +76,21 @@ def create_segments(hits, layer_pairs, gid_keys='layer',
         hits1 = hit_gid_groups.get_group(gid1)
         hits2 = hit_gid_groups.get_group(gid2)
 
-        # Join all hit pairs together
-        hit_pairs = pd.merge(
-            hits1.reset_index(), hits2.reset_index(),
-            how='inner', on='evtid', suffixes=('_in', '_out'))
-
-        # Identify the true pairs
-        y = (hit_pairs.particle_id_in == hit_pairs.particle_id_out) & (hit_pairs.particle_id_in != 0)
-
         if only_true:
-            hit_pairs = hit_pairs[y]
+            # much faster operation
+            hits1 = hits1[hits1.particle_id != 0]
+            hits2 = hits2[hits2.particle_id != 0]
+            hit_pairs = pd.merge(
+                hits1.reset_index(), hits2.reset_index(),
+                how='inner', on='particle_id', suffixes=('_in', '_out'))
+            y = 1.0
+        else:
+            # Join all hit pairs together
+            hit_pairs = pd.merge(
+                hits1.reset_index(), hits2.reset_index(),
+                how='inner', on='evtid', suffixes=('_in', '_out'))
+            # Identify the true pairs
+            y = (hit_pairs.particle_id_in == hit_pairs.particle_id_out) & (hit_pairs.particle_id_in != 0)
 
         # Calculate coordinate differences
         dphi = calc_dphi(hit_pairs.phi_in, hit_pairs.phi_out)

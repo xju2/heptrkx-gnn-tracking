@@ -1,0 +1,100 @@
+#!/usr/bin/env python
+"""
+Calculate doublet efficiency for cut-based selections
+"""
+
+from heptrkx import master
+import pandas as pd
+import numpy as np
+
+layers = [7, 8, 9, 10, 24, 25, 26, 27, 40, 41]
+layer_pairs = [
+    (7, 8), (8, 9), (9, 10), (10, 24), (24, 25), (25, 26), (26, 27), (27, 40), (40, 41)
+]
+
+def create_true_segments(hits, layer_pairs):
+    gid_keys = 'layer'
+    hit_gid_groups = hits.groupby(gid_keys)
+    
+    segments = []
+    for gid1, gid2 in layer_pairs:
+        hits1 = hit_gid_groups.get_group(gid1)
+        hits2 = hit_gid_groups.get_group(gid2)
+        hit_pairs = pd.merge(
+            hits1.reset_index(), hits2.reset_index(),
+            how='inner', on='particle_id', suffixes=('_in', '_out'))
+        hit_pairs = hit_pairs.assign(solution=1.)
+#         print("{}-{} has {:,} doublets".format(gid1, gid2, hit_pairs.shape[0]))
+        segments.append(hit_pairs)
+    
+    merged_segments = pd.concat(segments, ignore_index=True)
+    return merged_segments
+
+
+def calc_dphi(phi1, phi2):
+    """Computes phi2-phi1 given in range [-pi,pi]"""
+    dphi = phi2 - phi1
+    dphi[dphi > np.pi] -= 2*np.pi
+    dphi[dphi < -np.pi] += 2*np.pi
+    return dphi
+
+
+def get_eff(event, phi_slope_cut=0.005, z0_cut=500):
+    hits = event.hits
+    hits = hits[ (hits.layer.isin(layers)) & (hits.particle_id > 0) ]
+    true_segments = create_true_segments(hits, layer_pairs)
+    
+    dr = true_segments.r_out - true_segments.r_in
+    dz = true_segments.z_out - true_segments.z_in
+    cottheta = dz/dr
+    zorg = true_segments.z_out - true_segments.r_out * cottheta
+    dphi = calc_dphi(true_segments.phi_in, true_segments.phi_out)
+    phi_slope = dphi/dr
+    
+    a1 = true_segments[(phi_slope < phi_slope_cut) & (zorg.abs() < z0_cut)]
+    return a1.shape[0]/true_segments.shape[0]
+
+
+
+if __name__ == "__main__":
+
+    import os
+    import argparse
+    import concurrent.futures
+    import matplotlib.pyplot as plt
+
+    parser = argparse.ArgumentParser(description="Efficiency of different doublet cuts")
+    add_arg = parser.add_argument
+    add_arg('nevts', type=int, help='number of events')
+    add_arg('outname', help='output name')
+    add_arg('--input-dir', default='/global/cfs/projectdirs/m3443/usr/xju/heptrkx/codalab/inputs/train_all',
+            help='input trackML data')
+    add_arg('--phislope-cut', type=float, default=0.004)
+    add_arg('--z0-cut', type=float, default=500.)
+    add_arg('-w', '--workers', type=int, default=1)
+    add_arg('--start-evt-id', default=21001)
+    args = parser.parse_args()
+
+    input_dir = args.input_dir
+    phi_slope_cut = args.phislope_cut
+    z0_cut = args.z0_cut
+    n_events = args.nevts
+    n_workers = args.workers
+    evt_start = args.start_evt_id
+    out_name = args.outname
+
+    event = master.Event(input_dir)
+    with concurrent.futures.ProcessPoolExecutor(max_workers=n_workers) as executor:
+        futures = []
+        for ievt in range(n_events):
+            evtid = evt_start + ievt
+            if event.read(evtid):
+                futures.append(executor.submit(get_eff, event, phi_slope_cut, z0_cut))
+        
+        efficiencies = [future.result() for future in futures]
+        plt.hist(efficiencies, histtype='step', lw=2)
+        plt.xlabel('Efficiency')
+        plt.savefig(out_name)
+
+    
+

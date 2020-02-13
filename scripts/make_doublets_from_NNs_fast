@@ -192,7 +192,8 @@ if __name__ == "__main__":
         else:
             print("processing Event {}".format(evtid))
 
-        event = master.Event(data_dir, evtid)
+        event = master.Event(data_dir)
+        event.read(evtid)
         # TODO: hardcoded for barrel regions
         barrel_layers = [7, 8, 9, 10, 24, 25, 26, 27, 40, 41]
         event.filter_hits(barrel_layers)

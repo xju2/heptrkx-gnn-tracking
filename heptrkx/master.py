@@ -54,8 +54,11 @@ class Event(object):
     def read(self, evtid):
         prefix = os.path.join(os.path.expandvars(self._evt_dir),
                               'event{:09d}'.format(evtid))
-
-        all_data = load_event(prefix, parts=['hits', 'particles', 'truth', 'cells'])
+        try:
+            all_data = load_event(prefix, parts=['hits', 'particles', 'truth', 'cells'])
+        except:
+            return False
+            
         if all_data is None:
             return False
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Study one event, to find the segment purity, number of reconstrutable tracks
+Study one event
 """
 
 import numpy as np
@@ -115,6 +115,7 @@ if __name__ == "__main__":
 
     df = pd.DataFrame(results, columns=['hit_id', 'track_id'])
     score = score_event(hits, df)
+    print("event id:                  {}".format(evtid))
     print("start:                     {}, {}".format(n_tot_hits, n_tot_particles))
     print("reconstructable particles: {}, {}".format(n_tot_hits, n_reco_trks))
     print("min hits > {}:             {}, {}".format(min_hits, n_reco_good_hits, n_reco_good_trks))
