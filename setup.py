@@ -78,5 +78,6 @@ setup(
         'scripts/make_doublets_from_NNs_fast',
         'scripts/evaluate_cutbased_doublets',
         'scripts/create_hit_files',
+        'scripts/create_predoublets',
     ],
 )

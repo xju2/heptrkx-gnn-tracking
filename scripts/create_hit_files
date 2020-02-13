@@ -19,7 +19,9 @@ if __name__ == "__main__":
     add_arg = parser.add_argument
     add_arg('nevts', type=int, help='number of events')
     add_arg('--outdir', help='output directory', default='.')
-    add_arg('--input-dir', default='/global/cfs/projectdirs/m3443/usr/xju/heptrkx/codalab/inputs/train_all',
+    add_arg('--input-dir', 
+            default='/global/cscratch1/sd/xju/heptrkx/codalab/inputs/train_all',
+            #default='/global/cfs/projectdirs/m3443/usr/xju/heptrkx/codalab/inputs/train_all',
             help='input trackML data')
     add_arg('--det-conf', help="detector configuration",
             default='/global/cfs/projectdirs/m3443/usr/xju/heptrkx/codalab/inputs/detector.csv')
@@ -80,7 +82,6 @@ if __name__ == "__main__":
         if event.read(evtid):
             hits = event.hits
             hits = hits[hits.layer.isin(layers)]
-            hits = hits[hits.layer==41]
             local_angles = utils_mldata.cell_angles(hits, module_getter, event.cells)
             hits = hits.merge(local_angles, on='hit_id')
             # evt id, such as 21001, is not a valid python identifier

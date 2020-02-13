@@ -59,7 +59,7 @@ def get_segments(hits, l1, l2, model_dir, scaler,
     ## evaluate with the NN model
     all_inputs = scaler.fit_transform(hit_pairs[input_features].values)
     ## each thread has to create its own session
-    with tf.Session(graph=tf.Graph()) as sess:
+    with tf.compat.v1.Session(graph=tf.Graph()) as sess:
         keras.backend.set_session(sess)
         ## [TODO] workaround this..
         model = keras.Sequential()

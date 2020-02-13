@@ -114,7 +114,7 @@ def plot_log(info, name, axs=None):
 
     # make plots
     if axs is None:
-        fig, axs = plt.subplots(2, 2, figsize=(12, 10), constrained_layout=True)
+        _, axs = plt.subplots(2, 2, figsize=(12, 10), constrained_layout=True)
         axs = axs.flatten()
 
     y_labels = ['Time [s]', 'Training Loss', 'Precision', 'Recall']

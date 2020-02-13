@@ -100,7 +100,7 @@ def create_segments(hits, layer_pairs, gid_keys='layer',
         z0 = hit_pairs.z_in - hit_pairs.r_in * dz / dr
         deta = cal_deta(hit_pairs)
 
-        slopeRZ = np.arctan2(dr, dz)
+        # slopeRZ = np.arctan2(dr, dz)
 
         selected_features = ['evtid', 'index_in', 'index_out',
                              'hit_id_in', 'hit_id_out',
@@ -138,7 +138,7 @@ def get_track_parameters(x, y, z):
 
     r3 = np.sqrt(x**2 + y**2 + z**2)
     p_zr0 = np.polyfit(r3, z, 1, full=True)
-    res0 = p_zr0[1][0]/x.shape[0]
+    # res0 = p_zr0[1][0]/x.shape[0]
     p_zr = p_zr0[0]
 
     theta = np.arccos(p_zr[0])
