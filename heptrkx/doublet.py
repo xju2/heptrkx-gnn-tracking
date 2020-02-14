@@ -25,7 +25,7 @@ def create_segments(hits, layer_pairs,
             hit_pairs = pd.merge(
                 hits1.reset_index(), hits2.reset_index(),
                 how='inner', on='particle_id', suffixes=('_in', '_out'))
-            hit_pairs = hit_pairs.assign(solution=1.)
+            hit_pairs = hit_pairs.assign(solution=True)
         else:
             hit_pairs = pd.merge(
                 hits1.reset_index(), hits2.reset_index(),
@@ -39,7 +39,7 @@ def create_segments(hits, layer_pairs,
             print("{}-{} has {:,} doublets".format(gid1, gid2, hit_pairs.shape[0]))
 
         yield hit_pairs
-        
+
     #     segments.append(hit_pairs)
     # merged_segments = pd.concat(segments, ignore_index=True)
 
@@ -54,8 +54,18 @@ def calculate_segment_features(segments):
     dphi = calc_dphi(segments.phi_in, segments.phi_out)
     phi_slope = dphi/dr
 
+    deta = segments.eta_out - segments.eta_in
+    deta1 = segments.geta_out - segments.geta_in
+    dphi1 = calc_dphi(segments.gphi_out, segments.gphi_in)
+
 
     return {
+        'dphi': dphi,
+        'dz': dz,
+        'dr': dr,
         "phi_slope": phi_slope,
         "z0":zorg,
+        'deta': deta,
+        'deta1': deta1,
+        'dphi1': dphi1,
     }

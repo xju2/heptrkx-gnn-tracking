@@ -11,7 +11,7 @@ import pandas as pd
 
 from heptrkx import master
 from heptrkx.preprocess import utils_mldata
-
+from heptrkx.utils import is_df_there
 
 
 if __name__ == "__main__":
@@ -55,6 +55,7 @@ if __name__ == "__main__":
 
     if rank == 0:
         evtids = list(range(nevts))
+        # check if the file is there and remove those
         evtids = [x.tolist() for x in np.array_split(evtids, size)]
     else:
         evtids = None
@@ -64,10 +65,11 @@ if __name__ == "__main__":
     else:
         evtids = evtids[0]
     
-    if rank == 0:
+    
+    if size == 1:
         outname = os.path.join(outdir, 'evt{}-{}events.h5'.format(start_evt_id, nevts))
     else:
-        outname = os.path.join(outdir, 'evt{}-{}events-{}.h5'.format(start_evt_id, nevts, rank))
+        outname = os.path.join(outdir, 'evt{}-{}events-{:03}.h5'.format(start_evt_id, nevts, rank))
 
     if os.path.exists(outname):
         print("{} is there".format(outname))
@@ -89,17 +91,3 @@ if __name__ == "__main__":
             store['evt{}'.format(evtid)] = hits
     
     store.close()
-    if size > 1 and rank == 0:
-        final_store_name = os.path.join(outdir, 'evt{}-{}events.h5'.format(start_evt_id, nevts))
-        final_store = pd.HDFStore(final_store_name)
-        # now copy other events to rank 0
-        for ii in range(1, size):
-            outname = os.path.join(outdir, 'evt{}-{}events-{}.h5'.format(start_evt_id, nevts, ii))
-            with pd.HDFStore(outname) as store:
-                for key in store.keys():
-                    final_store[key] = store[key]
-        final_store.close()
-        
-
-
-

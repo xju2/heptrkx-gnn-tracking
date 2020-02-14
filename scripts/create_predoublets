@@ -16,6 +16,7 @@ import pandas as pd
 from heptrkx.doublet import create_segments, calculate_segment_features
 from heptrkx.utils import select_pair_layers, layer_pairs
 from heptrkx.utils import list_from_str
+from heptrkx.utils import is_df_there
 
 
 if __name__ == "__main__":
@@ -30,6 +31,7 @@ if __name__ == "__main__":
     add_arg('--phislope-cut', type=float, default=0.004)
     add_arg('--z0-cut', type=float, default=500.)
     add_arg('--layers', default="7, 8, 9, 10, 24, 25, 26, 27, 40, 41", help='layers of interest')
+    add_arg('--only-truth', action='store_true', help='only save true doublets, used for training')
     args = parser.parse_args()
 
     hit_file_name = args.hit_file_name
@@ -39,43 +41,49 @@ if __name__ == "__main__":
     phi_slope_cut = args.phislope_cut
     z0_cut = args.z0_cut
     layers = [int(x) for x in args.layers.split(',')]
+    only_truth = args.only_truth
 
-    if os.path.exists(outname):
-        print("{} is there".format(outname))
+    if is_df_there(outname):
         exit()
     
-    store = pd.HDFStore(outname)
-
     layers_idx = select_pair_layers(layers)
     selected_layer_pairs = [layer_pairs[x] for x in layers_idx]
 
-    hit_file = pd.HDFStore(hit_file_name)
+    with pd.HDFStore(outname, mode='w') as store:
+        with pd.HDFStore(hit_file_name, mode='r') as hit_file:
+            if evtid:
+                evtids = ["evt{}".format(x) for x in list_from_str(evtid)]
+            else:
+                evtids = list(hit_file.keys())
 
-    if evtid:
-        evtids = ["/evt{}".format(x) for x in list_from_str(evtid)]
-    else:
-        evtids = list(hit_file.keys())
+            for evtid in evtids:
+                print("Processing {}".format(evtid))
+                hits = hit_file[evtid]
 
-    for evtid in evtids:
-        print("Processing {}".format(evtid))
-        hits = hit_file[evtid]
+                ipair = 0
+                for segment in create_segments(hits, selected_layer_pairs, only_true=only_truth):
+                    features = calculate_segment_features(segment)
+                    segment = segment.assign(**features)
+                    # fine tunning for barrel region
+                    # [TODO], need a map
+                    if ipair < 3:
+                        mask = (features['phi_slope'].abs() < phi_slope_cut) & (features['z0'].abs() < z0_cut)
+                    elif ipair < 7:
+                        mask = (features['phi_slope'].abs() < phi_slope_cut) & (features['z0'].abs() < 800)
+                    else:
+                        mask = (features['phi_slope'].abs() < phi_slope_cut) & (features['z0'].abs() < 1000)
+                    passed_segments = segment[mask]
+                    # print(passed_segments.columns)
 
-        ipair = 0
-        for segment in create_segments(hits, selected_layer_pairs):
-            features = calculate_segment_features(segment)
-            segment = segment.assign(**features)
-            mask = (features['phi_slope'].abs() < 0.004) & (features['z0'].abs() < 500)
-            passed_segments = segment[mask]
+                    solution = segment.solution
+                    true_doublets = passed_segments[passed_segments.solution].shape[0]
+                    total_true_doublets = solution[solution].shape[0]
+                    efficiency = true_doublets*100/total_true_doublets
+                    purity = true_doublets*100/passed_segments.shape[0]
+                    print("Layer {:2} - {:2}, {:10,}, efficiency: {:.2f}, purity: {:.2f}".format(
+                        selected_layer_pairs[ipair][0],
+                        selected_layer_pairs[ipair][1],
+                        passed_segments.shape[0], efficiency, purity))
 
-            solution = segment.solution
-            true_doublets = passed_segments[passed_segments.solution].shape[0]
-            total_true_doublets = solution[solution].shape[0]
-            efficiency = true_doublets*100/total_true_doublets
-            purity = true_doublets*100/passed_segments.shape[0]
-            print("{:,}, efficiency: {:.2f}, purity: {:.2f}".format(passed_segments.shape[0], efficiency, purity))
-
-            store[ "{}/pair{}".format(evtid, layers_idx[ipair])] = passed_segments
-            ipair += 1
-    
-    store.close()
-
+                    store[ "{}/pair{}".format(evtid, layers_idx[ipair])] = passed_segments
+                    ipair += 1

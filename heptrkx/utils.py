@@ -151,12 +151,10 @@ def select_hits(event, no_noise, eta_cut=1.2):
 def is_df_there(file_name):
     res = False
     if os.path.exists(file_name):
-        data = pd.read_hdf(file_name)
-        if data is not None:
+        try:
+            _ = pd.read_hdf(file_name, mode='r')
+        except ValueError:
+            pass
+        else:
             res = True
-        # with pd.HDFStore(file_name, 'r') as store:
-        #     if store is not None:
-        #         data = store.get('data')
-        #         if data is not None:
-        #             res = True
     return res
