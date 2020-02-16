@@ -69,8 +69,7 @@ setup(
         'scripts/seeding_eff_purity_comparison',
         'scripts/segment_eff_purity',
         'scripts/select_pairs',
-        'scripts/tf_train_pairs',
-        'scripts/tf_train_pairs_all',
+        'scripts/train_doublets',
         'scripts/train_nx_graph',
         'scripts/track_eff_purity',
         'scripts/train_infomax',
@@ -81,5 +80,6 @@ setup(
         'scripts/create_predoublets',
         'scripts/select_doublets_NN',
         'scripts/merge_h5',
+        'scripts/merge_predoublets',
     ],
 )

@@ -22,21 +22,24 @@ if __name__ == "__main__":
     add_arg('file_names', nargs='+', help='file names')
     add_arg('--outdir', help='output directory', default='.')
     add_arg('--layer', type=int, help='layer id', default=None)
+    add_arg('-v', '--verbose', action='store_true', help='print debug info')
     args = parser.parse_args()
 
     file_names = args.file_names
     outdir = args.outdir
+    verbose = args.verbose
 
     file_name = file_names[0]
     with pd.HDFStore(file_name) as store:
-        evtid_list = np.unique([int(x.split('/')[1][3:]) for x in store.keys()]).tolist()
         pair_list = np.unique([int(x.split('/')[2][4:]) for x in store.keys()]).tolist()
 
-    print("{} events and {} pairs".format(len(evtid_list), len(pair_list)))
+    print("In total {} pairs".format(len(pair_list)))
     if args.layer:
         pair_list = [args.layer]
 
     for pair in pair_list:
+        if verbose:
+            print("Processing Pair {}".format(pair))
         df_list = []
         outname = os.path.join(outdir, 'pairs4TrainingNN_pair{:03}.h5'.format(pair))
         if is_df_there(outname):
@@ -44,14 +47,16 @@ if __name__ == "__main__":
 
         for file_name in file_names:
             with pd.HDFStore(file_name, mode='r') as store:
-                for evtid in evtid_list:
-                    key_name = "evt{}/pair{}".format(evtid, pair)
-                    df_list.append(store[key_name])
+                for key in store.keys():
+                    if 'pair{}'.format(pair) in key:
+                        if verbose:
+                            print("Adding {}".format(key))
+                        df_list.append(store[key])
 
         df_all = pd.concat(df_list, ignore_index=True)
-        df_all = shuffle(df_all, randome_state=10)
-        n_true = df_all[df_all.solution]
-        n_fake = df_all[~df_all.solution]
+        df_all = shuffle(df_all, random_state=10)
+        n_true = df_all[df_all.solution].shape[0]
+        n_fake = df_all[~df_all.solution].shape[0]
         print("Pair {} has {} true and {} fake".format(pair, n_true, n_fake))
 
         with pd.HDFStore(outname, mode='w') as store:

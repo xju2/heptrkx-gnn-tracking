@@ -28,6 +28,7 @@ if __name__ == "__main__":
     outname = args.outname
 
     config = load_yaml(config_file)
+
     # NN configurations
     train_cfg = config['doublet_training']
     features = train_cfg['features']
@@ -45,32 +46,36 @@ if __name__ == "__main__":
         evtid_list = np.unique([int(x.split('/')[1][3:]) for x in all_keys]).tolist()
         pair_list = np.unique([int(x.split('/')[2][4:]) for x in all_keys]).tolist()
 
-        # [TODO] Loop over all events for the same pair
-        for key in all_keys:
-            evtid = int(key.split('/')[1][3:])
-            pairid = int(key.split('/')[2][4:])
-            doublet = doublets[key]
+        for pairid in pair_list:
             cut = cuts[pairid]
-            all_inputs = scaler.fit_transform(doublet[features].values)
-
+            layer_pair = layer_pairs[pairid]
+            # Load the NN model for that layer pair
             model_weight_dir = os.path.join(model_weight_base_dir, 'modelpair{:03}.ckpt'.format(pairid))
-
             with tf.compat.v1.Session(graph=tf.Graph()) as sess:
-                model = getattr(shadow_model, model_name)()
-                model.load_weights(model_weight_dir)
-                prediction = model.predict(all_inputs)
-                layer_pair = layer_pairs[pairid]
+                    model = getattr(shadow_model, model_name)()
+                    model.load_weights(model_weight_dir)
 
-                passed_segments = doublet[prediction > cut]
+                    # now load all events for the layer pair
+                    total_truth = 0
+                    total_selected_truth = 0
+                    total_selected = 0
+                    for evtid in evtid_list:
+                        key = 'evt{}/pair{}'.format(evtid, pairid)
+                        doublet = doublets[key]
+                        all_inputs = scaler.fit_transform(doublet[features].values)
+                        prediction = model.predict(all_inputs)
+                        passed_segments = doublet[prediction > cut]
 
-                solution = doublet.solution
-                true_doublets = passed_segments[passed_segments.solution].shape[0]
-                total_true_doublets = solution[solution].shape[0]
-                efficiency = true_doublets*100/total_true_doublets
-                purity = true_doublets*100/passed_segments.shape[0]
-                print("event {}, layer {:2}-{:2}, NN > {:.2f}, {:10,}, efficiency: {:.2f}, purity: {:.2f}".format(
-                    evtid,
-                    layer_pair[0],
-                    layer_pair[1],
-                    cut,
-                    passed_segments.shape[0], efficiency, purity))
+                        solution = doublet.solution
+                        total_selected_truth += passed_segments[passed_segments.solution].shape[0]
+                        total_truth += solution[solution].shape[0]
+                        total_selected += passed_segments.shape[0]
+
+                    efficiency = total_selected_truth*100/total_truth
+                    purity = total_selected_truth*100/total_selected
+                    print("{} events: layer {:2}-{:2}, NN > {:.2f}, {:10,}, efficiency: {:.2f}, purity: {:.2f}".format(
+                        len(evtid_list),
+                        layer_pair[0],
+                        layer_pair[1],
+                        cut,
+                        passed_segments.shape[0], efficiency, purity))

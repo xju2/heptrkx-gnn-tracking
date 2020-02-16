@@ -9,7 +9,7 @@ from heptrkx.utils_math import calc_dphi
 
 
 def create_segments(hits, layer_pairs,
-                        only_true=True, verbose=False):
+                    only_true=True, verbose=False):
     """
     create true segements, assuming hits has truth info
     """

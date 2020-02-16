@@ -18,11 +18,10 @@ doublets_for_training:
 doublet_training:
     batch_size: 512
     epochs: 50
-    eff_cut: 0.98
-    model_output_dir: /global/cfs/projectdirs/atlas/xju/tracking/PairsFromNN/model
+    eff_cut: 0.95
+    model_output_dir: /global/cfs/projectdirs/atlas/xju/tracking/PairsFromNN/modelNew
     model: fully_connected_classifier
     features: ['dphi', 'dz', 'dr', 'phi_slope', 'z0', 'deta', 'deta1', 'dphi1']
-    bkg_from_evtid: 21000
 
 doublets_for_graph: ## input pairs from all_pairs
     selected: /global/cscratch1/sd/xju/heptrkx/codalab/NNbasedSegments/segments4cuts

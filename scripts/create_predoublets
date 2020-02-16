@@ -59,7 +59,9 @@ if __name__ == "__main__":
             for evtid in evtids:
                 print("Processing {}".format(evtid))
                 hits = hit_file[evtid]
-
+                if only_truth:
+                    hits = hits[hits.particle_id > 0]
+                    
                 ipair = 0
                 for segment in create_segments(hits, selected_layer_pairs, only_true=only_truth):
                     features = calculate_segment_features(segment)
