@@ -11,6 +11,7 @@ import pandas as pd
 
 from sklearn.preprocessing import StandardScaler
 import tensorflow as tf
+from tensorflow import keras
 
 
 from heptrkx.utils import load_yaml
@@ -79,8 +80,9 @@ if __name__ == "__main__":
             # Load the NN model for that layer pair
             model_weight_dir = os.path.join(model_weight_base_dir, 'pair{:03d}'.format(pairid), 'modelpair{:03}.ckpt'.format(pairid))
             with tf.compat.v1.Session(graph=tf.Graph()) as sess:
-                    model = getattr(shadow_model, model_name)()
-                    model.load_weights(model_weight_dir)
+                    # model = getattr(shadow_model, model_name)()
+                    # model.load_weights(model_weight_dir)
+                    model = keras.models.load_model(model_weight_dir)
 
                     # now load all events for the layer pair
                     total_truth = 0
@@ -118,7 +120,6 @@ if __name__ == "__main__":
                         layer_pair[1],
                         cut,
                         total_selected, efficiency, purity))
-                    del model ## make sure it uses a new model
         
         # get track ml score for each event, using truth info only
         if get_trk_score:

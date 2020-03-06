@@ -58,22 +58,22 @@ if __name__ == "__main__":
 
     outname = os.path.join(output_dir, 'info{:03d}-{}-{}.txt'.format(pair_idx, *pair_info))
 
-    if os.path.exists(checkpoint_path+".index") \
+    if os.path.exists(checkpoint_path) \
        and not args.resume_train \
        and os.path.exists(outname):
         print("model is trained and evaluated")
+        print(checkpoint_path)
         exit()
 
-    # same model for everyone
-    model = getattr(shadow_model, model_name)()
-
-    if os.path.exists(checkpoint_path+".index") and (args.resume_train or args.in_eval):
+    if os.path.exists(checkpoint_path) and (args.resume_train or args.in_eval):
         print("Resume previous training")
-        model.load_weights(checkpoint_path)
-
-    model.compile(optimizer='adam',
-                  loss='binary_crossentropy',
-                  metrics=['accuracy'])
+        model = keras.models.load_model(checkpoint_path)
+    else:
+        # same model for everyone
+        model = getattr(shadow_model, model_name)() 
+        model.compile(optimizer='adam',
+                loss='binary_crossentropy',
+                metrics=['accuracy'])        
 
     print("Model is compiled. Start to read training data")
     truth_var = 'solution'
@@ -115,18 +115,24 @@ if __name__ == "__main__":
 
     if not args.in_eval:
         early_stop = tf.keras.callbacks.EarlyStopping(monitor='val_acc', min_delta=0.0001)
-        cp_callback = tf.keras.callbacks.ModelCheckpoint(checkpoint_path,
-                                                         save_weights_only=True,
-                                                         save_best_only=True,
-                                                         monitor='val_acc',
-                                                         verbose=1)
+        # cp_callback = tf.keras.callbacks.ModelCheckpoint(checkpoint_path,
+        #                                                  save_weights_only=True,
+        #                                                  save_best_only=True,
+        #                                                  monitor='val_acc',
+        #                                                  verbose=1)
 
+        # history = model.fit(inputs, targets,
+        #                     epochs=epochs, batch_size=batch_size,
+        #                     validation_data=(x_val, y_val),
+        #                     callbacks = [cp_callback, early_stop],
+        #                     class_weight={0: 1, 1: n_fake/n_true},
+        #                     verbose=1)
         history = model.fit(inputs, targets,
-                            epochs=epochs, batch_size=batch_size,
-                            validation_data=(x_val, y_val),
-                            callbacks = [cp_callback, early_stop],
-                            class_weight={0: 1, 1: n_fake/n_true},
-                            verbose=1)
+                        epochs=epochs, batch_size=batch_size,
+                        validation_data=(x_val, y_val),
+                        callbacks = [early_stop],
+                        class_weight={0: 1, 1: n_fake/n_true},
+                        verbose=1)
 
     prediction = model.predict(x_test,
                                batch_size=batch_size)
@@ -153,3 +159,6 @@ if __name__ == "__main__":
 
     with open(outname, 'a') as f:
         f.write(out)
+
+    # save the model
+    keras.models.save_model(model, checkpoint_path, overwrite=True)

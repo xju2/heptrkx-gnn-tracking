@@ -20,3 +20,4 @@ def fc_with_dropout():
             keras.layers.Dense(1, activation='sigmoid')])
     return model
 
+

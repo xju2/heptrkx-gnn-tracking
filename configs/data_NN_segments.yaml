@@ -19,7 +19,7 @@ doublet_training:
     batch_size: 512
     epochs: 50
     eff_cut: 0.95
-    model_output_dir: /global/cfs/projectdirs/atlas/xju/tracking/PairsFromNN/modelTest
+    model_output_dir: /global/cfs/projectdirs/atlas/xju/tracking/PairsFromNN/model
     model: fully_connected_classifier
     features: ['dphi', 'dz', 'dr', 'phi_slope', 'z0', 'deta', 'deta1', 'dphi1']
 
