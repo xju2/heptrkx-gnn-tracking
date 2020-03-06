@@ -26,7 +26,7 @@ def plot_networkx(G, ax=None, only_true=False):
     edge feature: {"solution": []}
     """
     if ax is None:
-        fig, ax = plt.subplots()
+        _, ax = plt.subplots()
 
     n_edges = len(G.edges())
     edge_colors = [0.]*n_edges
@@ -50,10 +50,10 @@ def plot_networkx(G, ax=None, only_true=False):
 
 def plot_nx_with_edge_cmaps(
     G, weight_name='predict', weight_range=(0, 1),
-    ax=None, cmaps=plt.cm.Greys, threshold=0.):
+    ax=None, cmaps=plt.get_cmap('Greys'), threshold=0.):
 
     if ax is None:
-        fig, ax = plt.subplots(figsize=(8, 8), constrained_layout=True)
+        _, ax = plt.subplots(figsize=(8, 8), constrained_layout=True)
 
     pos = get_pos(G)
     #edges, weights = zip(*nx.get_edge_attributes(G, weight_name).items())
@@ -160,7 +160,7 @@ def plot_metrics(odd, tdd, odd_th=0.5, tdd_th=0.5, outname='roc_graph_nets.eps',
     ax2.plot(t, r[:-1], label='efficiency', lw=2)
     ax2.set_xlabel('Cut on model score', fontsize=fontsize)
     ax2.tick_params(width=2, grid_alpha=0.5, labelsize=minor_size)
-    ax2.legend(fontsize=fontsize)
+    ax2.legend(fontsize=fontsize, loc='upper right')
 
     ax3.plot(p, r, lw=2)
     ax3.set_xlabel('Purity', fontsize=fontsize)
@@ -190,7 +190,7 @@ def pixel_matrix(pixel_cluster, show=False):
         fig = plt.figure()
         ax = fig.add_subplot(1,1,1)
         ax.set_aspect('equal')
-        plt.imshow(matrix, interpolation='nearest', cmap=plt.cm.YlOrRd)
+        plt.imshow(matrix, interpolation='nearest', cmap=plt.get_cmap('YlOrRd'))
         plt.colorbar()
         plt.show()
     return matrix, max0-min0+1, max1-min1+1

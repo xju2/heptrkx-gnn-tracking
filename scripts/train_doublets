@@ -40,8 +40,8 @@ if __name__ == "__main__":
 
     batch_size = train_cfg['batch_size']
     epochs = train_cfg['epochs']
-    output_dir = train_cfg['model_output_dir']
     pair_idx = args.pair_idx
+    output_dir = os.path.join(train_cfg['model_output_dir'], "pair{:03d}".format(pair_idx))
     model_name = train_cfg['model']
     file_name = args.input
     print("Training File Name: {}".format(file_name))
@@ -50,6 +50,7 @@ if __name__ == "__main__":
         os.makedirs(output_dir)
 
     ## save checkpoints
+
     checkpoint_path = os.path.join(output_dir, "modelpair{:03d}.ckpt".format(pair_idx))
     checkpoint_dir = os.path.dirname(checkpoint_path)
 
@@ -116,6 +117,8 @@ if __name__ == "__main__":
         early_stop = tf.keras.callbacks.EarlyStopping(monitor='val_acc', min_delta=0.0001)
         cp_callback = tf.keras.callbacks.ModelCheckpoint(checkpoint_path,
                                                          save_weights_only=True,
+                                                         save_best_only=True,
+                                                         monitor='val_acc',
                                                          verbose=1)
 
         history = model.fit(inputs, targets,

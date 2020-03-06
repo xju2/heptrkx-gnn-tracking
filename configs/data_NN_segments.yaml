@@ -19,7 +19,7 @@ doublet_training:
     batch_size: 512
     epochs: 50
     eff_cut: 0.95
-    model_output_dir: /global/cfs/projectdirs/atlas/xju/tracking/PairsFromNN/modelNew
+    model_output_dir: /global/cfs/projectdirs/atlas/xju/tracking/PairsFromNN/modelTest
     model: fully_connected_classifier
     features: ['dphi', 'dz', 'dr', 'phi_slope', 'z0', 'deta', 'deta1', 'dphi1']
 
@@ -31,7 +31,7 @@ segments_from_NN:
     selected: /global/cscratch1/sd/xju/heptrkx/codalab/NNbasedSegments/segments4graph
     threshold: /global/cfs/projectdirs/atlas/xju/heptrkx/codalab/analysis/NNbased_Segments/cuts_v1.txt
     layers: [7, 8, 9, 10, 24]
-    cuts: [0.95, 0.95, 0.95, 0.80, 0.5, 0.5, 0.5, 0.5, 0.5]
+    cuts: [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]
 
 # make graphs via hybrid approach
 make_graph:

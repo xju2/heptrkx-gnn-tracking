@@ -6,7 +6,7 @@ from heptrkx.nx_graph import utils_data
 
 from trackml.score import score_event
 from trackml.score import _analyze_tracks as analyze_tracks
-
+import networkx as nx
 
 def find_hit_id(G, idx):
     res = -1
@@ -273,4 +273,14 @@ def inspect_events(hits, particles, truth, min_hits=3):
 
     return n_hits, n_noise_hits, n_p, n_dp, n_good_p, good_particles.index.to_numpy(), pp
 
+def score_graph_use_kcomponents(hits, G):
+    can_trkx = nx.k_components(G)[1]
+    n_candidates = len(can_trkx)
+    results = []
+    for itrk, tracks in enumerate(can_trkx):
+        results += [(G.nodes[track]['hit_id'], itrk) for track in tracks]
 
+    trk_df = pd.DataFrame(results, columns=['hit_id', 'track_id'])
+    score = score_event(hits, trk_df)
+    print("{} track candidates with score: {:.4f}".format(n_candidates, score))
+    return trk_df, score

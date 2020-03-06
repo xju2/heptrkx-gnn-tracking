@@ -1,11 +1,12 @@
 
-from . import utils_fit
-from .. import pairwise
+from heptrkx.postprocess import utils_fit
+from heptrkx import pairwise
 
 import networkx as nx
 import numpy as np
 
 from functools import partial
+
 
 def find_next_hits(G, pp, used_hits, th=0.1, th_re=0.8, feature_name='solution'):
     """G is the graph, path is previous hits."""

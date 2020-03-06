@@ -32,6 +32,7 @@ if __name__ == "__main__":
     add_arg('--z0-cut', type=float, default=500.)
     add_arg('--layers', default="7, 8, 9, 10, 24, 25, 26, 27, 40, 41", help='layers of interest')
     add_arg('--only-truth', action='store_true', help='only save true doublets, used for training')
+
     args = parser.parse_args()
 
     hit_file_name = args.hit_file_name
@@ -49,6 +50,13 @@ if __name__ == "__main__":
     layers_idx = select_pair_layers(layers)
     selected_layer_pairs = [layer_pairs[x] for x in layers_idx]
 
+    selected_features =  [
+        'evtid', 'particle_id', 'solution',
+        'dphi', 'dz', 'dr', 'phi_slope', 'z0', 'deta', 'deta1', 'dphi1',
+        'hit_id_in', 'hit_id_out',
+        'hit_idx_in', 'hit_idx_out',
+        'layer_in', 'layer_out',
+    ]
     with pd.HDFStore(outname, mode='w') as store:
         with pd.HDFStore(hit_file_name, mode='r') as hit_file:
             if evtid:

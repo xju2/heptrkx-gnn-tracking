@@ -197,12 +197,12 @@ class Event(object):
         for ii in range(df_hits.shape[0]):
             hit = df_hits.iloc[ii]
             cell = cells[cells.hit_id == hit.hit_id]
-            module = self._detector[(self.detector.volume_id == hit.volume_id)
-                                    & (detector.layer_id == hit.layer_id)
-                                    & (detector.module_id == hit.module_id)]
+            module = self._detector[(self._detector.volume_id == hit.volume_id)
+                                    & (self._detector.layer_id == hit.layer_id)
+                                    & (self._detector.module_id == hit.module_id)]
             l_x, l_y, l_z = self._local_angle(cell, module)
             # convert to global coordinates
-            module_matrix, module_matrix_inv = self._extract_rotation_matrix(module)
+            module_matrix, _ = self._extract_rotation_matrix(module)
             g_matrix = module_matrix * [l_x, l_y, l_z]
             _, g_theta, g_phi = utils_math.cartesion_to_spherical(g_matrix[0][0], g_matrix[1][0], g_matrix[2][0])
             _, l_theta, l_phi = utils_math.cartesion_to_spherical(l_x[0], l_y[0], l_z[0])

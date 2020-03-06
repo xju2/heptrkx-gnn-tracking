@@ -1,5 +1,11 @@
 #!/usr/bin/env python
+"""
+Calculate the efficiency and purity of seed candidates.
+Plot the eta and pT distributions of the input hits,
+as well as the efficiency as a function of pT and eta.
+"""
 import argparse
+import pickle
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -24,9 +30,13 @@ if __name__ == "__main__":
     add_arg('output',  help="output name")
     add_arg('-d', '--data',  help="original tracking ML data",
             default='/global/project/projectdirs/m3443/usr/xju/heptrkx/codalab/inputs/train_all')
-    add_arg('--no-noise', action='store_true', help='Exclude noise hits')
+    # minimum number of hits for a particle to be a good(reconstructable) particle
     add_arg('--min-hits', type=int,
-            help='minimum number of hits for a particle to be reconstructable', default=5)
+        help='minimum number of hits for a particle to be reconstructable', default=5)
+    # apply the same hit selections as that applied when making the seeds
+    # then only use these hits to define the "total true particles"
+    add_arg('--no-noise', action='store_true', help='Exclude noise hits')
+    add_arg('--eta-cut', default=5.0, type=float, help='eta threshold')
     add_arg('--layers', nargs='?',
             help='use hits in the specific layers', default=None, const='7,8,9')
     add_arg('-v', '--verbose', action='store_true', help='print debug info')
@@ -44,20 +54,29 @@ if __name__ == "__main__":
         print("select hits in following layers")
         print(layers)
         layers = [int(x) for x in args.layers.split(',')]
-
-    df_seed = pd.read_csv(seed_candidates, header=None,
-                          names=['evtid', 'h1', 'h2', 'h3'])
+    
+    if "pickle" in seed_candidates:
+        with open(seed_candidates, 'rb') as f:
+            data = pickle.load(f)
+            new_data = []
+            for dd in data:
+                idx = int(dd[0][10:])
+                new_data.append((idx, dd[1], dd[2], dd[3]))
+            df_seed = pd.DataFrame(new_data, columns=['evtid', 'h1', 'h2', 'h3'], dtype=np.int64)
+    else:
+        df_seed = pd.read_csv(seed_candidates, header=None,
+                            names=['evtid', 'h1', 'h2', 'h3'])
 
     evt_list = np.unique(df_seed.evtid)
     print("Total {} events".format(evt_list.shape[0]))
+    print(df_seed.columns)
 
     n_particles_list = []
     n_matched_particles_list = []
     n_seeds_list = []
     n_true_seeds_list = []
     pT_bins = [-0.1, 0.1, 0.3, 0.5, 0.7, 0.9, 1.1, 1.5, 1.9, 2.4, 5]
-    eta_bins = [-1.2, -0.8, -0.4, 0, 0.4, 0.8, 1.2]
-    eta_bins = []
+    eta_bins = [-5, -3, -2.4, -2.0, -1.6, -1.2, -0.8, -0.4, 0, 0.4, 0.8, 1.2, 1.6, 2.0, 2.4, 3, 5]
     particle_pT_list = []
     matched_particle_pT_list = []
     particle_eta_list = []
@@ -66,8 +85,15 @@ if __name__ == "__main__":
         if verbose:
             print("Processing Event {}".format(evtid))
 
-        event = master.Event(data_input_dir, evtid)
-        hits = utils.select_hits(event, no_noise, eta_cut=1.2)
+        event = master.Event(data_input_dir)
+        if not event.read(evtid):
+            print("event {} does not have truth info".format(evtid))
+            continue
+        # else:
+        #     print(event.hits.head())
+
+        # hits = utils.select_hits(event, no_noise, eta_cut=1.2)
+        hits = utils.select_hits(event, no_noise, eta_cut=args.eta_cut)
         all_particles = np.unique(hits.particle_id).shape[0]
         all_hits = hits.shape[0]
         if verbose:
@@ -104,7 +130,6 @@ if __name__ == "__main__":
                 evtid, good_particles.shape[0]))
             print("Event {} has {} particles leaving hits at inner 3 layers, with pT > 1 GeV".format(
                 evtid, good_particles_pT.shape[0]))
-
         df1 = df.merge(hits, left_on='h1', right_on='hit_id', how='left')
         df2 = df.merge(hits, left_on='h2', right_on='hit_id', how='left')
         df3 = df.merge(hits, left_on='h3', right_on='hit_id', how='left')
@@ -159,8 +184,13 @@ if __name__ == "__main__":
         'log': True
     }
     fig, ax = plt.subplots(figsize=(8, 8), constrained_layout=True)
-    tot_vals, bins, _ = ax.hist(tot_pt, **hist_configs)
-    sel_vals, bins, _ = ax.hist(matched_pt, **hist_configs)
+    tot_vals, bins, _ = ax.hist(tot_pt, label='total', **hist_configs)
+    sel_vals, bins, _ = ax.hist(matched_pt, label='selected', **hist_configs)
+    plt.xlabel("pT [GeV]")
+    plt.ylabel("number of particles")
+    plt.legend()
+    plt.savefig(output+"_pT.png", bbox_inches='tight')
+
     plt.clf()
     ratio = get_ratio(sel_vals, tot_vals)
     xvals = [0.5*(x[0]+x[1]) for x in pairwise(bins)][1:]
@@ -172,7 +202,7 @@ if __name__ == "__main__":
 
     plt.xlabel("pT [GeV]")
     plt.ylabel("Efficiency")
-    plt.savefig(output+"_pT.png", bbox_inches='tight')
+    plt.savefig(output+"_eff_pT.png", bbox_inches='tight')
     plt.clf()
 
     ## make eta bins
@@ -185,8 +215,10 @@ if __name__ == "__main__":
         'log': True
     }
     fig, ax = plt.subplots(figsize=(8, 8), constrained_layout=True)
-    tot_vals, bins, _ = ax.hist(tot_eta, **hist_configs)
-    sel_vals, bins, _ = ax.hist(matched_eta, **hist_configs)
+    tot_vals, bins, _ = ax.hist(tot_eta, label='total', **hist_configs)
+    sel_vals, bins, _ = ax.hist(matched_eta, label='selected', **hist_configs)
+    plt.legend()
+    plt.savefig(output+"_eta.png", bbox_inches='tight')
     plt.clf()
     ratio = get_ratio(sel_vals, tot_vals)
     xvals = [0.5*(x[0]+x[1]) for x in pairwise(bins)][1:]
@@ -198,5 +230,5 @@ if __name__ == "__main__":
 
     plt.xlabel("Eta")
     plt.ylabel("Efficiency")
-    plt.savefig(output+"_eta.png", bbox_inches='tight')
+    plt.savefig(output+"_eff_eta.png", bbox_inches='tight')
     plt.clf()
