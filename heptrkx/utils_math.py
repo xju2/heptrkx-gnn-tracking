@@ -2,7 +2,7 @@
 Some math functions
 """
 import numpy as np
-
+import math
 
 def cartesion_to_spherical(x, y, z):
     r3 = np.sqrt(x**2 + y**2 + z**2)
@@ -21,3 +21,10 @@ def calc_dphi(phi1, phi2):
     dphi[dphi > np.pi] -= 2*np.pi
     dphi[dphi < -np.pi] += 2*np.pi
     return dphi
+
+def ratio_error(a, b, in_percentage=False):
+    ratio = a/b
+    if in_percentage:
+        ratio *= 100
+    error = ratio * math.sqrt((a+b)/(a*b))
+    return ratio, error

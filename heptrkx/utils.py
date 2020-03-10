@@ -144,7 +144,6 @@ def select_hits(event, no_noise, eta_cut=1.2):
     else:
         hits = event.hits
 
-    # hits = hits[hits.layer.isin([7, 8, 9])] ## move to later
     hits = hits[np.abs(hits.eta) < eta_cut]
     return hits
 

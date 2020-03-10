@@ -77,8 +77,12 @@ class Event(object):
         ## add pT to particles
         px = particles.px
         py = particles.py
+        pz = particles.pz
         pt = np.sqrt(px**2 + py**2)
-        particles = particles.assign(pt=pt)
+        momentum = np.sqrt(px**2 + py**2 + pz**2)
+        ptheta = np.arccos(pz/momentum)
+        peta = -np.log(np.tan(0.5*ptheta))
+        particles = particles.assign(pt=pt, peta=peta)
 
         self._evtid = evtid
         self._hits = hits

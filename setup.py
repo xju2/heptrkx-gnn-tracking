@@ -20,7 +20,7 @@ setup(
     packages=find_packages(),
     install_requires=[
         "graph_nets",
-        'tensorflow-gpu',
+        'tensorflow-gpu<2.0',
         'gast==0.2.2',
         "future",
         "networkx",
@@ -78,8 +78,9 @@ setup(
         'scripts/evaluate_cutbased_doublets',
         'scripts/create_hit_files',
         'scripts/create_predoublets',
-        'scripts/select_doublets_NN',
+        'scripts/check_nnbased_doublet_sel',
         'scripts/merge_h5',
         'scripts/merge_predoublets',
+        'scripts/select_doublet_nn'
     ],
 )

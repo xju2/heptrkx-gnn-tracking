@@ -3,9 +3,20 @@
 Calculate the efficiency and purity of seed candidates.
 Plot the eta and pT distributions of the input hits,
 as well as the efficiency as a function of pT and eta.
+
+good_particles: 
+    1) has at least 3 hits in different layers 
+    2)  has minimum number of hits
+matched_particles:
+    1) at least one seed is matched to that particle
+
+efficiency = n_matched_particles / n_good_particles
+
+purity = n_seeds_with_all-hits-from-the-same-particle / n_seeds
 """
 import argparse
 import pickle
+import glob
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -13,9 +24,9 @@ import matplotlib.pyplot as plt
 from heptrkx import utils
 from heptrkx import master
 from heptrkx import pairwise
+from heptrkx import seeding
+from heptrkx.utils_math import ratio_error
 
-def find_hit_idx(X):
-    return hits[(hits.x==X[0]) & (hits.y==X[1]) & (hits.z==X[2])]['hit_idx'].values[0]
 
 def get_ratio(x_vals, y_vals):
     res = [x/y if y!=0 else 0.0 for x,y in zip(x_vals, y_vals)]
@@ -23,7 +34,6 @@ def get_ratio(x_vals, y_vals):
 
 
 if __name__ == "__main__":
-
     parser = argparse.ArgumentParser(description='calculate seeding efficiency')
     add_arg = parser.add_argument
     add_arg('candiate',  help="seeding candidates")
@@ -55,20 +65,11 @@ if __name__ == "__main__":
         print(layers)
         layers = [int(x) for x in args.layers.split(',')]
     
-    if "pickle" in seed_candidates:
-        with open(seed_candidates, 'rb') as f:
-            data = pickle.load(f)
-            new_data = []
-            for dd in data:
-                idx = int(dd[0][10:])
-                new_data.append((idx, dd[1], dd[2], dd[3]))
-            df_seed = pd.DataFrame(new_data, columns=['evtid', 'h1', 'h2', 'h3'], dtype=np.int64)
-    else:
-        df_seed = pd.read_csv(seed_candidates, header=None,
-                            names=['evtid', 'h1', 'h2', 'h3'])
-
+    df_seed = seeding.read_triplets(seed_candidates)
     evt_list = np.unique(df_seed.evtid)
     print("Total {} events".format(evt_list.shape[0]))
+    if evt_list.shape[0] < 1:
+        exit(1)
     print(df_seed.columns)
 
     n_particles_list = []
@@ -101,13 +102,11 @@ if __name__ == "__main__":
 
         aa = hits.groupby(['particle_id'])['hit_id'].count()
         total_particles = aa[aa > min_hits].index
-
         total_particles = total_particles[total_particles != 0]
         n_total_particles = total_particles.shape[0]
         if verbose:
             print("Event {} has {} particles with minimum of {} hits".format(
                 evtid, n_total_particles, min_hits))
-
 
         df = df_seed[df_seed.evtid == evtid]
         if verbose:
@@ -123,11 +122,12 @@ if __name__ == "__main__":
         good_particles = good_particles[good_particles != 0]
         n_particles_list.append(good_particles.shape[0])
 
-        good_particles_pT = np.unique(hits[hits.particle_id.isin(good_particles) \
-                                           & hits.pt.abs() >= 1].particle_id)
+
         if verbose:
             print("Event {} has {} particles leaving hits at inner 3 layers".format(
                 evtid, good_particles.shape[0]))
+            good_particles_pT = np.unique(hits[hits.particle_id.isin(good_particles) \
+                                    & hits.pt.abs() >= 1].particle_id)
             print("Event {} has {} particles leaving hits at inner 3 layers, with pT > 1 GeV".format(
                 evtid, good_particles_pT.shape[0]))
         df1 = df.merge(hits, left_on='h1', right_on='hit_id', how='left')
@@ -138,7 +138,6 @@ if __name__ == "__main__":
         p3 = df3.particle_id.astype('int64')
 
         n_total_seeds = df.shape[0]
-        #true_seeds = df[(df_all.p1 != 0) & (df_all.p1==df_all.p2) & (df_all.p2==df_all.p3)]
         true_seeds = p1[(p1 != 0) & (p1==p2) & (p2==p3)]
         n_true_seeds = true_seeds.shape[0]
 
@@ -156,27 +155,40 @@ if __name__ == "__main__":
             print("Efficiency: {:.2f}%".format(n_unique_true_seeds*100./good_particles.shape[0]))
 
         df_unique_true_seeds = pd.DataFrame(unique_true_seeds, columns=['particle_id'])
-        df_unique_true_seeds = df_unique_true_seeds.merge(event.hits, on='particle_id', how='left')
+        df_unique_true_seeds = df_unique_true_seeds.merge(event.particles, on='particle_id', how='left')
         df_total_particles = pd.DataFrame(good_particles, columns=['particle_id'])
-        df_total_particles = df_total_particles.merge(event.hits, on='particle_id', how='left')
+        df_total_particles = df_total_particles.merge(event.particles, on='particle_id', how='left')
 
         particle_pT_list.append(df_total_particles.pt)
         matched_particle_pT_list.append(df_unique_true_seeds.pt)
-        particle_eta_list.append(df_total_particles.eta)
-        matched_particle_eta_list.append(df_unique_true_seeds.eta)
+        particle_eta_list.append(df_total_particles.peta)
+        matched_particle_eta_list.append(df_unique_true_seeds.peta)
 
-
-    ## make a summary plot
+    # summarize
     tot_particles = sum(n_particles_list)
     tot_matched_particles = sum(n_matched_particles_list)
     tot_seeds = sum(n_seeds_list)
     tot_true_seeds = sum(n_true_seeds_list)
 
-    print("Purity: {:.2f}%".format(tot_true_seeds*100./tot_seeds))
-    print("Efficiency: {:.2f}%".format(tot_matched_particles*100./tot_particles))
+    print("Purity: {:.2f} +/- {:.3f}%".format(*ratio_error(tot_true_seeds, tot_seeds, True)))
+    print("Efficiency: {:.2f} +/- {:.3f}%".format(*ratio_error(tot_matched_particles, tot_particles, True)))
 
-    tot_pt = np.concatenate(particle_pT_list, axis=0)
-    matched_pt = np.concatenate(matched_particle_pT_list, axis=0)
+    tot_pt = np.concatenate(particle_pT_list)
+    matched_pt = np.concatenate(matched_particle_pT_list)
+    tot_eta = np.concatenate(particle_eta_list)
+    matched_eta = np.concatenate(matched_particle_eta_list)
+    # save the info
+    summary_info = {
+        "tot_particles": n_particles_list,
+        "tot_pt": tot_pt,
+        "matched_pt": matched_pt,
+        "tot_eta": tot_eta,
+        "matched_eta": matched_eta,
+    }
+    with open(output+".pickle", 'wb') as ff:
+        pickle.dump(summary_info, ff)
+
+    # efficiency as function of pT
     hist_configs = {
         'bins': pT_bins,
         'histtype': 'step',
@@ -198,7 +210,7 @@ if __name__ == "__main__":
     lstype = '-o'
     plt.plot(xvals, ratio, lstype, **line_configs)
     for i,j in zip(xvals, ratio):
-        plt.text(i, j+0.02, "{:.2f}".format(j))
+        plt.text(i, j*1.05, "{:.2f}".format(j))
 
     plt.xlabel("pT [GeV]")
     plt.ylabel("Efficiency")
@@ -206,13 +218,12 @@ if __name__ == "__main__":
     plt.clf()
 
     ## make eta bins
-    tot_eta = np.concatenate(particle_eta_list, axis=0)
-    matched_eta = np.concatenate(matched_particle_eta_list, axis=0)
     hist_configs = {
         'bins': eta_bins,
         'histtype': 'step',
         'lw': 2,
-        'log': True
+        'log': True,
+        "range": (-5, 5),
     }
     fig, ax = plt.subplots(figsize=(8, 8), constrained_layout=True)
     tot_vals, bins, _ = ax.hist(tot_eta, label='total', **hist_configs)
@@ -226,7 +237,7 @@ if __name__ == "__main__":
     lstype = '-o'
     plt.plot(xvals, ratio, lstype, **line_configs)
     for i,j in zip(xvals, ratio):
-        plt.text(i, j+0.02, "{:.2f}".format(j))
+        plt.text(i, j*1.05, "{:.2f}".format(j))
 
     plt.xlabel("Eta")
     plt.ylabel("Efficiency")
