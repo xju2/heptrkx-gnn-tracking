@@ -181,8 +181,8 @@ if __name__ == "__main__":
         np.sum(df_summary.n_particles)/tot_evts,
         ))
     print("On average: {} seeds per event. \n\t{} ({:.2f}%)true seeds, "
-          "\t{} ({:.2f}%) true seeds after removing seeds with two hits being the same layer"
-          "\ta factor of {:.1f} duplicated seeds".format(
+          "\n\t{} ({:.2f}%) true seeds after removing seeds with two hits being the same layer"
+          "\n\ta factor of {:.1f} duplicated seeds".format(
             tot_seeds/tot_evts, 
             tot_true_seeds_tot/tot_evts, 100*tot_true_seeds_tot/tot_seeds,
             tot_true_seeds/tot_evts, 100*tot_true_seeds/tot_true_seeds_tot,
