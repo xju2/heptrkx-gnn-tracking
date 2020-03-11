@@ -67,17 +67,17 @@ if __name__ == "__main__":
     
     df_seed = seeding.read_triplets(seed_candidates)
     evt_list = np.unique(df_seed.evtid)
-    print("Total {} events".format(evt_list.shape[0]))
-    if evt_list.shape[0] < 1:
+    tot_evts = evt_list.shape[0]
+    print("Total {} events".format(tot_evts))
+    if tot_evts < 1:
         exit(1)
-    print(df_seed.columns)
+    # print(df_seed.columns)
 
-    n_particles_list = []
-    n_matched_particles_list = []
-    n_seeds_list = []
-    n_true_seeds_list = []
-    pT_bins = [-0.1, 0.1, 0.3, 0.5, 0.7, 0.9, 1.1, 1.5, 1.9, 2.4, 5]
-    eta_bins = [-5, -3, -2.4, -2.0, -1.6, -1.2, -0.8, -0.4, 0, 0.4, 0.8, 1.2, 1.6, 2.0, 2.4, 3, 5]
+    # collect following info for each event
+    # evtid, n_hits, n_particles, n_matched_particles, 
+    # n_seeds, n_true_seeds_with_hits_at_same_layer, n_true_seeds
+    summary_info = []
+
     particle_pT_list = []
     matched_particle_pT_list = []
     particle_eta_list = []
@@ -120,8 +120,6 @@ if __name__ == "__main__":
         bb = hits.groupby(['particle_id'])['layer'].count()
         good_particles = bb[(bb > 2) & (aa > min_hits)].index
         good_particles = good_particles[good_particles != 0]
-        n_particles_list.append(good_particles.shape[0])
-
 
         if verbose:
             print("Event {} has {} particles leaving hits at inner 3 layers".format(
@@ -138,15 +136,16 @@ if __name__ == "__main__":
         p3 = df3.particle_id.astype('int64')
 
         n_total_seeds = df.shape[0]
-        true_seeds = p1[(p1 != 0) & (p1==p2) & (p2==p3)]
+        true_seeds_dup = p1[(p1 != 0) & (p1==p2) & (p2==p3)]
+        n_true_seeds_dup = true_seeds_dup.shape[0]
+        true_seeds = p1[(p1 != 0) & (p1==p2) & (p2==p3) & (df1.layer != df2.layer) & (df1.layer != df3.layer) & (df2.layer != df3.layer)]
         n_true_seeds = true_seeds.shape[0]
 
         unique_true_seeds = np.unique(true_seeds)
         n_unique_true_seeds = unique_true_seeds.shape[0]
 
-        n_matched_particles_list.append(n_unique_true_seeds)
-        n_seeds_list.append(n_total_seeds)
-        n_true_seeds_list.append(n_true_seeds)
+        summary_info.append((evtid, hits.shape[0], good_particles.shape[0], unique_true_seeds.shape[0],
+                            n_total_seeds, true_seeds_dup.shape[0], true_seeds.shape[0]))
 
         if verbose:
             print("{} particles matched".format(n_unique_true_seeds))
@@ -165,29 +164,44 @@ if __name__ == "__main__":
         matched_particle_eta_list.append(df_unique_true_seeds.peta)
 
     # summarize
-    tot_particles = sum(n_particles_list)
-    tot_matched_particles = sum(n_matched_particles_list)
-    tot_seeds = sum(n_seeds_list)
-    tot_true_seeds = sum(n_true_seeds_list)
+    df_summary = pd.DataFrame(data=summary_info,
+                        columns=['evtid', 'n_hits', 'n_particles', 'n_matched_particles',
+                            'n_seeds', 'n_true_seeds_dup', 'n_true_seeds'
+                        ])
+    tot_particles = np.sum(df_summary.n_particles)
+    tot_matched_particles = np.sum(df_summary.n_matched_particles)
+    tot_seeds = np.sum(df_summary.n_seeds)
+    tot_true_seeds = np.sum(df_summary.n_true_seeds)
+    tot_true_seeds_tot = np.sum(df_summary.n_true_seeds_dup)
 
-    print("Purity: {:.2f} +/- {:.3f}%".format(*ratio_error(tot_true_seeds, tot_seeds, True)))
-    print("Efficiency: {:.2f} +/- {:.3f}%".format(*ratio_error(tot_matched_particles, tot_particles, True)))
+    print("Summary")
+    print("Total {} events".format(tot_evts))
+    print("On average: {} hits per event and {} particles per event".format(
+        np.sum(df_summary.n_hits)/tot_evts,
+        np.sum(df_summary.n_particles)/tot_evts,
+        ))
+    print("On average: {} seeds per event. \n\t{} ({:.2f}%)true seeds, "
+          "\t{} ({:.2f}%) true seeds after removing seeds with two hits being the same layer".format(
+            tot_seeds/tot_evts, 
+            tot_true_seeds_tot/tot_evts, 100*tot_true_seeds_tot/tot_seeds,
+            tot_true_seeds/tot_evts, 100*tot_true_seeds/tot_true_seeds_tot))
+    print("Purity: {:.1f} +/- {:.2f}%".format(*ratio_error(tot_true_seeds, tot_seeds, True)))
+    print("Efficiency: {:.1f} +/- {:.2f}%".format(*ratio_error(tot_matched_particles, tot_particles, True)))
 
     tot_pt = np.concatenate(particle_pT_list)
     matched_pt = np.concatenate(matched_particle_pT_list)
     tot_eta = np.concatenate(particle_eta_list)
     matched_eta = np.concatenate(matched_particle_eta_list)
+    df_tot = pd.DataFrame({'pT': tot_pt, 'eta': tot_eta})
+    df_matched = pd.DataFrame({"pT": matched_pt, "eta": matched_eta})
     # save the info
-    summary_info = {
-        "tot_particles": n_particles_list,
-        "tot_pt": tot_pt,
-        "matched_pt": matched_pt,
-        "tot_eta": tot_eta,
-        "matched_eta": matched_eta,
-    }
-    with open(output+".pickle", 'wb') as ff:
-        pickle.dump(summary_info, ff)
+    with pd.HDFStore(output+".h5", 'w') as store:
+        store['summary'] = df_summary
+        store['tot'] = df_tot
+        store['matched'] = df_matched
 
+    pT_bins = [-0.1, 0.1, 0.3, 0.5, 0.7, 0.9, 1.1, 1.5, 1.9, 2.4, 5]
+    eta_bins = [-5, -3, -2.4, -2.0, -1.6, -1.2, -0.8, -0.4, 0, 0.4, 0.8, 1.2, 1.6, 2.0, 2.4, 3, 5]
     # efficiency as function of pT
     hist_configs = {
         'bins': pT_bins,
