@@ -1,0 +1,148 @@
+#!/usr/bin/env python 
+"""
+Evaluate the efficiency and purity for the given NN-based selections
+"""
+import os
+import argparse
+import numpy as np
+import pandas as pd
+
+from sklearn.preprocessing import StandardScaler
+import tensorflow as tf
+from tensorflow import keras
+
+
+from heptrkx.utils import load_yaml
+from heptrkx.nx_graph import shadow_model
+from heptrkx.utils import layer_pairs
+from heptrkx import master
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='select doublets using trained neural networks')
+    add_arg = parser.add_argument
+    add_arg('input_file', help='input pre-doublets')
+    add_arg('config_file', help='configuration file')
+    add_arg('outname', help='output doublets')
+    add_arg('--pair', type=int, help='run one pair id', default=None)
+    # used for calculate efficiency and purity
+    add_arg('--pT', type=float, help='pT threshold for defining good particle, in [GeV]', default=0.5)
+    add_arg('--min-hits', help='minimum hits for defining good particle', default=5)
+    add_arg('--no-eval', action='store_true', help='no efficency and purity evaluation, save time')
+    # get track ml score, need hit file
+    add_arg('--get-trk-score', action='store_true', help='use wrangle to get the track ml score')
+    add_arg('--hit-file', help='hit file directory', default=None)
+
+    args = parser.parse_args()
+
+    input_file = args.input_file
+    config_file = args.config_file
+    outname = args.outname
+    pair = args.pair
+    min_hits = args.min_hits
+    pT_cut = args.pT
+    no_eval = args.no_eval
+    get_trk_score = args.get_trk_score
+    hit_file = args.hit_file
+
+    config = load_yaml(config_file)
+
+    # NN configurations
+    train_cfg = config['doublet_training']
+    features = train_cfg['features']
+    model_weight_base_dir = os.path.expandvars(train_cfg['model_output_dir'])
+    model_name = train_cfg['model']
+
+    # NN thresholds
+    cuts = config['segments_from_NN']['cuts']
+
+    # input dataset
+    input_dir = config['track_ml']['dir']
+    event = master.Event(input_dir)
+
+
+    scaler = StandardScaler()
+
+    # read pre-doublets
+    with pd.HDFStore(input_file, mode='r') as doublets:
+        all_keys = list(doublets.keys())
+        evtid_list = np.unique([int(x.split('/')[1][3:]) for x in all_keys]).tolist()
+        if pair is not None:
+            pair_list = [pair]
+        else:
+            pair_list = np.unique([int(x.split('/')[2][4:]) for x in all_keys]).tolist()
+
+        segments_dict = {}
+        for pairid in pair_list:
+            cut = cuts[pairid]
+            layer_pair = layer_pairs[pairid]
+            # Load the NN model for that layer pair
+            model_weight_dir = os.path.join(model_weight_base_dir, 'pair{:03d}'.format(pairid), 'modelpair{:03}.ckpt'.format(pairid))
+            with tf.compat.v1.Session(graph=tf.Graph()) as sess:
+                    # model = getattr(shadow_model, model_name)()
+                    # model.load_weights(model_weight_dir)
+                    model = keras.models.load_model(model_weight_dir)
+
+                    # now load all events for the layer pair
+                    total_truth = 0
+                    total_selected_truth = 0
+                    total_selected = 0
+                    for evtid in evtid_list:
+                        key = 'evt{}/pair{}'.format(evtid, pairid)
+                        doublet = doublets[key]
+
+                        all_inputs = scaler.fit_transform(doublet[features].values)
+                        prediction = model.predict(all_inputs)
+                        passed_segments = doublet[prediction > cut]
+                        evt_key = 'evt{}'.format(evtid)
+                        if evt_key in segments_dict:
+                            segments_dict[evt_key].append(passed_segments)
+                        else:
+                            segments_dict[evt_key] = [passed_segments]
+                        if not no_eval:
+                            # total truth, only care particles with at least min_hits and pT >= 1 GeV
+                            event.read(evtid)
+                            hits = event.hits
+                            hits = hits[(hits.nhits >= min_hits) & (hits.pt >= pT_cut) & (hits.particle_id > 0)]
+                            good_particles = np.unique(hits.particle_id)
+                            total_truth += doublet.solution[(doublet.solution) & (doublet.particle_id_in.isin(good_particles))].shape[0]
+                            # find 
+                            total_selected_truth += passed_segments[ (passed_segments.solution) & (passed_segments.particle_id_in.isin(good_particles)) ].shape[0]
+                            # total_selected += passed_segments[(passed_segments.particle_id_in.isin(good_particles))].shape[0]
+                            total_selected += passed_segments.shape[0]
+
+                    efficiency = total_selected_truth*100/total_truth
+                    purity = total_selected_truth*100/total_selected
+                    print("{} events: layer {:2}-{:2}, NN > {:.2f}, {:10,}, efficiency: {:.2f}, purity: {:.2f}".format(
+                        len(evtid_list),
+                        layer_pair[0],
+                        layer_pair[1],
+                        cut,
+                        total_selected, efficiency, purity))
+        
+        # get track ml score for each event, using truth info only
+        if get_trk_score:
+            if hit_file is None:
+                print("please provide hit file")
+            else:
+                from heptrkx.nx_graph import utils_data, utils_plot
+                from heptrkx.postprocess import wrangler, analysis
+                from trackml.score import score_event
+                import matplotlib.pyplot as plt
+                for key, segments in segments_dict.items():
+                    evtid = int(key[3:])
+                    all_segments = pd.concat(segments, ignore_index=True)
+                    all_segments = all_segments[all_segments.solution == 1]
+                    with pd.HDFStore(hit_file) as store:
+                        hits = store["evt{}".format(evtid)]
+                        G = utils_data.segments_to_nx(
+                            hits, all_segments, 'hit_id_in', 'hit_id_out',
+                            solution_name='solution',
+                            use_digraph=False, bidirection=False
+                            )
+                        _, ax = plt.subplots()
+                        utils_plot.plot_networkx(G, ax=ax)
+                        plt.savefig("displace_evt{}.pdf".format(evtid))
+                        all_true_tracks = wrangler.get_tracks(G, feature_name='solution', with_fit=False)
+                        true_df = analysis.graphs_to_df(all_true_tracks)
+                        score = score_event(hits, true_df)
+                        print("event {} yields maximum score: {}".format(evtid, score))
