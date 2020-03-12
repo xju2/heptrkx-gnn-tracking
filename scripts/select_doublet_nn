@@ -38,9 +38,8 @@ if __name__ == "__main__":
     features = train_cfg['features']
     model_weight_base_dir = os.path.expandvars(train_cfg['model_output_dir'])
     model_name = train_cfg['model']
-
     # NN thresholds
-    cuts = config['segments_from_NN']['cuts']
+    cuts = train_cfg['cuts']
 
     # input dataset
     input_dir = config['track_ml']['dir']

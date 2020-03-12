@@ -61,15 +61,13 @@ if __name__ == "__main__":
         print("model is trained and evaluated")
         exit()
 
+    model = getattr(shadow_model, model_name)() 
+    model.compile(optimizer='adam',
+            loss='binary_crossentropy',
+            metrics=['accuracy'])
     if os.path.exists(checkpoint_path) and (args.resume_train or args.in_eval):
         print("Resume previous training")
-        model = keras.models.load_model(checkpoint_path)
-    else:
-        # same model for everyone
-        model = getattr(shadow_model, model_name)() 
-        model.compile(optimizer='adam',
-                loss='binary_crossentropy',
-                metrics=['accuracy'])        
+        model.load_weights(checkpoint_path)
 
     print("Model is compiled. Start to read training data")
     truth_var = 'solution'

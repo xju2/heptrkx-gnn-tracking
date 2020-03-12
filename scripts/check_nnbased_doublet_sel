@@ -21,7 +21,6 @@ if __name__ == "__main__":
     add_arg = parser.add_argument
     add_arg('input_file', help='input pre-doublets')
     add_arg('config_file', help='configuration file')
-    add_arg('outname', help='output doublets')
     add_arg('--pair', type=int, help='run one pair id', default=None)
     # used for calculate efficiency and purity
     add_arg('--pT', type=float, help='pT threshold for defining good particle, in [GeV]', default=0.5)
@@ -36,7 +35,6 @@ if __name__ == "__main__":
 
     input_file = args.input_file
     config_file = args.config_file
-    outname = args.outname
     pair = args.pair
     min_hits = args.min_hits
     pT_cut = args.pT
@@ -51,14 +49,12 @@ if __name__ == "__main__":
     features = train_cfg['features']
     model_weight_base_dir = os.path.expandvars(train_cfg['model_output_dir'])
     model_name = train_cfg['model']
-
     # NN thresholds
-    cuts = config['segments_from_NN']['cuts']
+    cuts = train_cfg['cuts']
 
     # input dataset
     input_dir = config['track_ml']['dir']
     event = master.Event(input_dir)
-
 
     scaler = StandardScaler()
 
@@ -76,9 +72,13 @@ if __name__ == "__main__":
             cut = cuts[pairid]
             layer_pair = layer_pairs[pairid]
             # Load the NN model for that layer pair
-            model_weight_dir = os.path.join(model_weight_base_dir, 'pair{:03d}'.format(pairid), args.model_weights)
+            model_weights_path = os.path.join(model_weight_base_dir, 'pair{:03d}'.format(pairid), args.model_weights)
             model = getattr(shadow_model, model_name)()
-            model.load_weights(model_weight_dir)
+            model.compile(optimizer='adam',
+                loss='binary_crossentropy',
+                metrics=['accuracy'])
+            print(model_weights_path)
+            model.load_weights(model_weights_path)
 
             # now load all events for the layer pair
             total_truth = 0

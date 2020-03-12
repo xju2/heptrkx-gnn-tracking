@@ -10,17 +10,11 @@ doublet_training:
     model_output_dir: /global/cfs/projectdirs/atlas/xju/tracking/PairsFromNN/model10evtsTF2
     model: fully_connected_classifier
     features: ['dphi', 'dz', 'dr', 'phi_slope', 'z0', 'deta', 'deta1', 'dphi1']
+    cuts: [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]
 
 
 # doublets_for_graph: ## input pairs from all_pairs
-#     selected: /global/cscratch1/sd/xju/heptrkx/codalab/NNbasedSegments/segments4cuts
-
-# segments_from_NN:
-#     evtid: "21001"
-#     selected: /global/cscratch1/sd/xju/heptrkx/codalab/NNbasedSegments/segments4graph
-#     threshold: /global/cfs/projectdirs/atlas/xju/heptrkx/codalab/analysis/NNbased_Segments/cuts_v1.txt
-#     layers: [7, 8, 9, 10, 24, 25, 27, 40, 41]
-#     cuts: [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]
+#     selected: /global/cscratch1/sd/xju/heptrkx/codalab/NNbasedSegments/segments4cuts    
 
 # # make graphs via hybrid approach
 # make_graph:
