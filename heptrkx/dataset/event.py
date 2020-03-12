@@ -1,4 +1,5 @@
-"""Master class
+"""
+Tracking ML dataset
 """
 import os
 import re
@@ -11,28 +12,9 @@ from trackml.dataset import load_event
 from heptrkx import utils_math
 
 
-eventid_info = {}
-def get_event(data_dir, n_events):
-    if data_dir in eventid_info.keys():
-        evt_ids = eventid_info[data_dir]
-    else:
-        all_files = glob.glob(os.path.join(data_dir, '*-hits.csv*'))
-        evt_ids = np.sort([int(re.search('event0000([0-9]*)-hits.csv.gz',
-                                         os.path.basename(x)).group(1))
-                           for x in all_files])
-    if n_events > len(evt_ids):
-        print("Requested number of events {} larger than the total Events: {}".format(n_events, len(evt_ids)))
-        n_events = len(evt_ids)
-    return [Event(data_dir, evtid) for evtid in evt_ids[:n_events]]
-
-
-"""
-Reads tracking ML datasets and make selections in hits or tracks
-"""
-
-## predefined layer info
-# in Tracking ML layer is defined by (volumn id and layer id)
-# now I just use the unique layer id
+# predefined layer info
+# in Tracking ML, layer is defined by (volumn id and layer id)
+# now I just use a unique layer id
 vlids = [(7,2), (7,4), (7,6), (7,8), (7,10), (7,12), (7,14),
          (8,2), (8,4), (8,6), (8,8),
          (9,2), (9,4), (9,6), (9,8), (9,10), (9,12), (9,14),
@@ -44,12 +26,48 @@ vlids = [(7,2), (7,4), (7,6), (7,8), (7,10), (7,12), (7,14),
          (18,2), (18,4), (18,6), (18,8), (18,10), (18,12)]
 n_det_layers = len(vlids)
 
+# promissing layer pairs
+# with the first being the inner one
+layer_pairs = [
+    (7, 8), (8, 9), (9, 10), (10, 24), (24, 25), (25, 26), (26, 27), (27, 40), (40, 41),
+    (7, 6), (6, 5), (5, 4), (4, 3), (3, 2), (2, 1), (1, 0),
+    (8, 6), (9, 6),
+    (7, 11), (11, 12), (12, 13), (13, 14), (14, 15), (15, 16), (16, 17),
+    (8, 11), (9, 11),
+    (24, 23), (23, 22), (22, 21), (21, 19), (19, 18),
+    (24, 28), (28, 29), (29, 30), (30, 31), (31, 32), (32, 33),
+    (25, 23), (26, 23), (25, 28), (26, 28),
+    (27, 39), (40, 39), (27, 42), (40, 42),
+    (39, 38), (38, 37), (37, 36), (36, 35), (35, 34),
+    (42, 43), (43, 44), (44, 45), (45, 46), (46, 47),
+    (19, 34), (20, 35), (21, 36), (22, 37), (23, 38),
+    (28, 43), (29, 44), (30, 45), (31, 46), (32, 47),
+    (0, 18), (0, 19), (1, 20), (1, 21), (2, 21), (2, 22), (3, 22), (4, 23),
+    (17, 33), (17, 32), (17, 31), (16, 31), (16, 30), (15, 30), (15, 29), (14, 29), (14, 28), (13, 29), (13, 28),
+    (11, 24), (12, 24), (6, 24), (5, 24), (4, 24)
+]
+layer_pairs_dict = dict([(ii, layer_pair) for ii, layer_pair in enumerate(layer_pairs)])
+pairs_layer_dict = dict([(layer_pair, ii) for ii, layer_pair in enumerate(layer_pairs)])
+
+def select_pair_layers(layers):
+    return [ii for ii, layer_pair in enumerate(layer_pairs) 
+                if layer_pair[0] in layers and layer_pair[1] in layers]
+
+def module_info(detector_dir):
+    detector = pd.read_csv(os.path.expandvars(detector_dir))
+    def get_fnc(volume_id, layer_id, module_id):
+        return detector[ (detector.volume_id == volume_id) \
+            & (detector.layer_id == layer_id) \
+            & (detector.module_id == module_id) ]
+    return get_fnc
+
 
 class Event(object):
     """An object saving Event info, including hits, particles, truth and cell info"""
     def __init__(self, evtdir, blacklist_dir=None):
         self._evt_dir = evtdir
         self._blacklist_dir = blacklist_dir
+        self._detector = None
  
     def read(self, evtid):
         prefix = os.path.join(os.path.expandvars(self._evt_dir),
@@ -173,7 +191,9 @@ class Event(object):
         ]
         if inplace:
             self._hits = hits
-        return hits
+            return self._hits
+        else:
+            return hits
 
     @staticmethod
     def _local_angle(cell, module):
@@ -193,7 +213,8 @@ class Event(object):
 
 
     def cluster_info(self, detector_dir, inplace=True):
-        self._detector = pd.read_csv(os.path.expandvars(detector_dir))
+        if not self._detector:
+            self._detector = pd.read_csv(os.path.expandvars(detector_dir))
         df_hits = self._hits
         cells = self._cells
 
@@ -218,12 +239,12 @@ class Event(object):
         df_angles = pd.DataFrame(angles, columns=['hit_id', 'leta', 'lphi', 'lx', 'ly', 'lz', 'geta', 'gphi'])
         if inplace:
             self._hits = self._hits.merge(df_angles, on='hit_id', how='left')
-        return df_angles
-
-    def save_hits(self, out_dir, replace=False):
-        file_name = os.path.join(out_dir, 'event{:09d}-hits.h5'.format(self._evtid))
-        if replace or (not os.path.exists(file_name)):
-            with pd.HDFStore(file_name) as store:
-                store['data'] = self._hits
+            return self._hits
         else:
-            print("{} is there")
+            return df_angles
+
+    def select_hits(self, no_noise, eta_cut):
+        if no_noise:
+            self.remove_noise_hits()
+
+        self._hits = self._hits[np.abs(self._hits.eta) < eta_cut]

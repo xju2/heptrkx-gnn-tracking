@@ -13,8 +13,8 @@ import os
 import numpy as np
 import pandas as pd
 
-from heptrkx.doublet import create_segments, calculate_segment_features
-from heptrkx.utils import select_pair_layers, layer_pairs
+from heptrkx.dataset.doublet import create_segments, calculate_segment_features
+from heptrkx.dataset import layer_pairs, select_pair_layers
 from heptrkx.utils import list_from_str
 from heptrkx.utils import is_df_there
 

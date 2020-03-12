@@ -10,10 +10,8 @@ def cartesion_to_spherical(x, y, z):
     theta = np.arccos(z/r3)
     return r3, theta, phi
 
-
 def theta_to_eta(theta):
     return -np.log(np.tan(0.5*theta))
-
 
 def calc_dphi(phi1, phi2):
     """Computes phi2-phi1 given in range [-pi,pi]"""
@@ -21,6 +19,7 @@ def calc_dphi(phi1, phi2):
     dphi[dphi > np.pi] -= 2*np.pi
     dphi[dphi < -np.pi] += 2*np.pi
     return dphi
+
 
 def ratio_error(a, b, in_percentage=False):
     ratio = a/b

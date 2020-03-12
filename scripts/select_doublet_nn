@@ -23,6 +23,7 @@ if __name__ == "__main__":
     add_arg('input_file', help='input pre-doublets')
     add_arg('config_file', help='configuration file')
     add_arg('outname', help='output doublets')
+    add_arg("--model-weights", help='model weights', default='weights.hdf5')
 
     args = parser.parse_args()
 
@@ -58,16 +59,17 @@ if __name__ == "__main__":
                 for pairid in pair_list:
                     cut = cuts[pairid]
                     layer_pair = layer_pairs[pairid]
+                    
                     # Load the NN model for that layer pair
-                    model_weight_dir = os.path.join(model_weight_base_dir, 'pair{:03d}'.format(pairid), 'modelpair{:03}.ckpt'.format(pairid))
-                    with tf.compat.v1.Session(graph=tf.Graph()) as sess:
-                        # model = getattr(shadow_model, model_name)()
-                        # model.load_weights(model_weight_dir)
-                        model = keras.models.load_model(model_weight_dir)
+                    model_weight_dir = os.path.join(model_weight_base_dir, 'pair{:03d}'.format(pairid), args.model_weights)
+                    model = getattr(shadow_model, model_name)()
+                    model.load_weights(model_weight_dir)
 
-                        key = 'evt{}/pair{}'.format(evtid, pairid)
-                        doublet = doublets[key]
-                        all_inputs = scaler.fit_transform(doublet[features].values)
-                        prediction = model.predict(all_inputs)
-                        passed_segments = doublet[prediction > cut]
-                        store[key] = passed_segments
+                    key = 'evt{}/pair{}'.format(evtid, pairid)
+                    doublet = doublets[key]
+                    all_inputs = scaler.fit_transform(doublet[features].values)
+                    prediction = model.predict(all_inputs)
+                    passed_segments = doublet[prediction > cut]
+                    store[key] = passed_segments
+
+                    del model

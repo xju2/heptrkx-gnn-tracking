@@ -11,11 +11,10 @@ from sklearn.preprocessing import StandardScaler
 import tensorflow as tf
 from tensorflow import keras
 
-
 from heptrkx.utils import load_yaml
 from heptrkx.nx_graph import shadow_model
-from heptrkx.utils import layer_pairs
-from heptrkx import master
+from heptrkx.dataset import event as master
+from heptrkx.dataset.event import layer_pairs
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='select doublets using trained neural networks')
@@ -31,6 +30,7 @@ if __name__ == "__main__":
     # get track ml score, need hit file
     add_arg('--get-trk-score', action='store_true', help='use wrangle to get the track ml score')
     add_arg('--hit-file', help='hit file directory', default=None)
+    add_arg("--model-weights", help='model weights', default='weights.hdf5')
 
     args = parser.parse_args()
 
@@ -76,48 +76,47 @@ if __name__ == "__main__":
             cut = cuts[pairid]
             layer_pair = layer_pairs[pairid]
             # Load the NN model for that layer pair
-            model_weight_dir = os.path.join(model_weight_base_dir, 'pair{:03d}'.format(pairid), 'modelpair{:03}.ckpt'.format(pairid))
-            with tf.compat.v1.Session(graph=tf.Graph()) as sess:
-                    # model = getattr(shadow_model, model_name)()
-                    # model.load_weights(model_weight_dir)
-                    model = keras.models.load_model(model_weight_dir)
+            model_weight_dir = os.path.join(model_weight_base_dir, 'pair{:03d}'.format(pairid), args.model_weights)
+            model = getattr(shadow_model, model_name)()
+            model.load_weights(model_weight_dir)
 
-                    # now load all events for the layer pair
-                    total_truth = 0
-                    total_selected_truth = 0
-                    total_selected = 0
-                    for evtid in evtid_list:
-                        key = 'evt{}/pair{}'.format(evtid, pairid)
-                        doublet = doublets[key]
+            # now load all events for the layer pair
+            total_truth = 0
+            total_selected_truth = 0
+            total_selected = 0
+            for evtid in evtid_list:
+                key = 'evt{}/pair{}'.format(evtid, pairid)
+                doublet = doublets[key]
 
-                        all_inputs = scaler.fit_transform(doublet[features].values)
-                        prediction = model.predict(all_inputs)
-                        passed_segments = doublet[prediction > cut]
-                        evt_key = 'evt{}'.format(evtid)
-                        if evt_key in segments_dict:
-                            segments_dict[evt_key].append(passed_segments)
-                        else:
-                            segments_dict[evt_key] = [passed_segments]
-                        if not no_eval:
-                            # total truth, only care particles with at least min_hits and pT >= 1 GeV
-                            event.read(evtid)
-                            hits = event.hits
-                            hits = hits[(hits.nhits >= min_hits) & (hits.pt >= pT_cut) & (hits.particle_id > 0)]
-                            good_particles = np.unique(hits.particle_id)
-                            total_truth += doublet.solution[(doublet.solution) & (doublet.particle_id_in.isin(good_particles))].shape[0]
-                            # find 
-                            total_selected_truth += passed_segments[ (passed_segments.solution) & (passed_segments.particle_id_in.isin(good_particles)) ].shape[0]
-                            # total_selected += passed_segments[(passed_segments.particle_id_in.isin(good_particles))].shape[0]
-                            total_selected += passed_segments.shape[0]
+                all_inputs = scaler.fit_transform(doublet[features].values)
+                prediction = model.predict(all_inputs)
+                passed_segments = doublet[prediction > cut]
+                evt_key = 'evt{}'.format(evtid)
+                if evt_key in segments_dict:
+                    segments_dict[evt_key].append(passed_segments)
+                else:
+                    segments_dict[evt_key] = [passed_segments]
+                if not no_eval:
+                    # total truth, only care particles with at least min_hits and pT >= 1 GeV
+                    event.read(evtid)
+                    hits = event.hits
+                    hits = hits[(hits.nhits >= min_hits) & (hits.pt >= pT_cut) & (hits.particle_id > 0)]
+                    good_particles = np.unique(hits.particle_id)
+                    total_truth += doublet.solution[(doublet.solution) & (doublet.particle_id_in.isin(good_particles))].shape[0]
+                    # find 
+                    total_selected_truth += passed_segments[ (passed_segments.solution) & (passed_segments.particle_id_in.isin(good_particles)) ].shape[0]
+                    # total_selected += passed_segments[(passed_segments.particle_id_in.isin(good_particles))].shape[0]
+                    total_selected += passed_segments.shape[0]
 
-                    efficiency = total_selected_truth*100/total_truth
-                    purity = total_selected_truth*100/total_selected
-                    print("{} events: layer {:2}-{:2}, NN > {:.2f}, {:10,}, efficiency: {:.2f}, purity: {:.2f}".format(
-                        len(evtid_list),
-                        layer_pair[0],
-                        layer_pair[1],
-                        cut,
-                        total_selected, efficiency, purity))
+            efficiency = total_selected_truth*100/total_truth
+            purity = total_selected_truth*100/total_selected
+            print("{} events: layer {:2}-{:2}, NN > {:.2f}, {:10,}, efficiency: {:.2f}, purity: {:.2f}".format(
+                len(evtid_list),
+                layer_pair[0],
+                layer_pair[1],
+                cut,
+                total_selected, efficiency, purity))
+            del model
         
         # get track ml score for each event, using truth info only
         if get_trk_score:
