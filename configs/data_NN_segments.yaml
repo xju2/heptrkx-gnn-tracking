@@ -17,13 +17,15 @@ gnn_training:
         - /global/cscratch1/sd/xju/heptrkx/codalab/inputs/hitfiles/evt21001_test.h5
     doublet_files:
         - /global/cscratch1/sd/xju/heptrkx/codalab/inputs/doublet_files/doublets-evt21001_test.h5
+    n_eta: 2
+    n_phi: 8
     output_dir: /global/cfs/projectdirs/atlas/xju/tracking/PairsFromNN/GNNEdgeClassifier
-    model_name: VARY2 
+    model_name: default 
     prod_name: EdgeFeatures
     log_name: big.log
     input_type: 'data_dict'
     parameters:
-        time_lapse:  180 # how often save checkpoint in seconds
+        time_lapse:  30 # how often save checkpoint in seconds
         batch_size: 1
         iterations: 200000
         iter_per_job: 20000

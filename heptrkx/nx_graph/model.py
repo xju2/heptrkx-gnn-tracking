@@ -24,24 +24,23 @@ def make_mlp_model():
       snt.nets.MLP([LATENT_SIZE] * NUM_LAYERS,
                    activation=tf.nn.relu,
                    activate_final=True),
-      #snt.LayerNorm()
+      # snt.LayerNorm()
   ])
 
-class MLPGraphIndependent(snt.AbstractModule):
+class MLPGraphIndependent(snt.Module):
   """GraphIndependent with MLP edge, node, and global models."""
 
   def __init__(self, name="MLPGraphIndependent"):
     super(MLPGraphIndependent, self).__init__(name=name)
-    with self._enter_variable_scope():
-      self._network = modules.GraphIndependent(
-          edge_model_fn=make_mlp_model,
-          node_model_fn=make_mlp_model,
-          global_model_fn=None)
+    self._network = modules.GraphIndependent(
+        edge_model_fn=make_mlp_model,
+        node_model_fn=make_mlp_model,
+        global_model_fn=None)
 
-  def _build(self, inputs):
+  def __call__(self, inputs):
     return self._network(inputs)
 
-class SegmentClassifier(snt.AbstractModule):
+class SegmentClassifier(snt.Module):
 
   def __init__(self, name="SegmentClassifier"):
     super(SegmentClassifier, self).__init__(name=name)
@@ -51,7 +50,7 @@ class SegmentClassifier(snt.AbstractModule):
     self._core = modules.InteractionNetwork(
         edge_model_fn=make_mlp_model,
         node_model_fn=make_mlp_model,
-        reducer=tf.unsorted_segment_sum
+        reducer=tf.math.unsorted_segment_sum
     )
 
     self._decoder = modules.GraphIndependent(
@@ -65,11 +64,9 @@ class SegmentClassifier(snt.AbstractModule):
                      activation=tf.nn.relu, # default is relu
                      name='edge_output'),
         tf.sigmoid])
+    self._output_transform = modules.GraphIndependent(edge_fn, None, None)
 
-    with self._enter_variable_scope():
-      self._output_transform = modules.GraphIndependent(edge_fn, None, None)
-
-  def _build(self, input_op, num_processing_steps):
+  def __call__(self, input_op, num_processing_steps):
     latent = self._encoder(input_op)
     latent0 = latent
 
@@ -77,7 +74,7 @@ class SegmentClassifier(snt.AbstractModule):
     for _ in range(num_processing_steps):
         core_input = utils_tf.concat([latent0, latent], axis=1)
         latent = self._core(core_input)
-
         decoded_op = self._decoder(latent)
-        output_ops.append(self._output_transform(decoded_op))
+        output = self._output_transform(decoded_op)
+        output_ops.append(output)
     return output_ops

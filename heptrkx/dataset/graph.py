@@ -56,8 +56,8 @@ def make_graph_ntuples(hits, segments, n_eta, n_phi,
         }, {
             "n_node": n_nodes,
             'n_edge': n_edges,
-            'nodes': None,
-            'edges': sub_doublets.solution.values,
+            # 'nodes': None,
+            'edges': sub_doublets.solution.values.astype(np.float32),
             'senders': senders,
             'receivers': receivers,
         }, 
@@ -75,8 +75,8 @@ def make_graph_ntuples(hits, segments, n_eta, n_phi,
             eta_max += deta
             eta_mask = (hits.eta > eta_min) & (hits.eta < eta_max)
             all_graphs.append(make_subgraph(eta_mask & phi_mask))
-    tot_nodes = sum([x['n_node'] for x in all_graphs])
-    tot_edges = sum([x['n_edge'] for x in all_graphs])
+    tot_nodes = sum([x['n_node'] for x, _ in all_graphs])
+    tot_edges = sum([x['n_edge'] for x, _ in all_graphs])
     if verbose:
         print("\t{} nodes and {} edges".format(tot_nodes, tot_edges))
     return all_graphs
@@ -131,7 +131,7 @@ class DoubletGraphGenerator:
         self.idx_mgr = IndexMgr(len(self.graphs))
         print("DoubletGraphGenerator added {} events".format(n_evts))
 
-    def create_graph(self, num_graphs, is_training):
+    def create_graph(self, num_graphs, is_training=True):
         if not self.idx_mgr:
             raise ValueError("No Doublet Graph is created")
 
@@ -146,4 +146,3 @@ class DoubletGraphGenerator:
         input_graphs = utils_tf.data_dicts_to_graphs_tuple(inputs)
         target_graphs = utils_tf.data_dicts_to_graphs_tuple(targets)
         return (input_graphs, target_graphs)
-

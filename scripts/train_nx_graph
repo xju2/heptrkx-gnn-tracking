@@ -18,15 +18,40 @@ import sklearn.metrics
 
 from graph_nets import utils_tf
 from graph_nets import utils_np
+import sonnet as snt
 
 from heptrkx.dataset.graph import DoubletGraphGenerator
-from heptrkx.nx_graph import utils_train
-from heptrkx.nx_graph import prepare
+# from heptrkx.nx_graph import utils_train
+# from heptrkx.nx_graph import prepare
 from heptrkx.nx_graph import get_model
 from heptrkx.utils import load_yaml
 ckpt_name = 'checkpoint_{:05d}.ckpt'
 
 prog_name = os.path.basename(sys.argv[0])
+
+def eval_output(target, output):
+    """
+    target, output are graph-tuple from TF-GNN,
+    each of them contains N=batch-size graphs
+    """
+    tdds = utils_np.graphs_tuple_to_data_dicts(target)
+    odds = utils_np.graphs_tuple_to_data_dicts(output)
+
+    test_target = []
+    test_pred = []
+    for td, od in zip(tdds, odds):
+        test_target.append(td['edges'])
+        test_pred.append(od['edges'])
+
+    test_target = np.concatenate(test_target, axis=0)
+    test_pred   = np.concatenate(test_pred,   axis=0)
+    return test_pred, test_target
+
+
+def compute_matrics(target, output, thresh=0.5):
+    test_pred, test_target = eval_output(target, output)
+    y_pred, y_true = (test_pred > thresh), (test_target > thresh)
+    return sklearn.metrics.precision_score(y_true, y_pred), sklearn.metrics.recall_score(y_true, y_pred)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Train nx-graph with configurations')
@@ -61,56 +86,79 @@ if __name__ == "__main__":
     num_processing_steps_tr = config_tr['n_iters']      ## level of message-passing
     print("Maximum iterations per job: {}".format(iter_per_job))
 
-    doublet_graphs = 
+    doublet_graphs = DoubletGraphGenerator(config['n_eta'], config['n_phi'])
+    for hit_file, doublet_file in zip(config['hit_files'], config['doublet_files']):
+        doublet_graphs.add_file(hit_file, doublet_file)
 
+    learning_rate = config_tr['learning_rate']
+    optimizer = snt.optimizers.Adam(learning_rate)
     model = get_model(config['model_name'])
 
-    input_graphs, target_graphs = generate_input_target(n_graphs)
-    input_ph  = utils_tf.placeholders_from_data_dicts(input_graphs, force_dynamic_num_graphs=True)
-    target_ph = utils_tf.placeholders_from_data_dicts(target_graphs, force_dynamic_num_graphs=True)
-
-    output_ops_tr = model(input_ph, num_processing_steps_tr)
-
-    # Training loss.
+    # training loss
     loss_weights = 1.0
     if config_tr['real_weight']:
         real_weight = config_tr['real_weight']
         fake_weight = config_tr['fake_weight']
-        loss_weights = target_ph.edges * real_weight + (1 - target_ph.edges)*fake_weight
-
-    loss_ops_tr = utils_train.create_loss_ops(target_ph, output_ops_tr, loss_weights) # Loss across processing steps.
-    loss_op_tr = sum(loss_ops_tr) / num_processing_steps_tr
-
-    # Optimizer, with decaying learning rate
-    global_step = tf.Variable(0, trainable=False)
-    start_learning_rate = config_tr['learning_rate']
-    learning_rate = tf.train.exponential_decay(
-        start_learning_rate, global_step,
-        decay_steps=500,
-        decay_rate=0.97, staircase=True)
-    optimizer = tf.train.AdamOptimizer(learning_rate)
-    step_op = optimizer.minimize(loss_op_tr, global_step=global_step)
-
-    # Lets an iterable of TF graphs be output from a session as NP graphs.
-    # copyed from deepmind's example, not sure needed...
-    input_ph, target_ph = utils_train.make_all_runnable_in_session(input_ph, target_ph)
-
-    sess = tf.Session()
-
-    saver = tf.train.Saver()
-    if last_iteration > 0:
-        print("loading checkpoint:", os.path.join(output_dir, ckpt_name.format(last_iteration)))
-        saver.restore(sess, os.path.join(output_dir, ckpt_name.format(last_iteration)))
     else:
-        init_ops = tf.global_variables_initializer()
-        # saver must be created before init_ops is run!
-        sess.run(init_ops)
+        real_weight = fake_weight = 1.0
+
+    def create_loss_ops(target_op, output_ops):
+        # only use edges
+        weights = target_op.edges * real_weight + (1 - target_op.edges) * fake_weight
+        # print(output_ops[0].edges.shape)
+        # print(target_op.edges.shape)
+        loss_ops = [
+            tf.compat.v1.losses.log_loss(target_op.edges, tf.squeeze(output_op.edges))
+            for output_op in output_ops
+        ]
+        return loss_ops
+
+    def update_step(inputs_tr, targets_tr):
+        with tf.GradientTape() as tape:
+            outputs_tr = model(inputs_tr, num_processing_steps_tr)
+            loss_ops_tr = create_loss_ops(targets_tr, outputs_tr)
+            loss_op_tr = sum(loss_ops_tr) / num_processing_steps_tr
+
+        gradients = tape.gradient(loss_op_tr, model.trainable_variables)
+        optimizer.apply(gradients, model.trainable_variables)
+        return outputs_tr, loss_op_tr
+
+    @tf.function
+    def get_data():
+        in_graphs, out_graphs = doublet_graphs.create_graph(batch_size, is_training=True)
+        in_graphs = utils_tf.set_zero_global_features(in_graphs, 1)
+        out_graphs = utils_tf.set_zero_global_features(out_graphs, 1)
+        out_graphs = utils_tf.set_zero_node_features(out_graphs, 1)
+        return in_graphs, out_graphs
+
+    @tf.function
+    def get_test_data():
+        in_graphs, out_graphs = doublet_graphs.create_graph(batch_size, is_training=False)
+        in_graphs = utils_tf.set_zero_global_features(in_graphs, 1)
+        out_graphs = utils_tf.set_zero_global_features(out_graphs, 1)
+        out_graphs = utils_tf.set_zero_node_features(out_graphs, 1)
+        return in_graphs, out_graphs
+
+    # # Get some example data that resembles the tensors that will be fed
+    # # into update_step():
+    # example_input_data, example_target_data = get_data()[:2]
+    # # Get the input signature for that function by obtaining the specs
+    # input_signature = [
+    #     utils_tf.specs_from_graphs_tuple(example_input_data),
+    #     utils_tf.specs_from_graphs_tuple(example_target_data)
+    # ]
+    # # Compile the update function using the input signature for speedy code.
+    # compiled_update_step = tf.function(update_step, input_signature=input_signature)
+
+    # saver = tf.train.Saver()
+    # if last_iteration > 0:
+    #     print("loading checkpoint:", os.path.join(output_dir, ckpt_name.format(last_iteration)))
+    #     saver.restore(sess, os.path.join(output_dir, ckpt_name.format(last_iteration)))
 
     logged_iterations = []
     losses_tr = []
     corrects_tr = []
     solveds_tr = []
-
 
     out_str  = time.strftime('%d %b %Y %H:%M:%S', time.localtime())
     out_str += '\n'
@@ -121,11 +169,8 @@ if __name__ == "__main__":
 
     start_time = time.time()
     last_log_time = start_time
-
     ## loop over iterations, each iteration generating a batch of data for training
     iruns = 0
-    all_run_time = start_time
-    all_data_taking_time = start_time
 
     print("# (iteration number), TD (get graph), TR (TF run)")
     for iteration in range(last_iteration, num_training_iterations):
@@ -134,21 +179,12 @@ if __name__ == "__main__":
             break
         else: iruns += 1
         last_iteration = iteration
-        data_start_time = time.time()
 
-        feed_dict = utils_train.create_feed_dict(generate_input_target, batch_size, input_ph, target_ph)
-        all_data_taking_time += time.time() - data_start_time
-
-        # timing the run time only
-        run_start_time = time.time()
-        train_values = sess.run({
-            "step": step_op,
-            "target": target_ph,
-            "loss": loss_op_tr,
-            "outputs": output_ops_tr
-        }, feed_dict=feed_dict)
-        run_time = time.time() - run_start_time
-        all_run_time += run_time
+        inputs_tr, targets_tr = get_data()
+        # print(inputs_tr.n_node, inputs_tr.n_edge)
+        # print(inputs_tr.nodes, inputs_tr.edges)
+        outputs_tr, loss_tr = update_step(inputs_tr, targets_tr)
+        # outputs_tr, loss_tr = compiled_update_step(inputs_tr, targets_tr)
 
         the_time = time.time()
         elapsed_since_last_log = the_time - last_log_time
@@ -156,31 +192,15 @@ if __name__ == "__main__":
         if elapsed_since_last_log > log_every_seconds:
             # save a checkpoint
             last_log_time = the_time
-            feed_dict = utils_train.create_feed_dict(generate_input_target,
-                                         batch_size, input_ph, target_ph, is_trained=False)
-            test_values = sess.run({
-                "target": target_ph,
-                "loss": loss_op_tr,
-                "outputs": output_ops_tr
-            }, feed_dict=feed_dict)
-            correct_tr, solved_tr = utils_train.compute_matrics(
-                test_values["target"], test_values["outputs"][-1])
+            inputs_te, targets_te = get_test_data()
+            outputs_te, loss_te = compiled_update_step(inputs_te, targets_te)
+
+            correct_tr, solved_tr = compute_matrics(targets_te, outputs_te[-1])
+
             elapsed = time.time() - start_time
-            losses_tr.append(train_values["loss"])
-            corrects_tr.append(correct_tr)
-            solveds_tr.append(solved_tr)
             logged_iterations.append(iteration)
             out_str = "# {:05d}, T {:.1f}, Ltr {:.4f}, Lge {:.4f}, Precision {:.4f}, Recall {:.4f}\n".format(
-                iteration, elapsed, train_values["loss"], test_values["loss"],
+                iteration, elapsed, loss_tr, loss_te,
                 correct_tr, solved_tr)
 
-            run_cost_time = all_run_time - start_time
-            data_cost_time = all_data_taking_time - start_time
-            print("# {:05d}, TD {:.1f}, TR {:.1f}".format(iteration, data_cost_time, run_cost_time))
-            with open(log_name, 'a') as f:
-                f.write(out_str)
-
-            save_path = saver.save(
-                sess,
-                os.path.join(output_dir, ckpt_name.format(iteration)))
-    sess.close()
+            print(out_str)
