@@ -5,8 +5,10 @@ import numpy as np
 import pandas as pd
 from graph_nets import utils_tf
 
+# TODO: use one-hot-encoding to add layer info for nodes,
+# attach the flattened encoding to node features
 def make_graph_ntuples(hits, segments, n_eta, n_phi,
-                    node_features=['r', 'eta', 'z'],
+                    node_features=['r', 'phi', 'z'],
                     edge_features=['deta', 'dphi'],
                     dphi=0.0, deta=0.0, verbose=False):
     phi_range = (-np.pi, np.pi)
@@ -28,8 +30,9 @@ def make_graph_ntuples(hits, segments, n_eta, n_phi,
         hit_id = hits[mask | hits.hit_id.isin(sub_doublets.hit_id_out.values)].hit_id.values
         n_nodes = hit_id.shape[0]
         n_edges = sub_doublets.shape[0]
-        nodes = hits[mask][node_features].values
+        nodes = hits[mask][node_features].values.astype(np.float64)
         edges = sub_doublets[edge_features].values
+        # print(nodes.dtype)
 
         hits_id_dict = {}
         for idx in range(n_nodes):
@@ -103,9 +106,11 @@ class IndexMgr:
 
 
 class DoubletGraphGenerator:
-    def __init__(self, n_eta, n_phi, verbose=False):
+    def __init__(self, n_eta, n_phi, node_features, edge_features, verbose=False):
         self.n_eta = n_eta
         self.n_phi = n_phi
+        self.node_features = node_features
+        self.edge_features = edge_features
         self.verbose = verbose
         self.graphs = []
         self.evt_list = []
@@ -117,20 +122,29 @@ class DoubletGraphGenerator:
             with pd.HDFStore(doublet_file, 'r') as doublet_store:
                 n_doublet_keys = len(list(doublet_store.keys()))
                 for key in hit_store.keys(): # loop over events
-                    hit = hit_store[key]
                     doublets = []
-                    for ipair in range(9):
-                        pair_key = key+'/pair{}'.format(ipair)
-                        doublets.append(doublet_store[pair_key])
+                    try:
+                        for ipair in range(9):
+                            pair_key = key+'/pair{}'.format(ipair)
+                            doublets.append(doublet_store[pair_key])
+                    except KeyError:
+                        continue
+                    hit = hit_store[key]
                     doublets = pd.concat(doublets)
                     all_graphs = make_graph_ntuples(
                                         hit, doublets,
-                                        self.n_eta, self.n_phi, verbose=self.verbose)
+                                        self.n_eta, self.n_phi,
+                                        node_features=self.node_features,
+                                        edge_features=self.edge_features,
+                                        verbose=self.verbose)
                     self.graphs += all_graphs
                     self.evt_list.append(key)
         self.idx_mgr = IndexMgr(len(self.graphs))
         print("DoubletGraphGenerator added {} events, {} graphs".format(n_evts, len(self.graphs)))
 
+    # FIXME: 
+    # everytime check if one event is completely used (used all subgraphs)
+    # shuffle the events, but feed the subgraphs in order
     def create_graph(self, num_graphs, is_training=True):
         if not self.idx_mgr:
             raise ValueError("No Doublet Graph is created")

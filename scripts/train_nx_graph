@@ -25,7 +25,8 @@ from heptrkx.dataset.graph import DoubletGraphGenerator
 # from heptrkx.nx_graph import prepare
 from heptrkx.nx_graph import get_model
 from heptrkx.utils import load_yaml
-ckpt_name = 'checkpoint_{:05d}.ckpt'
+# ckpt_name = 'checkpoint_{:05d}.ckpt'
+ckpt_name = 'checkpoint'
 
 prog_name = os.path.basename(sys.argv[0])
 
@@ -41,7 +42,7 @@ def eval_output(target, output):
     test_pred = []
     for td, od in zip(tdds, odds):
         test_target.append(td['edges'])
-        test_pred.append(od['edges'])
+        test_pred.append(np.squeeze(od['edges']))
 
     test_target = np.concatenate(test_target, axis=0)
     test_pred   = np.concatenate(test_pred,   axis=0)
@@ -69,12 +70,12 @@ if __name__ == "__main__":
     print("[{}] save models at {}".format(prog_name, output_dir))
     os.makedirs(output_dir, exist_ok=True)
 
-    files = glob.glob(output_dir+"/*.ckpt.meta")
-    last_iteration = 0 if len(files) < 1 else max([
-        int(re.search('checkpoint_([0-9]*).ckpt.meta', os.path.basename(x)).group(1))
-        for x in files
-    ])
-    print("[{}] last iteration: {}".format(prog_name, last_iteration))
+    # files = glob.glob(output_dir+"/*.ckpt.meta")
+    # last_iteration = 0 if len(files) < 1 else max([
+    #     int(re.search('checkpoint_([0-9]*).ckpt.meta', os.path.basename(x)).group(1))
+    #     for x in files
+    # ])
+    # print("[{}] last iteration: {}".format(prog_name, last_iteration))
 
     config_tr = config['parameters']
     # How much time between logging and printing the current results.
@@ -86,7 +87,12 @@ if __name__ == "__main__":
     num_processing_steps_tr = config_tr['n_iters']      ## level of message-passing
     print("Maximum iterations per job: {}".format(iter_per_job))
 
-    doublet_graphs = DoubletGraphGenerator(config['n_eta'], config['n_phi'])
+    print("Node features: ", config['node_features'])
+    print("Edge features: ", config['edge_features'])
+    doublet_graphs = DoubletGraphGenerator(
+        config['n_eta'], config['n_phi'],
+        config['node_features'], config['edge_features']
+        )
     for hit_file, doublet_file in zip(config['hit_files'], config['doublet_files']):
         doublet_graphs.add_file(hit_file, doublet_file)
 
@@ -139,21 +145,23 @@ if __name__ == "__main__":
         out_graphs = utils_tf.set_zero_node_features(out_graphs, 1)
         return in_graphs, out_graphs
 
-    # # Get some example data that resembles the tensors that will be fed
-    # # into update_step():
-    # example_input_data, example_target_data = get_data()[:2]
-    # # Get the input signature for that function by obtaining the specs
-    # input_signature = [
-    #     utils_tf.specs_from_graphs_tuple(example_input_data),
-    #     utils_tf.specs_from_graphs_tuple(example_target_data)
-    # ]
-    # # Compile the update function using the input signature for speedy code.
-    # compiled_update_step = tf.function(update_step, input_signature=input_signature)
+    # Get some example data that resembles the tensors that will be fed
+    # into update_step():
+    example_input_data, example_target_data = get_data()
+    # Get the input signature for that function by obtaining the specs
+    input_signature = [
+        utils_tf.specs_from_graphs_tuple(example_input_data),
+        utils_tf.specs_from_graphs_tuple(example_target_data)
+    ]
+    # Compile the update function using the input signature for speedy code.
+    compiled_update_step = tf.function(update_step, input_signature=input_signature)
 
-    # saver = tf.train.Saver()
-    # if last_iteration > 0:
-    #     print("loading checkpoint:", os.path.join(output_dir, ckpt_name.format(last_iteration)))
-    #     saver.restore(sess, os.path.join(output_dir, ckpt_name.format(last_iteration)))
+    checkpoint = tf.train.Checkpoint(optimizer=optimizer, model=model)
+    if os.path.exists(os.path.join(output_dir, ckpt_name)):
+        # ckpt_path = os.path.join(output_dir, ckpt_name.format(last_iteration))
+        # print("loading checkpoint:", ckpt_path)
+        print("Loading latest checkpoint")
+        status = checkpoint.restore(tf.train.latest_checkpoint(output_dir))
 
     logged_iterations = []
     losses_tr = []
@@ -173,6 +181,7 @@ if __name__ == "__main__":
     iruns = 0
 
     print("# (iteration number), TD (get graph), TR (TF run)")
+    last_iteration = 0
     for iteration in range(last_iteration, num_training_iterations):
         if iruns > iter_per_job:
             print("runs larger than {} iterations per job, stop".format(iter_per_job))
@@ -191,6 +200,10 @@ if __name__ == "__main__":
 
         if elapsed_since_last_log > log_every_seconds:
             # save a checkpoint
+            # ckpt_path = os.path.join(output_dir, ckpt_name.format(last_iteration))
+            ckpt_path = os.path.join(output_dir, ckpt_name+".ckpt")
+            checkpoint.save(file_prefix=ckpt_path)
+
             last_log_time = the_time
             inputs_te, targets_te = get_test_data()
             # outputs_te, loss_te = compiled_update_step(inputs_te, targets_te)
@@ -199,8 +212,7 @@ if __name__ == "__main__":
 
             elapsed = time.time() - start_time
             logged_iterations.append(iteration)
-            out_str = "# {:05d}, T {:.1f}, Ltr {:.4f}, Lge {:.4f}, Precision {:.4f}, Recall {:.4f}\n".format(
+            out_str = "# {:05d}, T {:.1f}, Ltr {:.4f}, Lge {:.4f}, Precision {:.4f}, Recall {:.4f}".format(
                 iteration, elapsed, loss_tr, loss_te,
                 correct_tr, solved_tr)
-
             print(out_str)
