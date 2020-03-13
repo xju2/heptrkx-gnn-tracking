@@ -19,6 +19,7 @@ import sklearn.metrics
 from graph_nets import utils_tf
 from graph_nets import utils_np
 
+from heptrkx.dataset.graph import DoubletGraphGenerator
 from heptrkx.nx_graph import utils_train
 from heptrkx.nx_graph import prepare
 from heptrkx.nx_graph import get_model
