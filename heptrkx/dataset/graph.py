@@ -129,7 +129,7 @@ class DoubletGraphGenerator:
                     self.graphs += all_graphs
                     self.evt_list.append(key)
         self.idx_mgr = IndexMgr(len(self.graphs))
-        print("DoubletGraphGenerator added {} events".format(n_evts))
+        print("DoubletGraphGenerator added {} events, {} graphs".format(n_evts, len(self.graphs)))
 
     def create_graph(self, num_graphs, is_training=True):
         if not self.idx_mgr:

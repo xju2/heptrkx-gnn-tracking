@@ -18,7 +18,7 @@ gnn_training:
     doublet_files:
         - /global/cscratch1/sd/xju/heptrkx/codalab/inputs/doublet_files/doublets-evt21001_test.h5
     n_eta: 2
-    n_phi: 8
+    n_phi: 16
     output_dir: /global/cfs/projectdirs/atlas/xju/tracking/PairsFromNN/GNNEdgeClassifier
     model_name: default 
     prod_name: EdgeFeatures
