@@ -12,30 +12,22 @@ doublet_training:
     features: ['dphi', 'dz', 'dr', 'phi_slope', 'z0', 'deta', 'deta1', 'dphi1']
     cuts: [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]
 
-
-# doublets_for_graph: ## input pairs from all_pairs
-#     selected: /global/cscratch1/sd/xju/heptrkx/codalab/NNbasedSegments/segments4cuts    
-
-# # make graphs via hybrid approach
-# make_graph:
-#     nevts: 1
-#     out_graph: /global/cfs/projectdirs/atlas/xju/heptrkx/codalab/outputs/graphs/GraphsFromHybridSources
-#     input_segments: /global/cscratch1/sd/xju/heptrkx/codalab/NNbasedSegments/segments4graph
-#     input_data: /global/cfs/projectdirs/m3443/usr/xju/heptrkx/codalab/inputs/train_all
-#     layers: [7, 8, 9, 10, 24, 25, 26, 27, 40, 41]
-
-# segment_training:
-#     output_dir: /global/cfs/projectdirs/m3443/usr/xju//heptrkx/codalab/models/segments
-#     model_name: VARY2 
-#     prod_name: EdgeFeaturesTwoGraphHybridSource_v1
-#     log_name: big.log
-#     input_type: 'data_dict'
-#     parameters:
-#         time_lapse:  180 # how often save checkpoint in seconds
-#         batch_size: 1
-#         iterations: 200000
-#         iter_per_job: 20000
-#         n_iters: 8
-#         learning_rate: 0.001
-#         real_weight: 10.0
-#         fake_weight: 1.
+gnn_training:
+    hit_files:
+        - /global/cscratch1/sd/xju/heptrkx/codalab/inputs/hitfiles/evt21001_test.h5
+    doublet_files:
+        - /global/cscratch1/sd/xju/heptrkx/codalab/inputs/doublet_files/doublets-evt21001_test.h5
+    output_dir: /global/cfs/projectdirs/atlas/xju/tracking/PairsFromNN/GNNEdgeClassifier
+    model_name: VARY2 
+    prod_name: EdgeFeatures
+    log_name: big.log
+    input_type: 'data_dict'
+    parameters:
+        time_lapse:  180 # how often save checkpoint in seconds
+        batch_size: 1
+        iterations: 200000
+        iter_per_job: 20000
+        n_iters: 8
+        learning_rate: 0.001
+        real_weight: 10.0
+        fake_weight: 1.

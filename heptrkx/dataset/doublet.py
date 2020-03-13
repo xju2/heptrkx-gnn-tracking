@@ -39,12 +39,7 @@ def create_segments(hits, layer_pairs,
             print("{}-{} has {:,} doublets".format(gid1, gid2, hit_pairs.shape[0]))
 
         yield hit_pairs
-
-    #     segments.append(hit_pairs)
-    # merged_segments = pd.concat(segments, ignore_index=True)
-
-    # return merged_segments
-
+        
 
 def calculate_segment_features(segments):
     dr = segments.r_out - segments.r_in

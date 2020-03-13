@@ -248,3 +248,11 @@ class Event(object):
             self.remove_noise_hits()
 
         self._hits = self._hits[np.abs(self._hits.eta) < eta_cut]
+
+    def count_duplicated_hits(self):
+        # sel is the number of "extra" hits
+        # if not duplication, sel = 0; otherwise is the number of duplication
+        sel = self._hits.groupby("particle_id")['layer'].apply(
+            lambda x: len(x) - np.unique(x).shape[0]
+        ).values
+        return sel

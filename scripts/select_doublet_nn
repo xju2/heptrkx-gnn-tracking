@@ -14,8 +14,8 @@ from tensorflow import keras
 
 from heptrkx.utils import load_yaml
 from heptrkx.nx_graph import shadow_model
-from heptrkx.utils import layer_pairs
-from heptrkx import master
+from heptrkx.dataset.event import layer_pairs
+from heptrkx.dataset import event as master
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='select doublets using trained neural networks')

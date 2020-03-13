@@ -74,9 +74,6 @@ if __name__ == "__main__":
             # Load the NN model for that layer pair
             model_weights_path = os.path.join(model_weight_base_dir, 'pair{:03d}'.format(pairid), args.model_weights)
             model = getattr(shadow_model, model_name)()
-            model.compile(optimizer='adam',
-                loss='binary_crossentropy',
-                metrics=['accuracy'])
             print(model_weights_path)
             model.load_weights(model_weights_path)
 

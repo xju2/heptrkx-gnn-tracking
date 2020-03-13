@@ -24,7 +24,8 @@ if __name__ == "__main__":
         total_weights_withAdam += tensor.size
         if "Adam" not in key:
             total_weights += tensor.size
-        print("tensor_name: {}, shape {}".format(key, tensor.size))
-        print(tensor)
+        # print("tensor_name: {}, shape {}".format(key, tensor.size))
+        # print(tensor)
 
-    print("Total {} parameters".format(total_weights))
+    print("Total {} weights and {} gradient info".format(
+        total_weights, total_weights_withAdam-total_weights))

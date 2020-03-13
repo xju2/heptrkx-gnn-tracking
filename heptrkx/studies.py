@@ -12,22 +12,6 @@ from heptrkx.master import Event
 
 from heptrkx.postprocess import wrangler, analysis
 
-def fraction_of_duplicated_hits(evtid, config_name):
-    config = load_yaml(config_name)
-    evt_dir = config['track_ml']['dir']
-    layers = config['doublets_from_cuts']['layers']
-
-    event = Event(evt_dir, evtid)
-    barrel_hits = event.filter_hits(layers)
-
-    # remove noise hits
-    barrel_hits = barrel_hits[barrel_hits.particle_id > 0]
-
-    sel = barrel_hits.groupby("particle_id")['layer'].apply(
-        lambda x: len(x) - np.unique(x).shape[0]
-    ).values
-    return sel
-
 
 def eff_purity_of_edge_selection(evtid, evt_dir,
                                   phi_slope_max, z0_max,

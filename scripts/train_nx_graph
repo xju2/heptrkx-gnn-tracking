@@ -4,39 +4,37 @@ Training GNN
 """
 
 import tensorflow as tf
-tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 
 import os
 import sys
+import argparse
+import glob
+import re
+import time
+
+import numpy as np
+import sklearn.metrics
+
+
+from graph_nets import utils_tf
+from graph_nets import utils_np
+
+from heptrkx.nx_graph import utils_train
+from heptrkx.nx_graph import prepare
+from heptrkx.nx_graph import get_model
+from heptrkx.utils import load_yaml
+ckpt_name = 'checkpoint_{:05d}.ckpt'
+
 prog_name = os.path.basename(sys.argv[0])
 
 if __name__ == "__main__":
-    import argparse
-    import glob
-    import re
-    import time
-
-    import numpy as np
-    import sklearn.metrics
-
-
-    from graph_nets import utils_tf
-    from graph_nets import utils_np
-
-    from heptrkx.nx_graph import utils_train
-    from heptrkx.nx_graph import prepare
-    from heptrkx.nx_graph import get_model
-    from heptrkx import load_yaml
-    from heptrkx.nx_graph.utils_io import ckpt_name
-
     parser = argparse.ArgumentParser(description='Train nx-graph with configurations')
     add_arg = parser.add_argument
-    add_arg('config',  nargs='?', default='configs/data_5000evts.yaml')
-
+    add_arg('config', help='configuration file')
     args = parser.parse_args()
 
     all_config = load_yaml(args.config)
-    config = all_config['segment_training']
+    config = all_config['gnn_training']
 
 
     # add ops to save and restore all the variables
@@ -52,10 +50,6 @@ if __name__ == "__main__":
     ])
     print("[{}] last iteration: {}".format(prog_name, last_iteration))
 
-    # default 2/3 for training and 1/3 for testing
-    input_nxgraphs_dir = all_config['make_graph']['out_graph']
-    generate_input_target = prepare.inputs_generator(input_nxgraphs_dir, n_train_fraction=0.8)
-
     config_tr = config['parameters']
     # How much time between logging and printing the current results.
     # save checkpoint very 10 mins
@@ -66,8 +60,7 @@ if __name__ == "__main__":
     num_processing_steps_tr = config_tr['n_iters']      ## level of message-passing
     print("Maximum iterations per job: {}".format(iter_per_job))
 
-    ## start to build tensorflow sessions
-    tf.compat.v1.reset_default_graph()
+    doublet_graphs = 
 
     model = get_model(config['model_name'])
 
