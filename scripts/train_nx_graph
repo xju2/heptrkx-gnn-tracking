@@ -193,8 +193,8 @@ if __name__ == "__main__":
             # save a checkpoint
             last_log_time = the_time
             inputs_te, targets_te = get_test_data()
-            outputs_te, loss_te = compiled_update_step(inputs_te, targets_te)
-
+            # outputs_te, loss_te = compiled_update_step(inputs_te, targets_te)
+            outputs_te, loss_te = update_step(inputs_te, targets_te)
             correct_tr, solved_tr = compute_matrics(targets_te, outputs_te[-1])
 
             elapsed = time.time() - start_time
