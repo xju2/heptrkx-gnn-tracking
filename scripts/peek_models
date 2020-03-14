@@ -1,31 +1,52 @@
 #!/usr/bin/env python
 
-import tensorflow as tf
-import numpy as np
 
-from tensorflow.python import pywrap_tensorflow
+import numpy as np
 import argparse
+
+import tensorflow as tf
+import sonnet as snt
+from graph_nets import utils_tf
+
+from heptrkx.dataset.graph import DoubletGraphGenerator
+from heptrkx.nx_graph import get_model
+
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Peek into Tensor Flow model')
     add_arg = parser.add_argument
     add_arg('file', type=str, help='TF checkpoint')
-
+    add_arg("--model", default='default', help='model name')
     args = parser.parse_args()
+
     file_name = args.file
 
-    reader = pywrap_tensorflow.NewCheckpointReader(file_name)
-    var_to_shape_map = reader.get_variable_to_shape_map()
+    # prepare the inputs
+    doublet_graphs = DoubletGraphGenerator(
+        2, 8, ['x', 'y', 'z'], ['deta', 'dphi']
+    )
+    hit_file_name = '/global/cscratch1/sd/xju/heptrkx/codalab/inputs/hitfiles/evt21001_test.h5'
+    doublet_file_name = '/global/cscratch1/sd/xju/heptrkx/codalab/inputs/doublet_files/doublets-evt21001_test.h5'
+    doublet_graphs.add_file(hit_file_name, doublet_file_name)
+    batch_size = 1
 
-    total_weights = 0
-    total_weights_withAdam = 0
-    for key in sorted(var_to_shape_map):
-        tensor = reader.get_tensor(key)
-        total_weights_withAdam += tensor.size
-        if "Adam" not in key:
-            total_weights += tensor.size
-        # print("tensor_name: {}, shape {}".format(key, tensor.size))
-        # print(tensor)
+    @tf.function
+    def get_data():
+        in_graphs, out_graphs = doublet_graphs.create_graph(batch_size, is_training=True)
+        in_graphs = utils_tf.set_zero_global_features(in_graphs, 1)
+        out_graphs = utils_tf.set_zero_global_features(out_graphs, 1)
+        out_graphs = utils_tf.set_zero_node_features(out_graphs, 1)
+        return in_graphs, out_graphs
 
-    print("Total {} weights and {} gradient info".format(
-        total_weights, total_weights_withAdam-total_weights))
+
+    learning_rate = 0.001
+    optimizer = snt.optimizers.Adam(learning_rate)
+
+    model = get_model(args.model)
+    example_input_data, example_target_data = get_data()
+    checkpoint = tf.train.Checkpoint(optimizer=optimizer, model=model)
+    status = checkpoint.restore(tf.train.latest_checkpoint(args.file))
+    outputs_tr = model(example_input_data, 8)
+    print(model.trainable_variables)
+    print("Trainable variables: {}".format(len(model.trainable_variables)))

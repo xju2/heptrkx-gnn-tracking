@@ -25,7 +25,7 @@ gnn_training:
         - /global/cscratch1/sd/xju/heptrkx/codalab/inputs/doublet_files/doublets-evt21001_test.h5
         - /global/cscratch1/sd/xju/heptrkx/codalab/inputs/doublet_files/doublets-evt22011-10events.h5
     n_eta: 2
-    n_phi: 10
+    n_phi: 9
     # node_features: ['x', 'y', 'z', 'r', 'eta', 'phi', 'geta', 'gphi']
     node_features: ['x', 'y', 'z']
     edge_features: ['deta', 'dphi']

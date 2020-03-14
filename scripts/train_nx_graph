@@ -21,8 +21,6 @@ from graph_nets import utils_np
 import sonnet as snt
 
 from heptrkx.dataset.graph import DoubletGraphGenerator
-# from heptrkx.nx_graph import utils_train
-# from heptrkx.nx_graph import prepare
 from heptrkx.nx_graph import get_model
 from heptrkx.utils import load_yaml
 # ckpt_name = 'checkpoint_{:05d}.ckpt'

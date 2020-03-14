@@ -23,7 +23,7 @@ def test_graph():
             print("{:,} hits and {:,} doublets".format(hit.shape[0], doublets.shape[0]))
 
             all_graphs = graph.make_graph_ntuples(
-                                hit, doublets, 2, 16,
+                                hit, doublets, 2, 10,
                                 verbose=True)
 
 if __name__ == "__main__":
