@@ -21,13 +21,14 @@ def make_graph_ntuples(hits, segments, n_eta, n_phi,
         print("{} graphs".format(n_graphs))
 
     def make_subgraph(mask):
-        # hit_id = hits[mask].hit_id.values
-        # n_nodes = hit_id.shape[0]
-        # sub_doublets = segments[segments.hit_id_in.isin(hit_id) & segments.hit_id_out.isin(hit_id)]
         hit_id = hits[mask].hit_id.values
-        sub_doublets = segments[segments.hit_id_in.isin(hit_id)]
-        # extend the hits to include the hits used in the sub-doublets.
-        hit_id = hits[mask | hits.hit_id.isin(sub_doublets.hit_id_out.values)].hit_id.values
+        sub_doublets = segments[segments.hit_id_in.isin(hit_id) & segments.hit_id_out.isin(hit_id)]
+
+        # sub_doublets = segments[segments.hit_id_in.isin(hit_id)]
+        # # extend the hits to include the hits used in the sub-doublets.
+        # hit_id = hits[mask | hits.hit_id.isin(sub_doublets.hit_id_out.values)].hit_id.values
+
+
         n_nodes = hit_id.shape[0]
         n_edges = sub_doublets.shape[0]
         nodes = hits[mask][node_features].values.astype(np.float64)

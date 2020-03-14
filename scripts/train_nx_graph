@@ -155,11 +155,12 @@ if __name__ == "__main__":
     compiled_update_step = tf.function(update_step, input_signature=input_signature)
 
     checkpoint = tf.train.Checkpoint(optimizer=optimizer, model=model)
+    ckpt_manager = tf.train.CheckpointManager(checkpoint, directory=output_dir, max_to_keep=5)
     if os.path.exists(os.path.join(output_dir, ckpt_name)):
         # ckpt_path = os.path.join(output_dir, ckpt_name.format(last_iteration))
         # print("loading checkpoint:", ckpt_path)
         print("Loading latest checkpoint")
-        status = checkpoint.restore(tf.train.latest_checkpoint(output_dir))
+        status = checkpoint.restore(ckpt_manager.latest_checkpoint)
 
     logged_iterations = []
     losses_tr = []
@@ -199,8 +200,7 @@ if __name__ == "__main__":
         if elapsed_since_last_log > log_every_seconds:
             # save a checkpoint
             # ckpt_path = os.path.join(output_dir, ckpt_name.format(last_iteration))
-            ckpt_path = os.path.join(output_dir, ckpt_name+".ckpt")
-            checkpoint.save(file_prefix=ckpt_path)
+            ckpt_manager.save()
 
             last_log_time = the_time
             inputs_te, targets_te = get_test_data()

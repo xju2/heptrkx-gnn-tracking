@@ -45,8 +45,12 @@ if __name__ == "__main__":
 
     model = get_model(args.model)
     example_input_data, example_target_data = get_data()
-    checkpoint = tf.train.Checkpoint(optimizer=optimizer, model=model)
-    status = checkpoint.restore(tf.train.latest_checkpoint(args.file))
     outputs_tr = model(example_input_data, 8)
-    print(model.trainable_variables)
-    print("Trainable variables: {}".format(len(model.trainable_variables)))
+    n_weights = 0
+    for var in model.trainable_variables:
+        if len(var.shape) == 1:
+            n_weights += var.shape[0]
+        else:
+            n_weights += var.shape[0] * var.shape[1]
+
+    print("Total {:,} trainable variables".format(n_weights))
