@@ -16,15 +16,13 @@ from heptrkx.nx_graph import get_model
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Peek into Tensor Flow model')
     add_arg = parser.add_argument
-    add_arg('file', type=str, help='TF checkpoint')
     add_arg("--model", default='default', help='model name')
     args = parser.parse_args()
 
-    file_name = args.file
-
     # prepare the inputs
     doublet_graphs = DoubletGraphGenerator(
-        2, 8, ['x', 'y', 'z'], ['deta', 'dphi']
+        2, 8, ['x', 'y', 'z', 'geta', 'gphi', 'eta', 'phi', 'r', 'r3'], 
+        ['deta', 'dphi', 'dr', 'dz', 'phi_slope', 'deta1', 'dphi1', 'z0']
     )
     hit_file_name = '/global/cscratch1/sd/xju/heptrkx/codalab/inputs/hitfiles/evt21001_test.h5'
     doublet_file_name = '/global/cscratch1/sd/xju/heptrkx/codalab/inputs/doublet_files/doublets-evt21001_test.h5'
@@ -54,3 +52,4 @@ if __name__ == "__main__":
             n_weights += var.shape[0] * var.shape[1]
 
     print("Total {:,} trainable variables".format(n_weights))
+    print("Num GPUs Available: ", len(tf.config.experimental.list_physical_devices('GPU')))

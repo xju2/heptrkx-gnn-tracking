@@ -11,6 +11,7 @@ import argparse
 import glob
 import re
 import time
+import random
 
 import numpy as np
 import sklearn.metrics
@@ -76,8 +77,6 @@ if __name__ == "__main__":
     # print("[{}] last iteration: {}".format(prog_name, last_iteration))
 
     config_tr = config['parameters']
-    # How much time between logging and printing the current results.
-    # save checkpoint very 10 mins
     log_every_seconds       = config_tr['time_lapse']
     batch_size = n_graphs   = config_tr['batch_size']   # need optimization
     num_training_iterations = config_tr['iterations']
@@ -85,6 +84,7 @@ if __name__ == "__main__":
     num_processing_steps_tr = config_tr['n_iters']      ## level of message-passing
     print("Maximum iterations per job: {}".format(iter_per_job))
 
+    # prepare graphs
     print("Node features: ", config['node_features'])
     print("Edge features: ", config['edge_features'])
     doublet_graphs = DoubletGraphGenerator(
@@ -94,6 +94,36 @@ if __name__ == "__main__":
     for hit_file, doublet_file in zip(config['hit_files'], config['doublet_files']):
         doublet_graphs.add_file(hit_file, doublet_file)
 
+    # training and testing inputs
+    f_train = 0.8
+    n_train_graphs = int(len(doublet_graphs.graphs) * f_train)
+    n_test_graphs = len(doublet_graphs.graphs) - n_train_graphs
+    train_graphs = doublet_graphs.graphs[:n_train_graphs]
+    test_graphs = doublet_graphs.graphs[-1*n_test_graphs:]
+
+    @tf.function
+    def get_data():
+        in_graphs, out_graphs = doublet_graphs.create_graph(batch_size, is_training=True)
+        # all_inputs = random.sample(train_graphs, k=batch_size)
+        # inputs = [x[0] for x in all_inputs]
+        # targets = [x[1] for x in all_inputs]
+        # in_graphs = utils_tf.data_dicts_to_graphs_tuple(inputs)
+        # out_graphs = utils_tf.data_dicts_to_graphs_tuple(targets)
+        
+        in_graphs = utils_tf.set_zero_global_features(in_graphs, 1)
+        out_graphs = utils_tf.set_zero_global_features(out_graphs, 1)
+        out_graphs = utils_tf.set_zero_node_features(out_graphs, 1)
+        return in_graphs, out_graphs
+
+    @tf.function
+    def get_test_data():
+        in_graphs, out_graphs = doublet_graphs.create_graph(batch_size, is_training=False)
+        in_graphs = utils_tf.set_zero_global_features(in_graphs, 1)
+        out_graphs = utils_tf.set_zero_global_features(out_graphs, 1)
+        out_graphs = utils_tf.set_zero_node_features(out_graphs, 1)
+        return in_graphs, out_graphs
+
+    # model and optimizers
     learning_rate = config_tr['learning_rate']
     optimizer = snt.optimizers.Adam(learning_rate)
     model = get_model(config['model_name'])
@@ -127,21 +157,6 @@ if __name__ == "__main__":
         optimizer.apply(gradients, model.trainable_variables)
         return outputs_tr, loss_op_tr
 
-    @tf.function
-    def get_data():
-        in_graphs, out_graphs = doublet_graphs.create_graph(batch_size, is_training=True)
-        in_graphs = utils_tf.set_zero_global_features(in_graphs, 1)
-        out_graphs = utils_tf.set_zero_global_features(out_graphs, 1)
-        out_graphs = utils_tf.set_zero_node_features(out_graphs, 1)
-        return in_graphs, out_graphs
-
-    @tf.function
-    def get_test_data():
-        in_graphs, out_graphs = doublet_graphs.create_graph(batch_size, is_training=False)
-        in_graphs = utils_tf.set_zero_global_features(in_graphs, 1)
-        out_graphs = utils_tf.set_zero_global_features(out_graphs, 1)
-        out_graphs = utils_tf.set_zero_node_features(out_graphs, 1)
-        return in_graphs, out_graphs
 
     # Get some example data that resembles the tensors that will be fed
     # into update_step():
@@ -154,11 +169,11 @@ if __name__ == "__main__":
     # Compile the update function using the input signature for speedy code.
     compiled_update_step = tf.function(update_step, input_signature=input_signature)
 
+    train_fn = update_step
+
     checkpoint = tf.train.Checkpoint(optimizer=optimizer, model=model)
     ckpt_manager = tf.train.CheckpointManager(checkpoint, directory=output_dir, max_to_keep=5)
     if os.path.exists(os.path.join(output_dir, ckpt_name)):
-        # ckpt_path = os.path.join(output_dir, ckpt_name.format(last_iteration))
-        # print("loading checkpoint:", ckpt_path)
         print("Loading latest checkpoint")
         status = checkpoint.restore(ckpt_manager.latest_checkpoint)
 
@@ -191,21 +206,18 @@ if __name__ == "__main__":
         inputs_tr, targets_tr = get_data()
         # print(inputs_tr.n_node, inputs_tr.n_edge)
         # print(inputs_tr.nodes, inputs_tr.edges)
-        outputs_tr, loss_tr = update_step(inputs_tr, targets_tr)
-        # outputs_tr, loss_tr = compiled_update_step(inputs_tr, targets_tr)
+        outputs_tr, loss_tr = train_fn(inputs_tr, targets_tr)
 
         the_time = time.time()
         elapsed_since_last_log = the_time - last_log_time
 
         if elapsed_since_last_log > log_every_seconds:
             # save a checkpoint
-            # ckpt_path = os.path.join(output_dir, ckpt_name.format(last_iteration))
             ckpt_manager.save()
 
             last_log_time = the_time
-            inputs_te, targets_te = get_test_data()
-            # outputs_te, loss_te = compiled_update_step(inputs_te, targets_te)
-            outputs_te, loss_te = update_step(inputs_te, targets_te)
+            inputs_te, targets_te = get_data()
+            outputs_te, loss_te = train_fn(inputs_te, targets_te)
             correct_tr, solved_tr = compute_matrics(targets_te, outputs_te[-1])
 
             elapsed = time.time() - start_time
