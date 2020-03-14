@@ -61,22 +61,5 @@ setup(
         'scripts/view_training_log',
         # GNN
         'scripts/train_nx_graph',
-        # 'scripts/evaluate_gnn_models',
-        # 'scripts/evaluate_event',
-        # 'scripts/evaluate_doublet_NN',
-
-        # 'scripts/hits_graph_to_tuple',
-
-        # 'scripts/make_graph',
-
-        # 'scripts/make_trkx',
-
-        # 'scripts/pairs_to_nx_graph',
-        # 'scripts/plot_graph',
-
-        # 'scripts/run_NN_segments',
-        # 
-
-        # 'scripts/track_eff_purity',
     ],
 )
