@@ -68,6 +68,7 @@ if __name__ == "__main__":
                     doublet = doublets[key]
                     all_inputs = scaler.fit_transform(doublet[features].values)
                     prediction = model.predict(all_inputs)
+                    doublet = doublet.assign(prediction=prediction)
                     passed_segments = doublet[prediction > cut]
                     store[key] = passed_segments
 

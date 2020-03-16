@@ -1,0 +1,3 @@
+"""
+Check Triplet performance
+"""

@@ -118,3 +118,31 @@ def is_df_there(file_name):
         else:
             res = True
     return res
+
+
+def dtype_shape_from_graphs_tuple(
+    input_graph, 
+    dynamic_num_graphs=False,
+    dynamic_num_nodes=True,
+    dynamic_num_edges=True,
+    ):
+    graphs_tuple_dtype = {}
+    graphs_tuple_shape = {}
+
+    edge_dim_fields = [graphs.EDGES, graphs.SENDERS, graphs.RECEIVERS]
+    for field_name in graphs.ALL_FIELDS:
+        field_sample = getattr(input_graph, field_name)
+        shape = list(field_sample.shape)
+        dtype = field_sample.dtype
+        print(field_name, shape, dtype)
+
+        if (shape and (dynamic_num_graphs
+                        or (dynamic_num_nodes and field_name == graphs.NODES)
+                        or (dynamic_num_edges and field_name in edge_dim_fields)
+                    )
+        ): shape[0] = None
+
+        graphs_tuple_dtype[field_sample] = dtype
+        graphs_tuple_shape[field_name] = shape
+    
+    return graphs_tuple_dtype, graphs_tuple_shape

@@ -94,33 +94,14 @@ if __name__ == "__main__":
     for hit_file, doublet_file in zip(config['hit_files'], config['doublet_files']):
         doublet_graphs.add_file(hit_file, doublet_file)
 
-    # training and testing inputs
-    f_train = 0.8
-    n_train_graphs = int(len(doublet_graphs.graphs) * f_train)
-    n_test_graphs = len(doublet_graphs.graphs) - n_train_graphs
-    train_graphs = doublet_graphs.graphs[:n_train_graphs]
-    test_graphs = doublet_graphs.graphs[-1*n_test_graphs:]
-
     @tf.function
     def get_data():
-        in_graphs, out_graphs = doublet_graphs.create_graph(batch_size, is_training=True)
-        # all_inputs = random.sample(train_graphs, k=batch_size)
-        # inputs = [x[0] for x in all_inputs]
-        # targets = [x[1] for x in all_inputs]
-        # in_graphs = utils_tf.data_dicts_to_graphs_tuple(inputs)
-        # out_graphs = utils_tf.data_dicts_to_graphs_tuple(targets)
-        
-        in_graphs = utils_tf.set_zero_global_features(in_graphs, 1)
-        out_graphs = utils_tf.set_zero_global_features(out_graphs, 1)
-        out_graphs = utils_tf.set_zero_node_features(out_graphs, 1)
+        in_graphs, out_graphs = doublet_graphs.create_graph(batch_size, is_training=True)        
         return in_graphs, out_graphs
 
     @tf.function
     def get_test_data():
         in_graphs, out_graphs = doublet_graphs.create_graph(batch_size, is_training=False)
-        in_graphs = utils_tf.set_zero_global_features(in_graphs, 1)
-        out_graphs = utils_tf.set_zero_global_features(out_graphs, 1)
-        out_graphs = utils_tf.set_zero_node_features(out_graphs, 1)
         return in_graphs, out_graphs
 
     # model and optimizers
@@ -129,7 +110,6 @@ if __name__ == "__main__":
     model = get_model(config['model_name'])
 
     # training loss
-    loss_weights = 1.0
     if config_tr['real_weight']:
         real_weight = config_tr['real_weight']
         fake_weight = config_tr['fake_weight']
@@ -142,7 +122,7 @@ if __name__ == "__main__":
         # print(output_ops[0].edges.shape)
         # print(target_op.edges.shape)
         loss_ops = [
-            tf.compat.v1.losses.log_loss(target_op.edges, tf.squeeze(output_op.edges))
+            tf.compat.v1.losses.log_loss(target_op.edges, tf.squeeze(output_op.edges), weights=weights)
             for output_op in output_ops
         ]
         return loss_ops
@@ -189,11 +169,12 @@ if __name__ == "__main__":
     with open(log_name, 'a') as f:
         f.write(out_str)
 
+
+     
     start_time = time.time()
     last_log_time = start_time
     ## loop over iterations, each iteration generating a batch of data for training
     iruns = 0
-
     print("# (iteration number), TD (get graph), TR (TF run)")
     last_iteration = 0
     for iteration in range(last_iteration, num_training_iterations):
@@ -216,7 +197,7 @@ if __name__ == "__main__":
             ckpt_manager.save()
 
             last_log_time = the_time
-            inputs_te, targets_te = get_data()
+            inputs_te, targets_te = get_test_data()
             outputs_te, loss_te = train_fn(inputs_te, targets_te)
             correct_tr, solved_tr = compute_matrics(targets_te, outputs_te[-1])
 

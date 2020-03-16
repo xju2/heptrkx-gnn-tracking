@@ -3,7 +3,11 @@ Make doublet GraphNtuple
 """
 import numpy as np
 import pandas as pd
+import itertools
+import random
 from graph_nets import utils_tf
+import tensorflow as tf
+from heptrkx.utils import dtype_shape_from_graphs_tuple
 
 # TODO: use one-hot-encoding to add layer info for nodes,
 # attach the flattened encoding to node features
@@ -116,6 +120,10 @@ class DoubletGraphGenerator:
         self.graphs = []
         self.evt_list = []
         self.idx_mgr = None
+        self.input_dtype = None
+        self.input_shape = None
+        self.target_dtype = None
+        self.target_shape = None
 
     def add_file(self, hit_file, doublet_file):
         with pd.HDFStore(hit_file, 'r') as hit_store:
@@ -141,7 +149,36 @@ class DoubletGraphGenerator:
                     self.graphs += all_graphs
                     self.evt_list.append(key)
         self.idx_mgr = IndexMgr(len(self.graphs))
-        print("DoubletGraphGenerator added {} events, {} graphs".format(n_evts, len(self.graphs)))
+        print("DoubletGraphGenerator added {} events, Total {} graphs".format(n_evts, len(self.graphs)))
+
+    def _get_signature(self):
+        if self.input_dtype and self.target_dtype:
+            return
+        ex_input, ex_target = self.create_graph(num_graphs=1)
+        self.input_dtype, self.input_shape = dtype_shape_from_graphs_tuple(ex_input)
+        self.target_dtype, self.target_shape = dtype_shape_from_graphs_tuple(ex_target)
+        
+    def _graph_generator(self): # one graph a dataset
+        idx = random.randrange(int(len(self.graphs)*0.8))
+        input_dd, target_dd = self.graphs[idx]
+        
+        input_graphs = utils_tf.data_dicts_to_graphs_tuple([input_dd])
+        target_graphs = utils_tf.data_dicts_to_graphs_tuple([target_dd])
+        # fill zeros
+        in_graphs = utils_tf.set_zero_global_features(in_graphs, 1)
+        out_graphs = utils_tf.set_zero_global_features(out_graphs, 1)
+        out_graphs = utils_tf.set_zero_node_features(out_graphs, 1)
+        yield (in_graphs, out_graphs)
+
+    def create_dataset(self):
+        self._get_signature()
+        dataset = tf.data.Dataset.from_generator(
+            self._graph_generator,
+            (self.input_dtype, self.target_dtype),
+            (self.input_shape, self.target_shape)
+        )
+        print(list(dataset.take(2).as_numpy_iterator()))
+        return dataset
 
     # FIXME: 
     # everytime check if one event is completely used (used all subgraphs)
@@ -160,4 +197,8 @@ class DoubletGraphGenerator:
 
         input_graphs = utils_tf.data_dicts_to_graphs_tuple(inputs)
         target_graphs = utils_tf.data_dicts_to_graphs_tuple(targets)
+        # fill zeros
+        in_graphs = utils_tf.set_zero_global_features(in_graphs, 1)
+        out_graphs = utils_tf.set_zero_global_features(out_graphs, 1)
+        out_graphs = utils_tf.set_zero_node_features(out_graphs, 1)
         return (input_graphs, target_graphs)

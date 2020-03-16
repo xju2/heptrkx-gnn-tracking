@@ -248,6 +248,7 @@ class Event(object):
             self.remove_noise_hits()
 
         self._hits = self._hits[np.abs(self._hits.eta) < eta_cut]
+        return self._hits
 
     def count_duplicated_hits(self):
         # sel is the number of "extra" hits

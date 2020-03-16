@@ -22,7 +22,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from heptrkx import utils
-from heptrkx import master
+from heptrkx.dataset import event as master
 from heptrkx import pairwise
 from heptrkx import seeding
 from heptrkx.utils_math import ratio_error
@@ -94,7 +94,7 @@ if __name__ == "__main__":
         #     print(event.hits.head())
 
         # hits = utils.select_hits(event, no_noise, eta_cut=1.2)
-        hits = utils.select_hits(event, no_noise, eta_cut=args.eta_cut)
+        hits = event.select_hits(no_noise, eta_cut=args.eta_cut)
         all_particles = np.unique(hits.particle_id).shape[0]
         all_hits = hits.shape[0]
         if verbose:
@@ -131,9 +131,9 @@ if __name__ == "__main__":
         df1 = df.merge(hits, left_on='h1', right_on='hit_id', how='left')
         df2 = df.merge(hits, left_on='h2', right_on='hit_id', how='left')
         df3 = df.merge(hits, left_on='h3', right_on='hit_id', how='left')
-        p1 = df1.particle_id.astype('int64')
-        p2 = df2.particle_id.astype('int64')
-        p3 = df3.particle_id.astype('int64')
+        p1 = df1.particle_id.values.astype('int64')
+        p2 = df2.particle_id.values.astype('int64')
+        p3 = df3.particle_id.values.astype('int64')
 
         n_total_seeds = df.shape[0]
         true_seeds_dup = p1[(p1 != 0) & (p1==p2) & (p2==p3)]
@@ -141,7 +141,9 @@ if __name__ == "__main__":
         true_seeds = p1[(p1 != 0) & (p1==p2) & (p2==p3) & (df1.layer != df2.layer) & (df1.layer != df3.layer) & (df2.layer != df3.layer)]
         n_true_seeds = true_seeds.shape[0]
 
-        unique_true_seeds = np.unique(true_seeds)
+        # unique true seeds should be  part of good particles
+        dup_mask = np.isin(true_seeds, good_particles)
+        unique_true_seeds = np.unique(true_seeds[dup_mask])
         n_unique_true_seeds = unique_true_seeds.shape[0]
 
         summary_info.append((evtid, hits.shape[0], good_particles.shape[0], unique_true_seeds.shape[0],
@@ -176,16 +178,16 @@ if __name__ == "__main__":
 
     print("Summary")
     print("Total {} events".format(tot_evts))
-    print("On average: {} hits per event and {} particles per event".format(
+    print("On average: {:.1f} hits per event and {:.1f} particles per event".format(
         np.sum(df_summary.n_hits)/tot_evts,
         np.sum(df_summary.n_particles)/tot_evts,
         ))
-    print("On average: {} seeds per event. \n\t{} ({:.2f}%)true seeds, "
-          "\n\t{} ({:.2f}%) true seeds after removing seeds with two hits being the same layer"
+    print("On average: {:.1f} seeds per event. \n\t{:.1f} ({:.2f}%) true seeds, "
+          "\n\t{:.1f} ({:.2f}%) true seeds after removing seeds with two hits being the same layer"
           "\n\ta factor of {:.1f} duplicated seeds".format(
             tot_seeds/tot_evts, 
             tot_true_seeds_tot/tot_evts, 100*tot_true_seeds_tot/tot_seeds,
-            tot_true_seeds/tot_evts, 100*tot_true_seeds/tot_true_seeds_tot,
+            tot_true_seeds/tot_evts, 100*tot_true_seeds/tot_seeds,
             tot_true_seeds/tot_matched_particles,
             ))
     print("Purity: {:.1f} +/- {:.2f}%".format(*ratio_error(tot_true_seeds, tot_seeds, True)))
@@ -218,9 +220,10 @@ if __name__ == "__main__":
     plt.xlabel("pT [GeV]")
     plt.ylabel("number of particles")
     plt.legend()
-    plt.savefig(output+"_pT.png", bbox_inches='tight')
-
+    plt.savefig(output+"_pT.png", bbox_inches='tight', dpi=300)
+    plt.savefig(output+"_pT.pdf", bbox_inches='tight', dpi=300)
     plt.clf()
+
     ratio = get_ratio(sel_vals, tot_vals)
     xvals = [0.5*(x[0]+x[1]) for x in pairwise(bins)][1:]
     line_configs = {'lw': 2}
@@ -231,7 +234,9 @@ if __name__ == "__main__":
 
     plt.xlabel("pT [GeV]")
     plt.ylabel("Efficiency")
-    plt.savefig(output+"_eff_pT.png", bbox_inches='tight')
+    plt.ylim(0, 1.01)
+    plt.savefig(output+"_eff_pT.png", bbox_inches='tight', dpi=300)
+    plt.savefig(output+"_eff_pT.pdf", bbox_inches='tight', dpi=300)
     plt.clf()
 
     ## make eta bins
@@ -246,8 +251,10 @@ if __name__ == "__main__":
     tot_vals, bins, _ = ax.hist(tot_eta, label='total', **hist_configs)
     sel_vals, bins, _ = ax.hist(matched_eta, label='selected', **hist_configs)
     plt.legend()
-    plt.savefig(output+"_eta.png", bbox_inches='tight')
+    plt.savefig(output+"_eta.png", bbox_inches='tight', dpi=300)
+    plt.savefig(output+"_eta.pdf", bbox_inches='tight', dpi=300)
     plt.clf()
+
     ratio = get_ratio(sel_vals, tot_vals)
     xvals = [0.5*(x[0]+x[1]) for x in pairwise(bins)][1:]
     line_configs = {'lw': 2}
@@ -258,5 +265,7 @@ if __name__ == "__main__":
 
     plt.xlabel("Eta")
     plt.ylabel("Efficiency")
-    plt.savefig(output+"_eff_eta.png", bbox_inches='tight')
+    plt.ylim(0, 1.01)
+    plt.savefig(output+"_eff_eta.png", bbox_inches='tight', dpi=300)
+    plt.savefig(output+"_eff_eta.pdf", bbox_inches='tight', dpi=300)
     plt.clf()
