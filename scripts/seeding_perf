@@ -84,7 +84,7 @@ if __name__ == "__main__":
         tot_df = []
         matched_df = []
         event = master.Event(data_input_dir)
-        for evtid in evt_list[:3]:
+        for evtid in evt_list:
             if verbose:
                 print("Processing Event {}".format(evtid))
 
