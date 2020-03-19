@@ -5,6 +5,7 @@ Test make_graph_ntuples
 from heptrkx.dataset.graph import make_graph_ntuples
 from heptrkx.dataset.graph import DoubletGraphGenerator
 import pandas as pd
+import tensorflow as tf
 
 
 hit_file_name = '/global/cscratch1/sd/xju/heptrkx/codalab/inputs/hitfiles/evt21001_test.h5'
@@ -40,6 +41,13 @@ def test_dataset():
     testing_dataset = graph_gen.create_dataset()
     print(list(testing_dataset.take(1).as_numpy_iterator()))
 
+    mirrored_strategy = tf.distribute.MirroredStrategy()
+    dist_training_dataset = mirrored_strategy.experimental_distribute_dataset(training_dataset)
+    with mirrored_strategy.scope():
+        for inputs in dist_training_dataset:
+            input, target = inputs
+            print(input.n_node)
+            break
 
 if __name__ == "__main__":
     # test_graph()

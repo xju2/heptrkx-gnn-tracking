@@ -9,6 +9,20 @@ from graph_nets import utils_tf
 from graph_nets import graphs
 import tensorflow as tf
 
+def reshape_graph(G):
+    """
+    G is a GraphNtuple Tensor, with additional dimension for batch-size
+    """
+    n_node = tf.reshape(G.n_node, [-1])
+    n_edge = tf.reshape(G.n_edge, [-1])
+    nodes = tf.reshape(G.nodes, [-1, G.nodes.shape[-1]])
+    edges = tf.reshape(G.edges, [-1, G.edges.shape[-1]])
+    senders = tf.reshape(G.senders, [-1])
+    receivers = tf.reshape(G.receivers, [-1])
+    globals = tf.reshape(G.globals, [-1, G.globals.shape[-1]])
+    return G.replace(n_node=n_node, n_edge=n_edge, nodes=nodes,\
+        edges=edges, senders=senders, receivers=receivers, globals=globals)
+
 def dtype_shape_from_graphs_tuple(
     input_graph, 
     dynamic_num_graphs=False,
