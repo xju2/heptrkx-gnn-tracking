@@ -61,5 +61,6 @@ setup(
         'scripts/view_training_log',
         # GNN
         'scripts/train_nx_graph',
+        'scripts/train_nx_graph_distributed',
     ],
 )

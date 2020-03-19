@@ -20,12 +20,12 @@ doublet_training:
 gnn_training:
     hit_files:
         - /global/cscratch1/sd/xju/heptrkx/codalab/inputs/hitfiles/evt21001_test.h5
-        - /global/cscratch1/sd/xju/heptrkx/codalab/inputs/hitfiles/evt22011-10events.h5
-        - /global/cscratch1/sd/xju/heptrkx/codalab/inputs/hitfiles/evt22021-100events.h5
+          #- /global/cscratch1/sd/xju/heptrkx/codalab/inputs/hitfiles/evt22011-10events.h5
+          #- /global/cscratch1/sd/xju/heptrkx/codalab/inputs/hitfiles/evt22021-100events.h5
     doublet_files:
         - /global/cscratch1/sd/xju/heptrkx/codalab/inputs/doublet_files/doublets-evt21001_test.h5
-        - /global/cscratch1/sd/xju/heptrkx/codalab/inputs/doublet_files/doublets-evt22011-10events.h5
-        - /global/cscratch1/sd/xju/heptrkx/codalab/inputs/doublet_files/doublets-evt22021-100events.h5
+          #- /global/cscratch1/sd/xju/heptrkx/codalab/inputs/doublet_files/doublets-evt22011-10events.h5
+          #- /global/cscratch1/sd/xju/heptrkx/codalab/inputs/doublet_files/doublets-evt22021-100events.h5
     n_eta: 2
     n_phi: 9
     # node_features: ['x', 'y', 'z', 'geta', 'gphi', 'eta', 'phi', 'r', 'r3']

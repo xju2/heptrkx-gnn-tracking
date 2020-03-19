@@ -23,7 +23,7 @@ def dtype_shape_from_graphs_tuple(
         field_sample = getattr(input_graph, field_name)
         shape = list(field_sample.shape)
         dtype = field_sample.dtype
-        print(field_name, shape, dtype)
+        # print(field_name, shape, dtype)
 
         if (shape and (dynamic_num_graphs
                         or (dynamic_num_nodes and field_name == graphs.NODES)
@@ -176,7 +176,9 @@ class DoubletGraphGenerator:
                                         verbose=self.verbose)
                     self.graphs += all_graphs
                     self.evt_list.append(key)
-        self.idx_mgr = IndexMgr(len(self.graphs))
+
+        self.tot_data = len(self.graphs)
+        self.idx_mgr = IndexMgr(self.tot_data)
         print("DoubletGraphGenerator added {} events, Total {} graphs".format(n_evts, len(self.graphs)))
 
     def _get_signature(self):
@@ -188,8 +190,12 @@ class DoubletGraphGenerator:
         # self.input_dtype = utils_tf.specs_from_graphs_tuple(ex_input)
         # self.target_dtype = utils_tf.specs_from_graphs_tuple(ex_target)
         
-    def _graph_generator(self): # one graph a dataset
-        idx = random.randrange(int(len(self.graphs)*0.8))
+    def _graph_generator(self, is_training=True): # one graph a dataset
+        if is_training:
+            idx = random.randrange(int(self.tot_data*0.8))
+        else:
+            idx = self.tot_data - random.randrange(int(self.tot_data*0.2))
+
         input_dd, target_dd = self.graphs[idx]
         
         input_graphs = utils_tf.data_dicts_to_graphs_tuple([input_dd])
@@ -200,14 +206,14 @@ class DoubletGraphGenerator:
         target_graphs = utils_tf.set_zero_node_features(target_graphs, 1)
         yield (input_graphs, target_graphs)
 
-    def create_training_dataset(self):
+    def create_dataset(self, is_training=True):
         self._get_signature()
         dataset = tf.data.Dataset.from_generator(
             self._graph_generator,
-            (self.input_dtype, self.target_dtype),
-            (self.input_shape, self.target_shape)
+            output_types=(self.input_dtype, self.target_dtype),
+            output_shapes=(self.input_shape, self.target_shape),
+            args=(is_training,)
         )
-        # print(list(dataset.take(1).as_numpy_iterator()))
         return dataset
 
     # FIXME: 
