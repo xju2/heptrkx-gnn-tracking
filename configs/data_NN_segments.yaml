@@ -39,7 +39,7 @@ gnn_training:
     input_type: 'data_dict'
     parameters:
         time_lapse:  60 # how often save checkpoint in seconds
-        batch_size: 1
+        batch_size: 8
         iterations: 200000
         iter_per_job: 200000
         n_iters: 8

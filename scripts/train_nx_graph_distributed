@@ -95,18 +95,35 @@ if __name__ == "__main__":
     for hit_file, doublet_file in zip(config['hit_files'], config['doublet_files']):
         doublet_graphs.add_file(hit_file, doublet_file)
 
-    training_dataset = doublet_graphs.create_dataset().batch(batch_size)
+    training_dataset = doublet_graphs.create_dataset()
+
+    # this prompt an error
+    # Cannot batch tensors with different shapes in component 0.
+    # First element had shape [3442,3] and element 1 had shape [3604,3]
+    # training_dataset = training_dataset.batch(batch_size)
+    
+    training_dataset = training_dataset.prefetch(tf.data.experimental.AUTOTUNE)
+    training_dataset = training_dataset.cache()
+    
     testing_dataset = doublet_graphs.create_dataset(is_training=False)
 
     # model and optimizers
     learning_rate = config_tr['learning_rate']
-    mirrored_strategy = tf.distribute.MirroredStrategy()
-    with mirrored_strategy.scope():
+    # strategy = tf.distribute.MirroredStrategy()
+    physical_gpus = tf.config.experimental.list_physical_devices("GPU")
+    n_gpus = len(physical_gpus)
+    if n_gpus > 1:
+        strategy = snt.distribute.Replicator(['/device:GPU:{}'.format(i) for i in range(n_gpus)],\
+            tf.distribute.ReductionToOneDevice("GPU:0"))
+    else:
+        strategy = tf.distribute.OneDeviceStrategy()
+
+    with strategy.scope():
         optimizer = snt.optimizers.Adam(learning_rate)
         model = get_model(config['model_name'])
 
     # distributed dataset
-    dist_training_dataset = mirrored_strategy.experimental_distribute_dataset(training_dataset)
+    dist_training_dataset = strategy.experimental_distribute_dataset(training_dataset)
 
     # training loss
     if config_tr['real_weight']:
@@ -143,21 +160,26 @@ if __name__ == "__main__":
                 outputs_tr = model(inputs_tr, num_processing_steps_tr)
                 outputs_tr = [tf.reshape(x.edges, [-1]) for x in outputs_tr]
                 targets_tr = tf.reshape(targets_tr.edges, [-1])
-                print(outputs_tr[0].shape)
-                print(targets_tr.shape)
+                # print(outputs_tr[0].shape)
+                # print(targets_tr.shape)
                 loss_ops_tr = create_loss_ops(targets_tr, outputs_tr)
                 loss_op_tr = sum(loss_ops_tr) / num_processing_steps_tr
 
             gradients = tape.gradient(loss_op_tr, model.trainable_variables)
-            optimizer.apply(gradients, model.trainable_variables)
-            return (outputs_tr, loss_op_tr)
+            # aggregate the gradients from the full batch.
+            # this is not there for mirror strategy
+            replica_ctx = tf.distribute.get_replica_context()
+            gradients = replica_ctx.all_reduce("mean", gradients)
 
-        per_example_losses = mirrored_strategy.experimental_run_v2(update_step, args=(dist_inputs, ))
-        mean_loss = mirrored_strategy.reduce(tf.distribute.ReduceOp.MEAN,\
-            per_example_losses, axis=0)
+            optimizer.apply(gradients, model.trainable_variables)
+            return loss_op_tr
+
+        per_example_losses = strategy.experimental_run_v2(update_step, args=(dist_inputs, ))
+        mean_loss = strategy.reduce("sum", per_example_losses, axis=None)
+        # mean_loss = strategy.reduce(tf.distribute.ReduceOp.MEAN, per_example_losses, axis=0)
         return mean_loss
 
-    with mirrored_strategy.scope():
+    with strategy.scope():
         for inputs in dist_training_dataset:
             print(train_step(inputs))
 

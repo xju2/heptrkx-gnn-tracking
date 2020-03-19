@@ -205,20 +205,21 @@ class DoubletGraphGenerator:
         # self.target_dtype = utils_tf.specs_from_graphs_tuple(ex_target)
         
     def _graph_generator(self, is_training=True): # one graph a dataset
-        if is_training:
-            idx = random.randrange(int(self.tot_data*0.8))
-        else:
-            idx = self.tot_data - random.randrange(int(self.tot_data*0.2))
+        min_idx, max_idx = 0, int(self.tot_data * 0.8)
 
-        input_dd, target_dd = self.graphs[idx]
-        
-        input_graphs = utils_tf.data_dicts_to_graphs_tuple([input_dd])
-        target_graphs = utils_tf.data_dicts_to_graphs_tuple([target_dd])
-        # fill zeros
-        input_graphs = utils_tf.set_zero_global_features(input_graphs, 1)
-        target_graphs = utils_tf.set_zero_global_features(target_graphs, 1)
-        target_graphs = utils_tf.set_zero_node_features(target_graphs, 1)
-        yield (input_graphs, target_graphs)
+        if not is_training:
+            min_idx, max_idx = int(self.tot_data*0.8), self.tot_data-1
+
+        for idx in range(min_idx, max_idx):
+            input_dd, target_dd = self.graphs[idx]
+            
+            input_graphs = utils_tf.data_dicts_to_graphs_tuple([input_dd])
+            target_graphs = utils_tf.data_dicts_to_graphs_tuple([target_dd])
+            # fill zeros
+            input_graphs = utils_tf.set_zero_global_features(input_graphs, 1)
+            target_graphs = utils_tf.set_zero_global_features(target_graphs, 1)
+            target_graphs = utils_tf.set_zero_node_features(target_graphs, 1)
+            yield (input_graphs, target_graphs)
 
     def create_dataset(self, is_training=True):
         self._get_signature()
