@@ -34,7 +34,7 @@ def test_graph():
 def test_dataset():
     graph_gen = DoubletGraphGenerator(2, 8, ['x', 'y', 'z'], ['deta', 'dphi'])
     graph_gen.add_file(hit_file_name, doublet_file_name)
-    dataset = graph.create_dataset()
+    dataset = graph_gen.create_training_dataset()
 
 
 if __name__ == "__main__":

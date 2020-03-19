@@ -6,8 +6,36 @@ import pandas as pd
 import itertools
 import random
 from graph_nets import utils_tf
+from graph_nets import graphs
 import tensorflow as tf
-from heptrkx.utils import dtype_shape_from_graphs_tuple
+
+def dtype_shape_from_graphs_tuple(
+    input_graph, 
+    dynamic_num_graphs=False,
+    dynamic_num_nodes=True,
+    dynamic_num_edges=True,
+    ):
+    graphs_tuple_dtype = {}
+    graphs_tuple_shape = {}
+
+    edge_dim_fields = [graphs.EDGES, graphs.SENDERS, graphs.RECEIVERS]
+    for field_name in graphs.ALL_FIELDS:
+        field_sample = getattr(input_graph, field_name)
+        shape = list(field_sample.shape)
+        dtype = field_sample.dtype
+        print(field_name, shape, dtype)
+
+        if (shape and (dynamic_num_graphs
+                        or (dynamic_num_nodes and field_name == graphs.NODES)
+                        or (dynamic_num_edges and field_name in edge_dim_fields)
+                    )
+        ): shape[0] = None
+
+        graphs_tuple_dtype[field_name] = dtype
+        graphs_tuple_shape[field_name] = tf.TensorShape(shape)
+        # print(shape, dtype)
+    
+    return graphs.GraphsTuple(**graphs_tuple_dtype), graphs.GraphsTuple(**graphs_tuple_shape)
 
 # TODO: use one-hot-encoding to add layer info for nodes,
 # attach the flattened encoding to node features
@@ -157,6 +185,8 @@ class DoubletGraphGenerator:
         ex_input, ex_target = self.create_graph(num_graphs=1)
         self.input_dtype, self.input_shape = dtype_shape_from_graphs_tuple(ex_input)
         self.target_dtype, self.target_shape = dtype_shape_from_graphs_tuple(ex_target)
+        # self.input_dtype = utils_tf.specs_from_graphs_tuple(ex_input)
+        # self.target_dtype = utils_tf.specs_from_graphs_tuple(ex_target)
         
     def _graph_generator(self): # one graph a dataset
         idx = random.randrange(int(len(self.graphs)*0.8))
@@ -165,19 +195,19 @@ class DoubletGraphGenerator:
         input_graphs = utils_tf.data_dicts_to_graphs_tuple([input_dd])
         target_graphs = utils_tf.data_dicts_to_graphs_tuple([target_dd])
         # fill zeros
-        in_graphs = utils_tf.set_zero_global_features(in_graphs, 1)
-        out_graphs = utils_tf.set_zero_global_features(out_graphs, 1)
-        out_graphs = utils_tf.set_zero_node_features(out_graphs, 1)
-        yield (in_graphs, out_graphs)
+        input_graphs = utils_tf.set_zero_global_features(input_graphs, 1)
+        target_graphs = utils_tf.set_zero_global_features(target_graphs, 1)
+        target_graphs = utils_tf.set_zero_node_features(target_graphs, 1)
+        yield (input_graphs, target_graphs)
 
-    def create_dataset(self):
+    def create_training_dataset(self):
         self._get_signature()
         dataset = tf.data.Dataset.from_generator(
             self._graph_generator,
             (self.input_dtype, self.target_dtype),
             (self.input_shape, self.target_shape)
         )
-        print(list(dataset.take(2).as_numpy_iterator()))
+        # print(list(dataset.take(1).as_numpy_iterator()))
         return dataset
 
     # FIXME: 
@@ -198,7 +228,7 @@ class DoubletGraphGenerator:
         input_graphs = utils_tf.data_dicts_to_graphs_tuple(inputs)
         target_graphs = utils_tf.data_dicts_to_graphs_tuple(targets)
         # fill zeros
-        in_graphs = utils_tf.set_zero_global_features(in_graphs, 1)
-        out_graphs = utils_tf.set_zero_global_features(out_graphs, 1)
-        out_graphs = utils_tf.set_zero_node_features(out_graphs, 1)
+        input_graphs = utils_tf.set_zero_global_features(input_graphs, 1)
+        target_graphs = utils_tf.set_zero_global_features(target_graphs, 1)
+        target_graphs = utils_tf.set_zero_node_features(target_graphs, 1)
         return (input_graphs, target_graphs)
