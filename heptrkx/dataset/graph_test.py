@@ -38,16 +38,16 @@ def test_dataset():
     training_dataset = graph_gen.create_dataset()
     print(list(training_dataset.take(1).as_numpy_iterator()))
 
-    testing_dataset = graph_gen.create_dataset()
-    print(list(testing_dataset.take(1).as_numpy_iterator()))
+    # testing_dataset = graph_gen.create_dataset()
+    # print(list(testing_dataset.take(1).as_numpy_iterator()))
 
-    mirrored_strategy = tf.distribute.MirroredStrategy()
-    dist_training_dataset = mirrored_strategy.experimental_distribute_dataset(training_dataset)
-    with mirrored_strategy.scope():
-        for inputs in dist_training_dataset:
-            input, target = inputs
-            print(input.n_node)
-            break
+    # mirrored_strategy = tf.distribute.MirroredStrategy()
+    # dist_training_dataset = mirrored_strategy.experimental_distribute_dataset(training_dataset)
+    # with mirrored_strategy.scope():
+    #     for inputs in dist_training_dataset:
+    #         input, target = inputs
+    #         print(input.n_node)
+    #         break
 
 if __name__ == "__main__":
     # test_graph()

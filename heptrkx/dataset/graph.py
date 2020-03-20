@@ -9,9 +9,11 @@ from graph_nets import utils_tf
 from graph_nets import graphs
 import tensorflow as tf
 
-def reshape_graph(G):
+
+def concat_batch_dim(G):
     """
-    G is a GraphNtuple Tensor, with additional dimension for batch-size
+    G is a GraphNtuple Tensor, with additional dimension for batch-size.
+    Concatenate them along the axis for batch
     """
     n_node = tf.reshape(G.n_node, [-1])
     n_edge = tf.reshape(G.n_edge, [-1])
@@ -19,16 +21,47 @@ def reshape_graph(G):
     edges = tf.reshape(G.edges, [-1, G.edges.shape[-1]])
     senders = tf.reshape(G.senders, [-1])
     receivers = tf.reshape(G.receivers, [-1])
-    globals = tf.reshape(G.globals, [-1, G.globals.shape[-1]])
+    globals_ = tf.reshape(G.globals, [-1, G.globals.shape[-1]])
     return G.replace(n_node=n_node, n_edge=n_edge, nodes=nodes,\
-        edges=edges, senders=senders, receivers=receivers, globals=globals)
+        edges=edges, senders=senders, receivers=receivers, globals=globals_)
 
-def dtype_shape_from_graphs_tuple(
-    input_graph, 
-    dynamic_num_graphs=False,
-    dynamic_num_nodes=True,
-    dynamic_num_edges=True,
-    ):
+
+def add_batch_dim(G, axis=0):
+    """
+    G is a GraphNtuple Tensor, without a dimension for batch.
+    Add a dimensioin them along the axis for batch
+    """
+    n_node = tf.expand_dims(G.n_node, axis=0)
+    n_edge = tf.expand_dims(G.n_edge, axis=0)
+    nodes = tf.expand_dims(G.nodes, axis=0)
+    edges = tf.expand_dims(G.edges, axis=0)
+    senders = tf.expand_dims(G.senders, axis=0)
+    receivers = tf.expand_dims(G.receivers, 0)
+    globals_ = tf.expand_dims(G.globals, 0)
+    return G.replace(n_node=n_node, n_edge=n_edge, nodes=nodes,\
+        edges=edges, senders=senders, receivers=receivers, globals=globals_)
+
+
+def data_dicts_to_graphs_tuple(input_dd, target_dd, with_batch_dim=True):
+    if type(input_dd) is not list:
+        input_dd = [input_dd]
+    if type(target_dd) is not list:
+        target_dd = [target_dd]
+    input_graphs = utils_tf.data_dicts_to_graphs_tuple(input_dd)
+    target_graphs = utils_tf.data_dicts_to_graphs_tuple(target_dd)
+    # fill zeros
+    input_graphs = utils_tf.set_zero_global_features(input_graphs, 1)
+    target_graphs = utils_tf.set_zero_global_features(target_graphs, 1)
+    target_graphs = utils_tf.set_zero_node_features(target_graphs, 1)
+    
+    # expand dims
+    if with_batch_dim:
+        input_graphs = add_batch_dim(input_graphs)
+        target_graphs = add_batch_dim(target_graphs)
+    return input_graphs, target_graphs
+
+
+def dtype_shape_from_graphs_tuple(input_graph, with_batch_dim=False, debug=False):
     graphs_tuple_dtype = {}
     graphs_tuple_shape = {}
 
@@ -39,15 +72,17 @@ def dtype_shape_from_graphs_tuple(
         dtype = field_sample.dtype
         # print(field_name, shape, dtype)
 
-        if (shape and (dynamic_num_graphs
-                        or (dynamic_num_nodes and field_name == graphs.NODES)
-                        or (dynamic_num_edges and field_name in edge_dim_fields)
-                    )
-        ): shape[0] = None
+        if shape:
+            if with_batch_dim:
+                shape[1] = None
+            else:
+                if field_name == graphs.NODES or field_name in edge_dim_fields:
+                    shape[0] = None
 
         graphs_tuple_dtype[field_name] = dtype
         graphs_tuple_shape[field_name] = tf.TensorShape(shape)
-        # print(shape, dtype)
+        if debug:
+            print(field_name, shape, dtype)
     
     return graphs.GraphsTuple(**graphs_tuple_dtype), graphs.GraphsTuple(**graphs_tuple_shape)
 
@@ -153,7 +188,7 @@ class IndexMgr:
 
 
 class DoubletGraphGenerator:
-    def __init__(self, n_eta, n_phi, node_features, edge_features, verbose=False):
+    def __init__(self, n_eta, n_phi, node_features, edge_features, with_batch_dim=True, verbose=False):
         self.n_eta = n_eta
         self.n_phi = n_phi
         self.node_features = node_features
@@ -166,6 +201,7 @@ class DoubletGraphGenerator:
         self.input_shape = None
         self.target_dtype = None
         self.target_shape = None
+        self.with_batch_dim = with_batch_dim
 
     def add_file(self, hit_file, doublet_file):
         with pd.HDFStore(hit_file, 'r') as hit_store:
@@ -199,10 +235,10 @@ class DoubletGraphGenerator:
         if self.input_dtype and self.target_dtype:
             return
         ex_input, ex_target = self.create_graph(num_graphs=1)
-        self.input_dtype, self.input_shape = dtype_shape_from_graphs_tuple(ex_input)
-        self.target_dtype, self.target_shape = dtype_shape_from_graphs_tuple(ex_target)
-        # self.input_dtype = utils_tf.specs_from_graphs_tuple(ex_input)
-        # self.target_dtype = utils_tf.specs_from_graphs_tuple(ex_target)
+        self.input_dtype, self.input_shape = dtype_shape_from_graphs_tuple(
+            ex_input, self.with_batch_dim, self.verbose)
+        self.target_dtype, self.target_shape = dtype_shape_from_graphs_tuple(
+            ex_target, self.with_batch_dim, self.verbose)
         
     def _graph_generator(self, is_training=True): # one graph a dataset
         min_idx, max_idx = 0, int(self.tot_data * 0.8)
@@ -211,15 +247,8 @@ class DoubletGraphGenerator:
             min_idx, max_idx = int(self.tot_data*0.8), self.tot_data-1
 
         for idx in range(min_idx, max_idx):
-            input_dd, target_dd = self.graphs[idx]
-            
-            input_graphs = utils_tf.data_dicts_to_graphs_tuple([input_dd])
-            target_graphs = utils_tf.data_dicts_to_graphs_tuple([target_dd])
-            # fill zeros
-            input_graphs = utils_tf.set_zero_global_features(input_graphs, 1)
-            target_graphs = utils_tf.set_zero_global_features(target_graphs, 1)
-            target_graphs = utils_tf.set_zero_node_features(target_graphs, 1)
-            yield (input_graphs, target_graphs)
+            yield data_dicts_to_graphs_tuple(self.graphs[idx][0], self.graphs[idx][1], self.with_batch_dim)
+
 
     def create_dataset(self, is_training=True):
         self._get_signature()
@@ -246,10 +275,4 @@ class DoubletGraphGenerator:
             inputs.append(input_dd)
             targets.append(target_dd)
 
-        input_graphs = utils_tf.data_dicts_to_graphs_tuple(inputs)
-        target_graphs = utils_tf.data_dicts_to_graphs_tuple(targets)
-        # fill zeros
-        input_graphs = utils_tf.set_zero_global_features(input_graphs, 1)
-        target_graphs = utils_tf.set_zero_global_features(target_graphs, 1)
-        target_graphs = utils_tf.set_zero_node_features(target_graphs, 1)
-        return (input_graphs, target_graphs)
+        return data_dicts_to_graphs_tuple(inputs, targets, self.with_batch_dim)

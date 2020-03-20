@@ -21,8 +21,7 @@ from graph_nets import utils_tf
 from graph_nets import utils_np
 import sonnet as snt
 
-from heptrkx.dataset.graph import DoubletGraphGenerator
-from heptrkx.dataset.graph import reshape_graph
+from heptrkx.dataset import graph
 from heptrkx.nx_graph import get_model
 from heptrkx.utils import load_yaml
 # ckpt_name = 'checkpoint_{:05d}.ckpt'
@@ -88,9 +87,10 @@ if __name__ == "__main__":
     # prepare graphs
     print("Node features: ", config['node_features'])
     print("Edge features: ", config['edge_features'])
-    doublet_graphs = DoubletGraphGenerator(
+    doublet_graphs = graph.DoubletGraphGenerator(
         config['n_eta'], config['n_phi'],
-        config['node_features'], config['edge_features']
+        config['node_features'], config['edge_features'], 
+        with_batch_dim=True
         )
     for hit_file, doublet_file in zip(config['hit_files'], config['doublet_files']):
         doublet_graphs.add_file(hit_file, doublet_file)
@@ -100,8 +100,7 @@ if __name__ == "__main__":
     # this prompt an error
     # Cannot batch tensors with different shapes in component 0.
     # First element had shape [3442,3] and element 1 had shape [3604,3]
-    # training_dataset = training_dataset.batch(batch_size)
-    
+    # training_dataset = training_dataset.batch(batch_size) // does not work, batch size moves to data generator
     training_dataset = training_dataset.prefetch(tf.data.experimental.AUTOTUNE)
     training_dataset = training_dataset.cache()
     
@@ -111,12 +110,16 @@ if __name__ == "__main__":
     learning_rate = config_tr['learning_rate']
     # strategy = tf.distribute.MirroredStrategy()
     physical_gpus = tf.config.experimental.list_physical_devices("GPU")
+    physical_cpus = tf.config.experimental.list_physical_devices("CPU")
+    print(physical_cpus)
     n_gpus = len(physical_gpus)
     if n_gpus > 1:
         strategy = snt.distribute.Replicator(['/device:GPU:{}'.format(i) for i in range(n_gpus)],\
             tf.distribute.ReductionToOneDevice("GPU:0"))
+    elif n_gpus > 0:
+        strategy = tf.distribute.OneDeviceStrategy("/device:GPU:0")
     else:
-        strategy = tf.distribute.OneDeviceStrategy()
+        strategy = tf.distribute.OneDeviceStrategy("/device:CPU:0")
 
     with strategy.scope():
         optimizer = snt.optimizers.Adam(learning_rate)
@@ -151,8 +154,8 @@ if __name__ == "__main__":
             # the distributed dataset introduced an dimension with the size of batch_size
             # I have to reshape that.
             # Need to be a bit careful!
-            inputs_tr = reshape_graph(inputs_tr)
-            targets_tr = reshape_graph(targets_tr)
+            inputs_tr = graph.concat_batch_dim(inputs_tr)
+            targets_tr = graph.concat_batch_dim(targets_tr)
             # print(inputs_tr)
             # print(targets_tr)
 
