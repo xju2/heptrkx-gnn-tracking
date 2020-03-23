@@ -41,7 +41,7 @@ def eval_output(target, output):
     test_target = []
     test_pred = []
     for td, od in zip(tdds, odds):
-        test_target.append(td['edges'])
+        test_target.append(np.squeeze(td['edges']))
         test_pred.append(np.squeeze(od['edges']))
 
     test_target = np.concatenate(test_target, axis=0)
@@ -88,8 +88,9 @@ if __name__ == "__main__":
     learning_rate = config_tr['learning_rate']
     optimizer = snt.optimizers.Adam(learning_rate)
     model = get_model(config['model_name'])
-    with_batch_dim = False
+ 
     # prepare graphs
+    with_batch_dim = False
     print("Node features: ", config['node_features'])
     print("Edge features: ", config['edge_features'])
     doublet_graphs = graph.DoubletGraphGenerator(
@@ -116,8 +117,8 @@ if __name__ == "__main__":
         graph.specs_from_graphs_tuple(inputs, with_batch_dim),
         graph.specs_from_graphs_tuple(targets, with_batch_dim)
     )
-    print(inputs)
-    print(input_signature[0])
+    # print(inputs)
+    # print(input_signature[0])
 
     # training loss
     if config_tr['real_weight']:
@@ -127,31 +128,23 @@ if __name__ == "__main__":
         real_weight = fake_weight = 1.0
 
     def create_loss_ops(target_op, output_ops):
-        # only use edges
-        weights = target_op * real_weight + (1 - target_op) * fake_weight
-        # print(output_ops[0].edges.shape)
-        # print(target_op.edges.shape)
         loss_ops = [
-            tf.compat.v1.losses.log_loss(target_op, output_op, weights=weights)
+            tf.compat.v1.losses.sigmoid_cross_entropy(target_op.edges, output_op.edges)
             for output_op in output_ops
         ]
-        return loss_ops
+        return tf.stack(loss_ops)
 
     @functools.partial(tf.function, input_signature=input_signature)
     def update_step(inputs_tr, targets_tr):
-        print("print once")
+        print("Tracing update_step")
         with tf.GradientTape() as tape:
             outputs_tr = model(inputs_tr, num_processing_steps_tr)
-            outputs_tr = [tf.reshape(x.edges, [-1]) for x in outputs_tr]
-            targets_tr = tf.reshape(targets_tr.edges, [-1])
-            loss_ops_tr = create_loss_ops(targets_tr, outputs_tr)
-            loss_op_tr = sum(loss_ops_tr) / num_processing_steps_tr
+            loss_op_tr = create_loss_ops(targets_tr, outputs_tr)
+            loss_op_tr = tf.math.reduce_sum(loss_op_tr) / num_processing_steps_tr
 
         gradients = tape.gradient(loss_op_tr, model.trainable_variables)
         optimizer.apply(gradients, model.trainable_variables)
         return outputs_tr, loss_op_tr
-
-    train_fn = update_step
 
     checkpoint = tf.train.Checkpoint(optimizer=optimizer, model=model)
     ckpt_manager = tf.train.CheckpointManager(checkpoint, directory=output_dir, max_to_keep=5)
@@ -189,7 +182,7 @@ if __name__ == "__main__":
         inputs_tr, targets_tr = get_data()
         # print(inputs_tr.n_node, inputs_tr.n_edge)
         # print(inputs_tr.nodes, inputs_tr.edges)
-        outputs_tr, loss_tr = train_fn(inputs_tr, targets_tr)
+        outputs_tr, loss_tr = update_step(inputs_tr, targets_tr)
 
         the_time = time.time()
         elapsed_since_last_log = the_time - last_log_time
@@ -200,7 +193,7 @@ if __name__ == "__main__":
 
             last_log_time = the_time
             inputs_te, targets_te = get_test_data()
-            outputs_te, loss_te = train_fn(inputs_te, targets_te)
+            outputs_te, loss_te = update_step(inputs_te, targets_te)
             correct_tr, solved_tr = compute_matrics(targets_te, outputs_te[-1])
 
             elapsed = time.time() - start_time

@@ -40,6 +40,24 @@ class MLPGraphIndependent(snt.Module):
   def __call__(self, inputs):
     return self._network(inputs)
 
+
+# class MLPGraphNetwork(snt.Module):
+#   """GraphNetwork with MLP edge, node, and global models."""
+
+#   def __init__(self, name="MLPGraphNetwork"):
+#     super(MLPGraphNetwork, self).__init__(name=name)
+#     self._network = modules.GraphNetwork(
+#                   make_mlp_model,
+#                   make_mlp_model,
+#                   make_mlp_model,
+#                   edge_block_opt={"use_globals": False},
+#                   node_block_opt={"use_globals": False},
+#                   global_block_opt={"use_globals": False}
+#                   )
+
+#   def __call__(self, inputs):
+#     return self._network(inputs)
+
 class SegmentClassifier(snt.Module):
 
   def __init__(self, name="SegmentClassifier"):
@@ -47,11 +65,12 @@ class SegmentClassifier(snt.Module):
 
     self._encoder = MLPGraphIndependent()
 
-    self._core = modules.InteractionNetwork(
-        edge_model_fn=make_mlp_model,
-        node_model_fn=make_mlp_model,
-        reducer=tf.math.unsorted_segment_sum
-    )
+    # self._core = modules.InteractionNetwork(
+    #     edge_model_fn=make_mlp_model,
+    #     node_model_fn=make_mlp_model,
+    #     reducer=tf.math.unsorted_segment_sum
+    # )
+    self._core = MLPGraphIndependent()
 
     self._decoder = modules.GraphIndependent(
         edge_model_fn=make_mlp_model,
@@ -59,11 +78,12 @@ class SegmentClassifier(snt.Module):
 
     # Transforms the outputs into appropriate shapes.
     edge_output_size = 1
-    edge_fn =lambda: snt.Sequential([
-        snt.nets.MLP([LATENT_SIZE, edge_output_size],
-                     activation=tf.nn.relu, # default is relu
-                     name='edge_output'),
-        tf.sigmoid])
+    edge_fn = lambda: snt.Linear(edge_output_size, name='edge_output')
+    # edge_fn =lambda: snt.Sequential([
+    #     snt.nets.MLP([LATENT_SIZE, edge_output_size],
+    #                  activation=tf.nn.relu, # default is relu
+    #                  name='edge_output'),
+    #     tf.sigmoid])
     self._output_transform = modules.GraphIndependent(edge_fn, None, None)
 
   def __call__(self, input_op, num_processing_steps):
