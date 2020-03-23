@@ -41,7 +41,7 @@ def eval_output(target, output):
     test_target = []
     test_pred = []
     for td, od in zip(tdds, odds):
-        test_target.append(td['edges'])
+        test_target.append(np.squeeze(td['edges']))
         test_pred.append(np.squeeze(od['edges']))
 
     test_target = np.concatenate(test_target, axis=0)
@@ -91,6 +91,7 @@ if __name__ == "__main__":
     physical_cpus = tf.config.experimental.list_physical_devices("CPU")
     print(physical_cpus)
     n_gpus = len(physical_gpus)
+    with_batch_dim = True
     if n_gpus > 1:
         print("Useing SNT Replicator with {} workers".format(n_gpus))
         strategy = snt.distribute.Replicator(['/device:GPU:{}'.format(i) for i in range(n_gpus)],\
@@ -110,19 +111,18 @@ if __name__ == "__main__":
     doublet_graphs = graph.DoubletGraphGenerator(
         config['n_eta'], config['n_phi'],
         config['node_features'], config['edge_features'], 
-        with_batch_dim=True
+        with_batch_dim=with_batch_dim
         )
     for hit_file, doublet_file in zip(config['hit_files'], config['doublet_files']):
         doublet_graphs.add_file(hit_file, doublet_file)
 
 
     # to get signature
-    inputs, targets = doublet_graphs.create_graph(1)
-    inputs = graph.add_batch_dim(inputs)
-    targets = graph.add_batch_dim(targets)
+    inputs, targets = doublet_graphs.create_graph(batch_size)
+
     input_signature = (
-        graph.specs_from_graphs_tuple(inputs),
-        graph.specs_from_graphs_tuple(targets)
+        graph.specs_from_graphs_tuple(inputs, with_batch_dim),
+        graph.specs_from_graphs_tuple(targets, with_batch_dim)
     )
 
     # this prompt an error
@@ -205,7 +205,6 @@ if __name__ == "__main__":
         # mean_loss = strategy.reduce(tf.distribute.ReduceOp.MEAN, per_example_losses, axis=0)
         return mean_loss
 
-    # compiled_train_step = tf.function(train_step, input_signature=(input_signature,) )
 
     def train_epoch(dataset):
         total_loss = 0.

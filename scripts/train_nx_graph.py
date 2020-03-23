@@ -117,8 +117,6 @@ if __name__ == "__main__":
         graph.specs_from_graphs_tuple(inputs, with_batch_dim),
         graph.specs_from_graphs_tuple(targets, with_batch_dim)
     )
-    # print(inputs)
-    # print(input_signature[0])
 
     # training loss
     if config_tr['real_weight']:
@@ -128,7 +126,11 @@ if __name__ == "__main__":
         real_weight = fake_weight = 1.0
 
     def create_loss_ops(target_op, output_ops):
-        loss_ops = [tf.compat.v1.losses.log_loss(target_op.edges, output_op.edges) for output_op in output_ops]
+        weights = target_op.edges * real_weight + (1 - target_op.edges) * fake_weight
+        loss_ops = [
+            tf.compat.v1.losses.log_loss(target_op.edges, output_op.edges, weights=weights)
+            for output_op in output_ops
+        ]
         return tf.stack(loss_ops)
 
     @functools.partial(tf.function, input_signature=input_signature)
@@ -175,9 +177,8 @@ if __name__ == "__main__":
         last_iteration = iteration
 
         inputs_tr, targets_tr = get_data()
-        # print(inputs_tr)
         outputs_tr, loss_tr = update_step(inputs_tr, targets_tr)
-        print(loss_tr)
+
 
         the_time = time.time()
         elapsed_since_last_log = the_time - last_log_time
