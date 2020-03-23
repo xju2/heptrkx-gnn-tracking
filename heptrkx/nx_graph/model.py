@@ -41,22 +41,31 @@ class MLPGraphIndependent(snt.Module):
     return self._network(inputs)
 
 
-# class MLPGraphNetwork(snt.Module):
-#   """GraphNetwork with MLP edge, node, and global models."""
+class MLPInteractionNetwork(snt.Module):
+  """GraphNetwork with MLP edge, node, and global models."""
 
-#   def __init__(self, name="MLPGraphNetwork"):
-#     super(MLPGraphNetwork, self).__init__(name=name)
-#     self._network = modules.GraphNetwork(
-#                   make_mlp_model,
-#                   make_mlp_model,
-#                   make_mlp_model,
-#                   edge_block_opt={"use_globals": False},
-#                   node_block_opt={"use_globals": False},
-#                   global_block_opt={"use_globals": False}
-#                   )
+  def __init__(self, name="MLPInteractionNetwork"):
+    super(MLPInteractionNetwork, self).__init__(name=name)
+    self._network = modules.InteractionNetwork(
+        edge_model_fn=make_mlp_model,
+        node_model_fn=make_mlp_model,
+        reducer=tf.math.unsorted_segment_sum)
 
-#   def __call__(self, inputs):
-#     return self._network(inputs)
+  def __call__(self, inputs):
+    return self._network(inputs)
+
+
+class MLPGraphNetwork(snt.Module):
+  """GraphNetwork with MLP edge, node, and global models."""
+
+  def __init__(self, name="MLPGraphNetwork"):
+    super(MLPGraphNetwork, self).__init__(name=name)
+    self._network = modules.GraphNetwork(make_mlp_model, make_mlp_model,
+                                         make_mlp_model)
+
+  def __call__(self, inputs):
+    return self._network(inputs)
+
 
 class SegmentClassifier(snt.Module):
 
@@ -65,12 +74,9 @@ class SegmentClassifier(snt.Module):
 
     self._encoder = MLPGraphIndependent()
 
-    # self._core = modules.InteractionNetwork(
-    #     edge_model_fn=make_mlp_model,
-    #     node_model_fn=make_mlp_model,
-    #     reducer=tf.math.unsorted_segment_sum
-    # )
-    self._core = MLPGraphIndependent()
+    # self._core = MLPGraphIndependent()
+    self._core = MLPGraphNetwork()
+    # self._core = MLPInteractionNetwork()
 
     self._decoder = modules.GraphIndependent(
         edge_model_fn=make_mlp_model,

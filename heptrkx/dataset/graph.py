@@ -51,9 +51,9 @@ def data_dicts_to_graphs_tuple(input_dd, target_dd, with_batch_dim=True):
     input_graphs = utils_tf.data_dicts_to_graphs_tuple(input_dd)
     target_graphs = utils_tf.data_dicts_to_graphs_tuple(target_dd)
     # fill zeros
-    input_graphs = utils_tf.set_zero_global_features(input_graphs, 1)
-    target_graphs = utils_tf.set_zero_global_features(target_graphs, 1)
-    target_graphs = utils_tf.set_zero_node_features(target_graphs, 1)
+    input_graphs = utils_tf.set_zero_global_features(input_graphs, 1, dtype=tf.float64)
+    target_graphs = utils_tf.set_zero_global_features(target_graphs, 1, dtype=tf.float64)
+    target_graphs = utils_tf.set_zero_node_features(target_graphs, 1, dtype=tf.float64)
     
     # expand dims
     if with_batch_dim:
@@ -163,7 +163,7 @@ def make_graph_ntuples(hits, segments, n_eta, n_phi,
         n_nodes = hit_id.shape[0]
         n_edges = sub_doublets.shape[0]
         nodes = hits[mask][node_features].values.astype(np.float64)
-        edges = sub_doublets[edge_features].values
+        edges = sub_doublets[edge_features].values.astype(np.float64)
         # print(nodes.dtype)
 
         hits_id_dict = {}
@@ -191,7 +191,7 @@ def make_graph_ntuples(hits, segments, n_eta, n_phi,
         }, {
             "n_node": n_nodes,
             'n_edge': n_edges,
-            # 'nodes': None,
+            # 'nodes': None, 
             'edges': np.expand_dims(sub_doublets.solution.values.astype(np.float32), axis=1),
             'senders': senders,
             'receivers': receivers,

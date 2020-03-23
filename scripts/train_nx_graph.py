@@ -164,8 +164,6 @@ if __name__ == "__main__":
     with open(log_name, 'a') as f:
         f.write(out_str)
 
-
-     
     start_time = time.time()
     last_log_time = start_time
     ## loop over iterations, each iteration generating a batch of data for training
@@ -180,8 +178,7 @@ if __name__ == "__main__":
         last_iteration = iteration
 
         inputs_tr, targets_tr = get_data()
-        # print(inputs_tr.n_node, inputs_tr.n_edge)
-        # print(inputs_tr.nodes, inputs_tr.edges)
+        print(inputs_tr)
         outputs_tr, loss_tr = update_step(inputs_tr, targets_tr)
 
         the_time = time.time()
