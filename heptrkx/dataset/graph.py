@@ -50,10 +50,10 @@ def data_dicts_to_graphs_tuple(input_dd, target_dd, with_batch_dim=True):
         
     input_graphs = utils_tf.data_dicts_to_graphs_tuple(input_dd)
     target_graphs = utils_tf.data_dicts_to_graphs_tuple(target_dd)
-    # fill zeros
-    input_graphs = utils_tf.set_zero_global_features(input_graphs, 1, dtype=tf.float64)
-    target_graphs = utils_tf.set_zero_global_features(target_graphs, 1, dtype=tf.float64)
-    target_graphs = utils_tf.set_zero_node_features(target_graphs, 1, dtype=tf.float64)
+    # # fill zeros
+    # input_graphs = utils_tf.set_zero_global_features(input_graphs, 1, dtype=tf.float64)
+    # target_graphs = utils_tf.set_zero_global_features(target_graphs, 1, dtype=tf.float64)
+    # target_graphs = utils_tf.set_zero_node_features(target_graphs, 1, dtype=tf.float64)
     
     # expand dims
     if with_batch_dim:
@@ -155,10 +155,10 @@ def make_graph_ntuples(hits, segments, n_eta, n_phi,
         hit_id = hits[mask].hit_id.values
         sub_doublets = segments[segments.hit_id_in.isin(hit_id) & segments.hit_id_out.isin(hit_id)]
 
+        # TODO: include all edges, uncomment this
         # sub_doublets = segments[segments.hit_id_in.isin(hit_id)]
         # # extend the hits to include the hits used in the sub-doublets.
         # hit_id = hits[mask | hits.hit_id.isin(sub_doublets.hit_id_out.values)].hit_id.values
-
 
         n_nodes = hit_id.shape[0]
         n_edges = sub_doublets.shape[0]
@@ -188,13 +188,15 @@ def make_graph_ntuples(hits, segments, n_eta, n_phi,
             'edges': edges,
             'senders': senders,
             'receivers': receivers,
+            'globals': np.array([0.0])
         }, {
             "n_node": n_nodes,
             'n_edge': n_edges,
-            # 'nodes': None, 
-            'edges': np.expand_dims(sub_doublets.solution.values.astype(np.float32), axis=1),
+            'nodes': np.array([0.0]),
+            'edges': np.expand_dims(sub_doublets.solution.values.astype(np.float16), axis=1),
             'senders': senders,
             'receivers': receivers,
+            'globals': np.array([0.0])
         }, 
         )
 

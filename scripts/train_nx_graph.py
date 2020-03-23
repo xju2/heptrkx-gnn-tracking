@@ -128,10 +128,7 @@ if __name__ == "__main__":
         real_weight = fake_weight = 1.0
 
     def create_loss_ops(target_op, output_ops):
-        loss_ops = [
-            tf.compat.v1.losses.sigmoid_cross_entropy(target_op.edges, output_op.edges)
-            for output_op in output_ops
-        ]
+        loss_ops = [tf.compat.v1.losses.log_loss(target_op.edges, output_op.edges) for output_op in output_ops]
         return tf.stack(loss_ops)
 
     @functools.partial(tf.function, input_signature=input_signature)
@@ -139,10 +136,10 @@ if __name__ == "__main__":
         print("Tracing update_step")
         with tf.GradientTape() as tape:
             outputs_tr = model(inputs_tr, num_processing_steps_tr)
-            loss_op_tr = create_loss_ops(targets_tr, outputs_tr)
-            loss_op_tr = tf.math.reduce_sum(loss_op_tr) / num_processing_steps_tr
+            loss_ops_tr = create_loss_ops(targets_tr, outputs_tr)
+            loss_op_tr = tf.math.reduce_sum(loss_ops_tr) / tf.constant(num_processing_steps_tr, dtype=tf.float32)
 
-        gradients = tape.gradient(loss_op_tr, model.trainable_variables)
+        gradients = tape.gradient(loss_op_tr, model.trainable_variables, unconnected_gradients=tf.UnconnectedGradients.ZERO)
         optimizer.apply(gradients, model.trainable_variables)
         return outputs_tr, loss_op_tr
 
@@ -178,8 +175,9 @@ if __name__ == "__main__":
         last_iteration = iteration
 
         inputs_tr, targets_tr = get_data()
-        print(inputs_tr)
+        # print(inputs_tr)
         outputs_tr, loss_tr = update_step(inputs_tr, targets_tr)
+        print(loss_tr)
 
         the_time = time.time()
         elapsed_since_last_log = the_time - last_log_time
