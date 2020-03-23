@@ -47,6 +47,7 @@ def data_dicts_to_graphs_tuple(input_dd, target_dd, with_batch_dim=True):
         input_dd = [input_dd]
     if type(target_dd) is not list:
         target_dd = [target_dd]
+        
     input_graphs = utils_tf.data_dicts_to_graphs_tuple(input_dd)
     target_graphs = utils_tf.data_dicts_to_graphs_tuple(target_dd)
     # fill zeros
@@ -59,6 +60,55 @@ def data_dicts_to_graphs_tuple(input_dd, target_dd, with_batch_dim=True):
         input_graphs = add_batch_dim(input_graphs)
         target_graphs = add_batch_dim(target_graphs)
     return input_graphs, target_graphs
+
+def specs_from_graphs_tuple(
+    graphs_tuple_sample, with_batch_dim=False,
+    dynamic_num_graphs=False,
+    dynamic_num_nodes=True,
+    dynamic_num_edges=True,
+    description_fn=tf.TensorSpec,
+    ):
+    graphs_tuple_description_fields = {}
+    edge_dim_fields = [graphs.EDGES, graphs.SENDERS, graphs.RECEIVERS]
+
+    for field_name in graphs.ALL_FIELDS:
+        field_sample = getattr(graphs_tuple_sample, field_name)
+        if field_sample is None:
+            raise ValueError(
+                "The `GraphsTuple` field `{}` was `None`. All fields of the "
+                "`GraphsTuple` must be specified to create valid signatures that"
+                "work with `tf.function`. This can be achieved with `input_graph = "
+                "utils_tf.set_zero_{{node,edge,global}}_features(input_graph, 0)`"
+                "to replace None's by empty features in your graph. Alternatively"
+                "`None`s can be replaced by empty lists by doing `input_graph = "
+                "input_graph.replace({{nodes,edges,globals}}=[]). To ensure "
+                "correct execution of the program, it is recommended to restore "
+                "the None's once inside of the `tf.function` by doing "
+                "`input_graph = input_graph.replace({{nodes,edges,globals}}=None)"
+                "".format(field_name))
+
+        shape = list(field_sample.shape)
+        dtype = field_sample.dtype
+
+        # If the field is not None but has no field shape (i.e. it is a constant)
+        # then we consider this to be a replaced `None`.
+        # If dynamic_num_graphs, then all fields have a None first dimension.
+        # If dynamic_num_nodes, then the "nodes" field needs None first dimension.
+        # If dynamic_num_edges, then the "edges", "senders" and "receivers" need
+        # a None first dimension.
+        if shape:
+            if with_batch_dim:
+                shape[1] = None
+            elif (dynamic_num_graphs \
+                or (dynamic_num_nodes \
+                    and field_name == graphs.NODES) \
+                or (dynamic_num_edges \
+                    and field_name in edge_dim_fields)): shape[0] = None
+
+        graphs_tuple_description_fields[field_name] = description_fn(
+            shape=shape, dtype=dtype)
+
+    return graphs.GraphsTuple(**graphs_tuple_description_fields)
 
 
 def dtype_shape_from_graphs_tuple(input_graph, with_batch_dim=False, debug=False):

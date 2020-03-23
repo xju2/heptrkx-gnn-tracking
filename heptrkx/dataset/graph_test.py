@@ -4,6 +4,7 @@ Test make_graph_ntuples
 """
 from heptrkx.dataset.graph import make_graph_ntuples
 from heptrkx.dataset.graph import DoubletGraphGenerator
+from heptrkx.dataset.graph import specs_from_graphs_tuple
 import pandas as pd
 import tensorflow as tf
 
@@ -49,6 +50,24 @@ def test_dataset():
     #         print(input.n_node)
     #         break
 
+def test_signature():
+    with_batch_dim = False
+    graph_gen = DoubletGraphGenerator(2, 8, ['x', 'y', 'z'], ['deta', 'dphi'], \
+        with_batch_dim=with_batch_dim)
+    graph_gen.add_file(hit_file_name, doublet_file_name)
+    in_graphs, out_graphs = graph_gen.create_graph(1, is_training=True)
+
+    input_signature = (
+        specs_from_graphs_tuple(in_graphs, with_batch_dim),
+        specs_from_graphs_tuple(out_graphs, with_batch_dim)
+    )
+    print("Input graph: ", in_graphs)
+    print("Input signature: ", input_signature[0])
+    print("Target graph: ", out_graphs)
+    print("Target signature:", input_signature[1])
+
+
 if __name__ == "__main__":
     # test_graph()
-    test_dataset()
+    # test_dataset()
+    test_signature()

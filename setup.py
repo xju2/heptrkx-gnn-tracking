@@ -43,6 +43,7 @@ setup(
         "Programming Language :: Python :: 3.7",
     ],
     scripts=[
+        'scripts/event_summary.py',
         # select doublets
         'scripts/create_hit_files',
         'scripts/create_predoublets',
@@ -60,7 +61,7 @@ setup(
         'scripts/peek_models',
         'scripts/view_training_log',
         # GNN
-        'scripts/train_nx_graph',
-        'scripts/train_nx_graph_distributed',
+        'scripts/train_nx_graph.py',
+        'scripts/train_nx_graph_distributed.py',
     ],
 )

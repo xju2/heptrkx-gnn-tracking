@@ -12,6 +12,7 @@ import glob
 import re
 import time
 import random
+import functools
 
 import numpy as np
 import sklearn.metrics
@@ -78,11 +79,30 @@ if __name__ == "__main__":
 
     config_tr = config['parameters']
     log_every_seconds       = config_tr['time_lapse']
-    batch_size = n_graphs   = config_tr['batch_size']   # need optimization
+    global_batch_size = n_graphs   = config_tr['batch_size']   # need optimization
     num_training_iterations = config_tr['iterations']
     iter_per_job            = 2500 if 'iter_per_job' not in config_tr else config_tr['iter_per_job']
     num_processing_steps_tr = config_tr['n_iters']      ## level of message-passing
     print("Maximum iterations per job: {}".format(iter_per_job))
+
+    # model and optimizers
+    learning_rate = config_tr['learning_rate']
+    physical_gpus = tf.config.experimental.list_physical_devices("GPU")
+    physical_cpus = tf.config.experimental.list_physical_devices("CPU")
+    print(physical_cpus)
+    n_gpus = len(physical_gpus)
+    if n_gpus > 1:
+        print("Useing SNT Replicator with {} workers".format(n_gpus))
+        strategy = snt.distribute.Replicator(['/device:GPU:{}'.format(i) for i in range(n_gpus)],\
+            tf.distribute.ReductionToOneDevice("GPU:0"))
+    elif n_gpus > 0:
+        strategy = tf.distribute.OneDeviceStrategy("/device:GPU:0")
+    else:
+        strategy = tf.distribute.OneDeviceStrategy("/device:CPU:0")
+
+    with strategy.scope():
+        optimizer = snt.optimizers.Adam(learning_rate)
+        model = get_model(config['model_name'])
 
     # prepare graphs
     print("Node features: ", config['node_features'])
@@ -95,38 +115,38 @@ if __name__ == "__main__":
     for hit_file, doublet_file in zip(config['hit_files'], config['doublet_files']):
         doublet_graphs.add_file(hit_file, doublet_file)
 
-    training_dataset = doublet_graphs.create_dataset()
+
+    # to get signature
+    inputs, targets = doublet_graphs.create_graph(1)
+    inputs = graph.add_batch_dim(inputs)
+    targets = graph.add_batch_dim(targets)
+    input_signature = (
+        graph.specs_from_graphs_tuple(inputs),
+        graph.specs_from_graphs_tuple(targets)
+    )
 
     # this prompt an error
     # Cannot batch tensors with different shapes in component 0.
     # First element had shape [3442,3] and element 1 had shape [3604,3]
     # training_dataset = training_dataset.batch(batch_size) // does not work, batch size moves to data generator
-    training_dataset = training_dataset.prefetch(tf.data.experimental.AUTOTUNE)
-    training_dataset = training_dataset.cache()
-    
-    testing_dataset = doublet_graphs.create_dataset(is_training=False)
-
-    # model and optimizers
-    learning_rate = config_tr['learning_rate']
-    # strategy = tf.distribute.MirroredStrategy()
-    physical_gpus = tf.config.experimental.list_physical_devices("GPU")
-    physical_cpus = tf.config.experimental.list_physical_devices("CPU")
-    print(physical_cpus)
-    n_gpus = len(physical_gpus)
-    if n_gpus > 1:
-        strategy = snt.distribute.Replicator(['/device:GPU:{}'.format(i) for i in range(n_gpus)],\
-            tf.distribute.ReductionToOneDevice("GPU:0"))
-    elif n_gpus > 0:
-        strategy = tf.distribute.OneDeviceStrategy("/device:GPU:0")
-    else:
-        strategy = tf.distribute.OneDeviceStrategy("/device:CPU:0")
-
-    with strategy.scope():
-        optimizer = snt.optimizers.Adam(learning_rate)
-        model = get_model(config['model_name'])
+    # training_dataset = training_dataset.prefetch(tf.data.experimental.AUTOTUNE)
+    # training_dataset = training_dataset.cache()
 
     # distributed dataset
-    dist_training_dataset = strategy.experimental_distribute_dataset(training_dataset)
+    # dist_training_dataset = strategy.experimental_distribute_dataset(training_dataset)
+    def training_data_fn(input_context):
+        dataset = doublet_graphs.create_dataset()
+        batch_size = input_context.get_per_replica_batch_size(global_batch_size)
+        print('batch size per replica: {}, and {} pipelines, and {} pipeline id'.format(
+            batch_size, input_context.num_input_pipelines, input_context.input_pipeline_id
+        ))
+        # d = dataset.prefetch(tf.data.experimental.AUTOTUNE).take(batch_size).cache().repeat()
+        return dataset.shard(input_context.num_input_pipelines, input_context.input_pipeline_id)
+
+    dist_training_dataset = strategy.experimental_distribute_datasets_from_function(training_data_fn)
+
+    testing_dataset = doublet_graphs.create_dataset(is_training=False)
+
 
     # training loss
     if config_tr['real_weight']:
@@ -146,8 +166,11 @@ if __name__ == "__main__":
         ]
         return loss_ops
 
-    @tf.function
+
+
+    @functools.partial(tf.function, input_signature=(input_signature,))
     def train_step(dist_inputs):
+        print("print once")
 
         def update_step(inputs):
             inputs_tr, targets_tr = inputs
@@ -182,65 +205,27 @@ if __name__ == "__main__":
         # mean_loss = strategy.reduce(tf.distribute.ReduceOp.MEAN, per_example_losses, axis=0)
         return mean_loss
 
-    with strategy.scope():
-        for inputs in dist_training_dataset:
-            print(train_step(inputs))
+    # compiled_train_step = tf.function(train_step, input_signature=(input_signature,) )
 
-    # train_fn = update_step
+    def train_epoch(dataset):
+        total_loss = 0.
+        num_batches = 0
+        for inputs in dataset:
+            total_loss += train_step(inputs).numpy()
+            num_batches += 1
 
-    # checkpoint = tf.train.Checkpoint(optimizer=optimizer, model=model)
-    # ckpt_manager = tf.train.CheckpointManager(checkpoint, directory=output_dir, max_to_keep=5)
-    # if os.path.exists(os.path.join(output_dir, ckpt_name)):
-    #     print("Loading latest checkpoint")
-    #     status = checkpoint.restore(ckpt_manager.latest_checkpoint)
+        return total_loss/num_batches
 
-    # logged_iterations = []
-    # losses_tr = []
-    # corrects_tr = []
-    # solveds_tr = []
+    # with strategy.scope():
+        # checkpoint
+    checkpoint = tf.train.Checkpoint(optimizer=optimizer, model=model)
+    ckpt_manager = tf.train.CheckpointManager(checkpoint, directory=output_dir, max_to_keep=5)
+    if os.path.exists(os.path.join(output_dir, ckpt_name)):
+        print("Loading latest checkpoint")
+        status = checkpoint.restore(ckpt_manager.latest_checkpoint)
 
-    # out_str  = time.strftime('%d %b %Y %H:%M:%S', time.localtime())
-    # out_str += '\n'
-    # out_str += "# (iteration number), T (elapsed seconds), Ltr (training loss), Precision, Recall\n"
-    # log_name = os.path.join(output_dir, config['log_name'])
-    # with open(log_name, 'a') as f:
-    #     f.write(out_str)
-
-
-     
-    # start_time = time.time()
-    # last_log_time = start_time
-    # ## loop over iterations, each iteration generating a batch of data for training
-    # iruns = 0
-    # print("# (iteration number), TD (get graph), TR (TF run)")
-    # last_iteration = 0
-    # for iteration in range(last_iteration, num_training_iterations):
-    #     if iruns > iter_per_job:
-    #         print("runs larger than {} iterations per job, stop".format(iter_per_job))
-    #         break
-    #     else: iruns += 1
-    #     last_iteration = iteration
-
-    #     inputs_tr, targets_tr = get_data()
-    #     # print(inputs_tr.n_node, inputs_tr.n_edge)
-    #     # print(inputs_tr.nodes, inputs_tr.edges)
-    #     outputs_tr, loss_tr = train_fn(inputs_tr, targets_tr)
-
-    #     the_time = time.time()
-    #     elapsed_since_last_log = the_time - last_log_time
-
-    #     if elapsed_since_last_log > log_every_seconds:
-    #         # save a checkpoint
-    #         ckpt_manager.save()
-
-    #         last_log_time = the_time
-    #         inputs_te, targets_te = get_test_data()
-    #         outputs_te, loss_te = train_fn(inputs_te, targets_te)
-    #         correct_tr, solved_tr = compute_matrics(targets_te, outputs_te[-1])
-
-    #         elapsed = time.time() - start_time
-    #         logged_iterations.append(iteration)
-    #         out_str = "# {:05d}, T {:.1f}, Ltr {:.4f}, Lge {:.4f}, Precision {:.4f}, Recall {:.4f}".format(
-    #             iteration, elapsed, loss_tr, loss_te,
-    #             correct_tr, solved_tr)
-    #         print(out_str)
+    n_epochs = config_tr['epochs']
+    for epoch in range(n_epochs):
+        print("Training epoch", epoch, "...", end=' ')
+        print("Loss :=", train_epoch(dist_training_dataset))
+        ckpt_manager.save()

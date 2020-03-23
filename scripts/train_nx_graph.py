@@ -12,6 +12,7 @@ import glob
 import re
 import time
 import random
+import functools
 
 import numpy as np
 import sklearn.metrics
@@ -21,7 +22,7 @@ from graph_nets import utils_tf
 from graph_nets import utils_np
 import sonnet as snt
 
-from heptrkx.dataset.graph import DoubletGraphGenerator
+from heptrkx.dataset import graph
 from heptrkx.nx_graph import get_model
 from heptrkx.utils import load_yaml
 # ckpt_name = 'checkpoint_{:05d}.ckpt'
@@ -84,12 +85,17 @@ if __name__ == "__main__":
     num_processing_steps_tr = config_tr['n_iters']      ## level of message-passing
     print("Maximum iterations per job: {}".format(iter_per_job))
 
+    learning_rate = config_tr['learning_rate']
+    optimizer = snt.optimizers.Adam(learning_rate)
+    model = get_model(config['model_name'])
+    with_batch_dim = False
     # prepare graphs
     print("Node features: ", config['node_features'])
     print("Edge features: ", config['edge_features'])
-    doublet_graphs = DoubletGraphGenerator(
+    doublet_graphs = graph.DoubletGraphGenerator(
         config['n_eta'], config['n_phi'],
-        config['node_features'], config['edge_features']
+        config['node_features'], config['edge_features'],
+        with_batch_dim=with_batch_dim
         )
     for hit_file, doublet_file in zip(config['hit_files'], config['doublet_files']):
         doublet_graphs.add_file(hit_file, doublet_file)
@@ -104,10 +110,14 @@ if __name__ == "__main__":
         in_graphs, out_graphs = doublet_graphs.create_graph(batch_size, is_training=False)
         return in_graphs, out_graphs
 
-    # model and optimizers
-    learning_rate = config_tr['learning_rate']
-    optimizer = snt.optimizers.Adam(learning_rate)
-    model = get_model(config['model_name'])
+    # inputs, targets = doublet_graphs.create_graph(batch_size)
+    inputs, targets = get_data()
+    input_signature = (
+        graph.specs_from_graphs_tuple(inputs, with_batch_dim),
+        graph.specs_from_graphs_tuple(targets, with_batch_dim)
+    )
+    print(inputs)
+    print(input_signature[0])
 
     # training loss
     if config_tr['real_weight']:
@@ -118,36 +128,28 @@ if __name__ == "__main__":
 
     def create_loss_ops(target_op, output_ops):
         # only use edges
-        weights = target_op.edges * real_weight + (1 - target_op.edges) * fake_weight
+        weights = target_op * real_weight + (1 - target_op) * fake_weight
         # print(output_ops[0].edges.shape)
         # print(target_op.edges.shape)
         loss_ops = [
-            tf.compat.v1.losses.log_loss(target_op.edges, tf.squeeze(output_op.edges), weights=weights)
+            tf.compat.v1.losses.log_loss(target_op, output_op, weights=weights)
             for output_op in output_ops
         ]
         return loss_ops
 
+    @functools.partial(tf.function, input_signature=input_signature)
     def update_step(inputs_tr, targets_tr):
+        print("print once")
         with tf.GradientTape() as tape:
             outputs_tr = model(inputs_tr, num_processing_steps_tr)
+            outputs_tr = [tf.reshape(x.edges, [-1]) for x in outputs_tr]
+            targets_tr = tf.reshape(targets_tr.edges, [-1])
             loss_ops_tr = create_loss_ops(targets_tr, outputs_tr)
             loss_op_tr = sum(loss_ops_tr) / num_processing_steps_tr
 
         gradients = tape.gradient(loss_op_tr, model.trainable_variables)
         optimizer.apply(gradients, model.trainable_variables)
         return outputs_tr, loss_op_tr
-
-
-    # Get some example data that resembles the tensors that will be fed
-    # into update_step():
-    example_input_data, example_target_data = get_data()
-    # Get the input signature for that function by obtaining the specs
-    input_signature = [
-        utils_tf.specs_from_graphs_tuple(example_input_data),
-        utils_tf.specs_from_graphs_tuple(example_target_data)
-    ]
-    # Compile the update function using the input signature for speedy code.
-    compiled_update_step = tf.function(update_step, input_signature=input_signature)
 
     train_fn = update_step
 
