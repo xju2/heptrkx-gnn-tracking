@@ -92,7 +92,7 @@ if __name__ == "__main__":
     physical_cpus = tf.config.experimental.list_physical_devices("CPU")
     print(physical_cpus)
     n_gpus = len(physical_gpus)
-    with_batch_dim = True
+    with_batch_dim = False
     with_pad = True
     if n_gpus > 1:
         print("Useing SNT Replicator with {} workers".format(n_gpus))
@@ -121,6 +121,7 @@ if __name__ == "__main__":
 
     training_dataset = doublet_graphs.create_dataset(is_training=True)
     training_dataset = training_dataset.prefetch(tf.data.experimental.AUTOTUNE)
+    training_dataset = training_dataset.batch(global_batch_size)
     training_dataset = training_dataset.cache()
 
     # distributed dataset
@@ -135,6 +136,26 @@ if __name__ == "__main__":
         fake_weight = config_tr['fake_weight']
     else:
         real_weight = fake_weight = 1.0
+
+    def __create_loss_ops(target_op, output_ops):
+        loss_ops = []
+        for output_op in output_ops:
+            num_graphs = utils_tf.get_num_graphs(output_op)
+            if with_pad:
+                num_graphs -= 1
+            for igraph in range(num_graphs):
+                target_slice = utils_tf.get_graph(target_op, igraph)
+                output_slice = utils_tf.get_graph(output_op, igraph)
+                weights = target_slice.edges * real_weight + (1 - target_slice.edges) * fake_weight
+                local_loss = tf.compat.v1.losses.log_loss(
+                    target_slice.edges,
+                    output_slice.edges,
+                    weights=weights
+                )
+                tf.print(tf.shape(local_loss))
+                loss_ops.append(local_loss)
+
+        return tf.stack(loss_ops)
 
     def create_loss_ops(target_op, output_ops):
         weights = target_op.edges * real_weight + (1 - target_op.edges) * fake_weight
@@ -177,6 +198,7 @@ if __name__ == "__main__":
         for inputs in dataset:
             print("Step {}".format(num_batches))
             input_tr, target_tr = inputs
+            # print(target_tr)
             total_loss += train_step(input_tr, target_tr).numpy()
             num_batches += 1
         return total_loss/num_batches
