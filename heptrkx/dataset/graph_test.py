@@ -66,8 +66,34 @@ def test_signature():
     print("Target graph: ", out_graphs)
     print("Target signature:", input_signature[1])
 
+def test_mask():
+    with_batch_dim = False
+    with_pad = True
+    graph_gen = DoubletGraphGenerator(2, 8, ['x', 'y', 'z'], ['deta', 'dphi'], \
+        with_batch_dim=with_batch_dim, with_pad=with_pad)
+    graph_gen.add_file(hit_file_name, doublet_file_name)
+
+    input_graph, out_graph = graph_gen.create_graph(1, is_training=True)
+    print("Edges:", out_graph.n_edge)
+
+    row_index = tf.range(tf.math.reduce_sum(out_graph.n_edge))
+    n_valid_edges = out_graph.n_edge[0]
+    mask = tf.cast(row_index < n_valid_edges, tf.float16)
+    mask = tf.expand_dims(mask, axis=1)
+    print("Mask:", mask)
+    print("Mask shape:", tf.shape(mask))
+    print("Edge shape", tf.shape(out_graph.edges))
+    print("Edge:", out_graph.edges)
+
+    real_weight = 100
+    fake_weight = 1.0
+
+    weights = out_graph.edges * real_weight + (1 - out_graph.edges) * fake_weight
+    print("Weight shape:", tf.shape(weights))
+
 
 if __name__ == "__main__":
     # test_graph()
     # test_dataset()
-    test_signature()
+    # test_signature()
+    test_mask()

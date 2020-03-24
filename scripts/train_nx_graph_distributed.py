@@ -71,13 +71,6 @@ if __name__ == "__main__":
     print("[{}] save models at {}".format(prog_name, output_dir))
     os.makedirs(output_dir, exist_ok=True)
 
-    # files = glob.glob(output_dir+"/*.ckpt.meta")
-    # last_iteration = 0 if len(files) < 1 else max([
-    #     int(re.search('checkpoint_([0-9]*).ckpt.meta', os.path.basename(x)).group(1))
-    #     for x in files
-    # ])
-    # print("[{}] last iteration: {}".format(prog_name, last_iteration))
-
     config_tr = config['parameters']
     log_every_seconds       = config_tr['time_lapse']
     global_batch_size = n_graphs   = config_tr['batch_size']   # need optimization
@@ -95,7 +88,8 @@ if __name__ == "__main__":
     with_batch_dim = False
     with_pad = True
     if n_gpus > 1:
-        print("Useing SNT Replicator with {} workers".format(n_gpus))
+        print("Useing SNT Replicator with {} GPUs".format(n_gpus))
+        assert n_gpus == global_batch_size, "batch size {} does not equall to GPUs {}".format(global_batch_size, n_gpus)
         strategy = snt.distribute.Replicator(['/device:GPU:{}'.format(i) for i in range(n_gpus)],\
             tf.distribute.ReductionToOneDevice("GPU:0"))
     elif n_gpus > 0:
@@ -159,6 +153,11 @@ if __name__ == "__main__":
 
     def create_loss_ops(target_op, output_ops):
         weights = target_op.edges * real_weight + (1 - target_op.edges) * fake_weight
+        row_index = tf.range(tf.math.reduce_sum(target_op.n_edge))
+        n_valid_edges = target_op.n_edge[0]
+        mask = tf.cast(row_index < n_valid_edges, tf.float16)
+        mask = tf.expand_dims(mask, axis=1)
+        weights = weights * mask
         loss_ops = [
             tf.compat.v1.losses.log_loss(target_op.edges, output_op.edges, weights=weights)
             for output_op in output_ops
@@ -196,7 +195,7 @@ if __name__ == "__main__":
         total_loss = 0.
         num_batches = 0
         for inputs in dataset:
-            print("Step {}".format(num_batches))
+            # print("Step {}".format(num_batches))
             input_tr, target_tr = inputs
             # print(target_tr)
             total_loss += train_step(input_tr, target_tr).numpy()
