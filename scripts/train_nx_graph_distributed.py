@@ -113,13 +113,16 @@ if __name__ == "__main__":
     for hit_file, doublet_file in zip(config['hit_files'], config['doublet_files']):
         doublet_graphs.add_file(hit_file, doublet_file)
 
+    n_epochs = config_tr['epochs']
+    buffer_size = global_batch_size*2
     training_dataset = doublet_graphs.create_dataset(is_training=True)
     training_dataset = training_dataset.prefetch(tf.data.experimental.AUTOTUNE)
+    training_dataset = training_dataset.repeat(n_epochs)
+    training_dataset = training_dataset.shuffle(buffer_size)
+    training_dataset = training_dataset.cache('./tf.dataset.cache.{}epochs'.format(n_epochs))
     training_dataset = training_dataset.batch(global_batch_size)
-    training_dataset = training_dataset.cache()
 
-    # distributed dataset
-    dist_training_dataset = strategy.experimental_distribute_dataset(training_dataset)
+
 
     testing_dataset = doublet_graphs.create_dataset(is_training=False)
 
@@ -208,8 +211,11 @@ if __name__ == "__main__":
         print("Loading latest checkpoint")
         status = checkpoint.restore(ckpt_manager.latest_checkpoint)
 
-    n_epochs = config_tr['epochs']
     for epoch in range(n_epochs):
         print("Training epoch", epoch, "...", end=' ')
+        training_dataset = training_dataset.shuffle(global_batch_size*2, reshuffle_each_iteration=True)
+        # distributed dataset
+        dist_training_dataset = strategy.experimental_distribute_dataset(training_dataset)
+
         print("Loss :=", train_epoch(dist_training_dataset))
         ckpt_manager.save()
