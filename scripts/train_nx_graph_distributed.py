@@ -117,8 +117,8 @@ if __name__ == "__main__":
     buffer_size = global_batch_size*2
     training_dataset = doublet_graphs.create_dataset(is_training=True)
     training_dataset = training_dataset.prefetch(tf.data.experimental.AUTOTUNE)
-    training_dataset = training_dataset.repeat(n_epochs)
-    training_dataset = training_dataset.shuffle(buffer_size)
+    # training_dataset = training_dataset.repeat(n_epochs)
+    # training_dataset = training_dataset.shuffle(buffer_size)
     training_dataset = training_dataset.cache('./tf.dataset.cache.{}epochs'.format(n_epochs))
     training_dataset = training_dataset.batch(global_batch_size)
 

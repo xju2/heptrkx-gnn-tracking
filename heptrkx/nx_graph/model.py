@@ -27,6 +27,7 @@ def make_mlp_model():
       snt.LayerNorm(axis=-1, create_offset=True, create_scale=True)
   ])
 
+
 class MLPGraphIndependent(snt.Module):
   """GraphIndependent with MLP edge, node, and global models."""
 
@@ -40,8 +41,8 @@ class MLPGraphIndependent(snt.Module):
   def __call__(self, inputs):
     return self._network(inputs)
 
-class SegmentClassifier(snt.Module):
 
+class SegmentClassifier(snt.Module):
   def __init__(self, name="SegmentClassifier"):
     super(SegmentClassifier, self).__init__(name=name)
 

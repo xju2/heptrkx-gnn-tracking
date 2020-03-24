@@ -214,4 +214,3 @@ def plot_ratio(tot, sel, label_tot, label_sel,
     ax1.set_xlabel(xlabel)
     ax1.set_ylabel('ratio')
     plt.savefig(outname)
-
