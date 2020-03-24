@@ -9,6 +9,8 @@ from graph_nets import utils_tf
 from graph_nets import graphs
 import tensorflow as tf
 
+N_MAX_NODES = 6000
+N_MAX_EDGES = 80000
 
 def concat_batch_dim(G):
     """
@@ -48,8 +50,10 @@ def data_dicts_to_graphs_tuple(input_dd, target_dd, with_batch_dim=True):
     if type(target_dd) is not list:
         target_dd = [target_dd]
         
-    input_graphs = utils_tf.data_dicts_to_graphs_tuple(input_dd)
-    target_graphs = utils_tf.data_dicts_to_graphs_tuple(target_dd)
+    # input_graphs = utils_tf.data_dicts_to_graphs_tuple(input_dd)
+    # target_graphs = utils_tf.data_dicts_to_graphs_tuple(target_dd)
+    input_graphs = utils_tf.concat(input_dd, axis=0)
+    target_graphs = utils_tf.concat(target_dd, axis=0)
     # # fill zeros
     # input_graphs = utils_tf.set_zero_global_features(input_graphs, 1, dtype=tf.float64)
     # target_graphs = utils_tf.set_zero_global_features(target_graphs, 1, dtype=tf.float64)
@@ -60,6 +64,29 @@ def data_dicts_to_graphs_tuple(input_dd, target_dd, with_batch_dim=True):
         input_graphs = add_batch_dim(input_graphs)
         target_graphs = add_batch_dim(target_graphs)
     return input_graphs, target_graphs
+
+## TODO place holder for the case PerReplicaSpec is exported.
+def get_signature(graphs_tuple_sample):
+    from graph_nets import graphs
+
+    graphs_tuple_description_fields = {}
+
+    for field_name in graphs.ALL_FIELDS:
+        per_replica_sample = getattr(graphs_tuple_sample, field_name)
+        def spec_from_value(v):
+            shape = list(v.shape)
+            dtype = list(v.dtype)
+            if shape:
+                shape[1] = None
+            return tf.TensorSpec(shape=shape, dtype=dtype)
+
+        per_replica_spec = tf.distribute.values.PerReplicaSpec(
+            *(spec_from_value(v) for v in per_replica_sample.values)
+        )
+
+        graphs_tuple_description_fields[field_name] = per_replica_spec
+    return graphs.GraphsTuple(**graphs_tuple_description_fields)
+
 
 def specs_from_graphs_tuple(
     graphs_tuple_sample, with_batch_dim=False,
@@ -141,11 +168,13 @@ def dtype_shape_from_graphs_tuple(input_graph, with_batch_dim=False, debug=False
 def make_graph_ntuples(hits, segments, n_eta, n_phi,
                     node_features=['r', 'phi', 'z'],
                     edge_features=['deta', 'dphi'],
-                    dphi=0.0, deta=0.0, verbose=False):
+                    dphi=0.0, deta=0.0, with_pad=False, verbose=False):
     phi_range = (-np.pi, np.pi)
     eta_range = (-5, 5)
     phi_edges = np.linspace(*phi_range, num=n_phi+1)
     eta_edges = np.linspace(*eta_range, num=n_eta+1)
+    n_edge_features = len(edge_features)
+    n_node_features = len(node_features)
 
     n_graphs = n_eta * n_phi
     if verbose:
@@ -181,24 +210,52 @@ def make_graph_ntuples(hits, segments, n_eta, n_phi,
             print("\t{} nodes and {} edges".format(n_nodes, n_edges))
         senders = np.array(senders)
         receivers = np.array(receivers)
-        return ({
+        input_datadict = {
             "n_node": n_nodes,
             'n_edge': n_edges,
             'nodes': nodes,
             'edges': edges,
             'senders': senders,
             'receivers': receivers,
-            'globals': np.array([0.0])
-        }, {
+            'globals': np.array([0.0])}
+        target_datadict = {
             "n_node": n_nodes,
             'n_edge': n_edges,
-            'nodes': np.array([0.0]),
+            'nodes': np.zeros((n_nodes, n_node_features)),
             'edges': np.expand_dims(sub_doublets.solution.values.astype(np.float16), axis=1),
             'senders': senders,
             'receivers': receivers,
             'globals': np.array([0.0])
-        }, 
-        )
+        }
+
+        if with_pad:
+            n_nodes_pad = N_MAX_NODES - n_nodes
+            n_edges_pad = N_MAX_EDGES - n_edges
+            input_pad_datadict = {
+                "n_node": n_nodes_pad,
+                "n_edge": n_edges_pad,
+                "nodes": np.zeros((n_nodes_pad, n_node_features)),
+                'edges': np.zeros((n_edges_pad, n_edge_features)),
+                'receivers': np.array([0] * n_edges_pad),
+                'senders': np.array([0] * n_edges_pad),
+                'globals': np.array([0.0])
+            }
+            target_pad_datadict = {
+                "n_node": n_nodes_pad,
+                "n_edge": n_edges_pad,
+                "nodes": np.zeros((n_nodes_pad, n_node_features)),
+                'edges': np.zeros((n_edges_pad, 1), dtype=np.float16),
+                'receivers': np.array([0] * n_edges_pad),
+                'senders': np.array([0] * n_edges_pad),
+                'globals': np.array([0.0])
+            }
+            input_graph = utils_tf.data_dicts_to_graphs_tuple([input_datadict, input_pad_datadict])
+            target_graph = utils_tf.data_dicts_to_graphs_tuple([target_datadict, target_pad_datadict])
+        else:
+            input_graph = utils_tf.data_dicts_to_graphs_tuple([input_datadict])
+            target_graph = utils_tf.data_dicts_to_graphs_tuple([target_datadict])
+        return input_graph, target_graph
+        # add pad graph to have a constant
 
     all_graphs = []
     for i in range(len(phi_edges) - 1):
@@ -212,8 +269,8 @@ def make_graph_ntuples(hits, segments, n_eta, n_phi,
             eta_max += deta
             eta_mask = (hits.eta > eta_min) & (hits.eta < eta_max)
             all_graphs.append(make_subgraph(eta_mask & phi_mask))
-    tot_nodes = sum([x['n_node'] for x, _ in all_graphs])
-    tot_edges = sum([x['n_edge'] for x, _ in all_graphs])
+    tot_nodes = sum([x.n_node for x, _ in all_graphs])
+    tot_edges = sum([x.n_edge for x, _ in all_graphs])
     if verbose:
         print("\t{} nodes and {} edges".format(tot_nodes, tot_edges))
     return all_graphs
@@ -240,7 +297,8 @@ class IndexMgr:
 
 
 class DoubletGraphGenerator:
-    def __init__(self, n_eta, n_phi, node_features, edge_features, with_batch_dim=True, verbose=False):
+    def __init__(self, n_eta, n_phi, node_features, edge_features, \
+        with_batch_dim=True, with_pad=False, verbose=False):
         self.n_eta = n_eta
         self.n_phi = n_phi
         self.node_features = node_features
@@ -254,6 +312,7 @@ class DoubletGraphGenerator:
         self.target_dtype = None
         self.target_shape = None
         self.with_batch_dim = with_batch_dim
+        self.with_pad = with_pad
 
     def add_file(self, hit_file, doublet_file):
         with pd.HDFStore(hit_file, 'r') as hit_store:
@@ -275,6 +334,7 @@ class DoubletGraphGenerator:
                                         self.n_eta, self.n_phi,
                                         node_features=self.node_features,
                                         edge_features=self.edge_features,
+                                        with_pad=self.with_pad,
                                         verbose=self.verbose)
                     self.graphs += all_graphs
                     self.evt_list.append(key)

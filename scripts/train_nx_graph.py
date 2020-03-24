@@ -91,12 +91,14 @@ if __name__ == "__main__":
  
     # prepare graphs
     with_batch_dim = False
+    with_pad = True
     print("Node features: ", config['node_features'])
     print("Edge features: ", config['edge_features'])
     doublet_graphs = graph.DoubletGraphGenerator(
         config['n_eta'], config['n_phi'],
         config['node_features'], config['edge_features'],
-        with_batch_dim=with_batch_dim
+        with_batch_dim=with_batch_dim,
+        with_pad=with_pad
         )
     for hit_file, doublet_file in zip(config['hit_files'], config['doublet_files']):
         doublet_graphs.add_file(hit_file, doublet_file)
@@ -141,7 +143,7 @@ if __name__ == "__main__":
             loss_ops_tr = create_loss_ops(targets_tr, outputs_tr)
             loss_op_tr = tf.math.reduce_sum(loss_ops_tr) / tf.constant(num_processing_steps_tr, dtype=tf.float32)
 
-        gradients = tape.gradient(loss_op_tr, model.trainable_variables, unconnected_gradients=tf.UnconnectedGradients.ZERO)
+        gradients = tape.gradient(loss_op_tr, model.trainable_variables)
         optimizer.apply(gradients, model.trainable_variables)
         return outputs_tr, loss_op_tr
 

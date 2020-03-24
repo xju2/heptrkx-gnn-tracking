@@ -25,6 +25,7 @@ import sonnet as snt
 from heptrkx.dataset import graph
 from heptrkx.nx_graph import get_model
 from heptrkx.utils import load_yaml
+
 # ckpt_name = 'checkpoint_{:05d}.ckpt'
 ckpt_name = 'checkpoint'
 
@@ -92,6 +93,7 @@ if __name__ == "__main__":
     print(physical_cpus)
     n_gpus = len(physical_gpus)
     with_batch_dim = True
+    with_pad = True
     if n_gpus > 1:
         print("Useing SNT Replicator with {} workers".format(n_gpus))
         strategy = snt.distribute.Replicator(['/device:GPU:{}'.format(i) for i in range(n_gpus)],\
@@ -111,39 +113,18 @@ if __name__ == "__main__":
     doublet_graphs = graph.DoubletGraphGenerator(
         config['n_eta'], config['n_phi'],
         config['node_features'], config['edge_features'], 
-        with_batch_dim=with_batch_dim
+        with_batch_dim=with_batch_dim,
+        with_pad=with_pad
         )
     for hit_file, doublet_file in zip(config['hit_files'], config['doublet_files']):
         doublet_graphs.add_file(hit_file, doublet_file)
 
-
-    # to get signature
-    inputs, targets = doublet_graphs.create_graph(batch_size)
-
-    input_signature = (
-        graph.specs_from_graphs_tuple(inputs, with_batch_dim),
-        graph.specs_from_graphs_tuple(targets, with_batch_dim)
-    )
-
-    # this prompt an error
-    # Cannot batch tensors with different shapes in component 0.
-    # First element had shape [3442,3] and element 1 had shape [3604,3]
-    # training_dataset = training_dataset.batch(batch_size) // does not work, batch size moves to data generator
-    # training_dataset = training_dataset.prefetch(tf.data.experimental.AUTOTUNE)
-    # training_dataset = training_dataset.cache()
+    training_dataset = doublet_graphs.create_dataset(is_training=True)
+    training_dataset = training_dataset.prefetch(tf.data.experimental.AUTOTUNE)
+    training_dataset = training_dataset.cache()
 
     # distributed dataset
-    # dist_training_dataset = strategy.experimental_distribute_dataset(training_dataset)
-    def training_data_fn(input_context):
-        dataset = doublet_graphs.create_dataset()
-        batch_size = input_context.get_per_replica_batch_size(global_batch_size)
-        print('batch size per replica: {}, and {} pipelines, and {} pipeline id'.format(
-            batch_size, input_context.num_input_pipelines, input_context.input_pipeline_id
-        ))
-        # d = dataset.prefetch(tf.data.experimental.AUTOTUNE).take(batch_size).cache().repeat()
-        return dataset.shard(input_context.num_input_pipelines, input_context.input_pipeline_id)
-
-    dist_training_dataset = strategy.experimental_distribute_datasets_from_function(training_data_fn)
+    dist_training_dataset = strategy.experimental_distribute_dataset(training_dataset)
 
     testing_dataset = doublet_graphs.create_dataset(is_training=False)
 
@@ -156,40 +137,25 @@ if __name__ == "__main__":
         real_weight = fake_weight = 1.0
 
     def create_loss_ops(target_op, output_ops):
-        # only use edges
-        weights = target_op * real_weight + (1 - target_op) * fake_weight
-        # print(output_ops[0].edges.shape)
-        # print(target_op.edges.shape)
+        weights = target_op.edges * real_weight + (1 - target_op.edges) * fake_weight
         loss_ops = [
-            tf.compat.v1.losses.log_loss(target_op, output_op, weights=weights)
+            tf.compat.v1.losses.log_loss(target_op.edges, output_op.edges, weights=weights)
             for output_op in output_ops
         ]
-        return loss_ops
+        return tf.stack(loss_ops)
 
-
-
-    @functools.partial(tf.function, input_signature=(input_signature,))
-    def train_step(dist_inputs):
-        print("print once")
-
-        def update_step(inputs):
-            inputs_tr, targets_tr = inputs
-            # the distributed dataset introduced an dimension with the size of batch_size
-            # I have to reshape that.
-            # Need to be a bit careful!
+    @tf.function
+    def train_step(inputs_tr, targets_tr):
+        print("Tracing train_step")
+        
+        def update_step(inputs_tr, targets_tr):
+            print("Tracing update_step")
             inputs_tr = graph.concat_batch_dim(inputs_tr)
             targets_tr = graph.concat_batch_dim(targets_tr)
-            # print(inputs_tr)
-            # print(targets_tr)
-
             with tf.GradientTape() as tape:
                 outputs_tr = model(inputs_tr, num_processing_steps_tr)
-                outputs_tr = [tf.reshape(x.edges, [-1]) for x in outputs_tr]
-                targets_tr = tf.reshape(targets_tr.edges, [-1])
-                # print(outputs_tr[0].shape)
-                # print(targets_tr.shape)
                 loss_ops_tr = create_loss_ops(targets_tr, outputs_tr)
-                loss_op_tr = sum(loss_ops_tr) / num_processing_steps_tr
+                loss_op_tr = tf.math.reduce_sum(loss_ops_tr) / tf.constant(num_processing_steps_tr, dtype=tf.float32)
 
             gradients = tape.gradient(loss_op_tr, model.trainable_variables)
             # aggregate the gradients from the full batch.
@@ -200,23 +166,21 @@ if __name__ == "__main__":
             optimizer.apply(gradients, model.trainable_variables)
             return loss_op_tr
 
-        per_example_losses = strategy.experimental_run_v2(update_step, args=(dist_inputs, ))
-        mean_loss = strategy.reduce("sum", per_example_losses, axis=None)
-        # mean_loss = strategy.reduce(tf.distribute.ReduceOp.MEAN, per_example_losses, axis=0)
-        return mean_loss
 
+        per_example_losses = strategy.experimental_run_v2(update_step, args=(inputs_tr,targets_tr))
+        mean_loss = strategy.reduce("sum", per_example_losses, axis=None)
+        return mean_loss
 
     def train_epoch(dataset):
         total_loss = 0.
         num_batches = 0
         for inputs in dataset:
-            total_loss += train_step(inputs).numpy()
+            print("Step {}".format(num_batches))
+            input_tr, target_tr = inputs
+            total_loss += train_step(input_tr, target_tr).numpy()
             num_batches += 1
-
         return total_loss/num_batches
 
-    # with strategy.scope():
-        # checkpoint
     checkpoint = tf.train.Checkpoint(optimizer=optimizer, model=model)
     ckpt_manager = tf.train.CheckpointManager(checkpoint, directory=output_dir, max_to_keep=5)
     if os.path.exists(os.path.join(output_dir, ckpt_name)):
