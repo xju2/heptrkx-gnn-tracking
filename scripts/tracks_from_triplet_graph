@@ -4,6 +4,8 @@ Use Denial's triplet graph as an input
 """
 import pandas as pd
 import numpy as np
+import networkx as nx
+import time
 
 from heptrkx.postprocess import wrangler
 
@@ -20,6 +22,8 @@ if __name__ == "__main__":
     edge_feature = 'solution'
 
     #df.score.plot(kind='hist', logy=True, bins=50)
+    # get rid of most the fake ones
+    df_triplet = df_triplet[df_triplet.score > 0.90]
 
     nodes = np.unique(np.concatenate((df_triplet.d1.values, df_triplet.d2.values)))
     edges = [(e1, e2, {edge_feature: [v]}) for e1, e2, v in zip(
@@ -28,11 +32,15 @@ if __name__ == "__main__":
     G3 = nx.Graph() # triplet graph
     G3.add_nodes_from(nodes)
     G3.add_edges_from(edges)
+    print("{} nodes and {} edges".format(nodes.shape[0], len(edges)))
 
-    tracks = wrangler.get_tracks(G, th=0.99, th_re=0.999, feature_name=edge_feature, with_fit=False)
+    now = time.time()    
+    tracks = wrangler.get_tracks(G3, th=0.99, th_re=0.999, feature_name=edge_feature, with_fit=False)
+    t_get_trkx = time.time() - now
+    print("{} mins to get tracks".format(t_get_trkx/60))
     
     results = []
-    for itrk, track in enumerate(nx_graphs):
+    for itrk, track in enumerate(tracks):
         results += [(track.node[x], itrk) for x in track.nodes()]
 
     df_tracks = pd.DataFrame(results, columns=['node_id', 'track_id'])
