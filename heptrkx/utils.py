@@ -9,6 +9,8 @@ import pandas as pd
 import yaml
 import os
 
+import networkx as nx
+
 import matplotlib.pyplot as plt
 
 def evtids_at_disk(evt_dir):
@@ -118,3 +120,8 @@ def is_df_there(file_name):
         else:
             res = True
     return res
+
+def is_diff_networkx(g1, g2):
+    m1 = nx.to_numpy_matrix(g1)
+    m2 = nx.to_numpy_matrix(g2)
+    return m1 == m2

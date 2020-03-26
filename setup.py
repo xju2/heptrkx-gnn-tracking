@@ -63,5 +63,7 @@ setup(
         # GNN
         'scripts/train_nx_graph.py',
         'scripts/train_nx_graph_distributed.py',
+        # track candidates
+        'scripts/tracks_from_triplet_graph.py'
     ],
 )

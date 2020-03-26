@@ -2,7 +2,7 @@ from __future__ import absolute_import
 import pandas as pd
 import numpy as np
 
-from heptrkx.nx_graph import utils_data
+from heptrkx import utils
 
 from trackml.score import score_event
 from trackml.score import _analyze_tracks as analyze_tracks
@@ -205,7 +205,7 @@ def trk_eff_purity(true_tracks, predict_tracks):
     for true_track in true_tracks:
         is_same = False
         for tt in predict_tracks:
-            if not utils_data.is_diff_networkx(true_track, tt):
+            if not utils.is_diff_networkx(true_track, tt):
                 is_same = True
                 break
         if is_same :
@@ -218,7 +218,7 @@ def trk_eff_purity(true_tracks, predict_tracks):
     for track in predict_tracks:
         is_true = False
         for tt in true_tracks:
-            if not utils_data.is_diff_networkx(track, tt):
+            if not utils.is_diff_networkx(track, tt):
                 is_true = True
                 break
         if is_true:

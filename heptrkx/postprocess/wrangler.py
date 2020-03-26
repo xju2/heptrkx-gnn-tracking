@@ -1,5 +1,5 @@
 
-from heptrkx.postprocess import utils_fit
+# from heptrkx.postprocess import trackfitter
 from heptrkx import pairwise
 
 import networkx as nx
@@ -24,13 +24,10 @@ def find_next_hits(G, pp, used_hits, th=0.1, th_re=0.8, feature_name='solution')
     next_hits = [nbrs[sorted_idx[0]]]
 
     if len(sorted_idx) > 1:
-        for ii in range(1, len(sorted_idx)):
-            idx = sorted_idx[ii]
-            w = weights[idx]
-            if w > th_re:
-                next_hits.append(nbrs[idx])
-            else:
-                break
+        other_hits = [nbrs[sorted_idx[ii]] for ii in range(1, len(sorted_idx)) \
+            if weights[sorted_idx[ii]] > th_re
+            ]
+        next_hits += other_hits
 
     return next_hits
 
@@ -79,17 +76,11 @@ def fit_road(G, road):
     """use a linear function to fit phi as a function of z."""
     road_chi2 = []
     for path in road:
-        z   = np.array([G.node[i]['pos'][2] for i in path[:-1]])
-        phi = np.array([G.node[i]['pos'][1] for i in path[:-1]])
-        if len(z) > 1:
-            _, _, diff = utils_fit.poly_fit_phi(z, phi)
-            road_chi2.append(np.sum(diff)/len(z))
-        else:
-            road_chi2.append(1)
-
+        x = np.array([G.node[i]['pos'][0] for i in path[:-1]])
+        y = np.array([G.node[i]['pos'][1] for i in path[:-1]])
+        z = np.array([G.node[i]['pos'][2] for i in path[:-1]])
+        road_chi2.append(1.)
     return road_chi2
-
-
 
 def chose_a_road(road, diff):
     res = road[0]
@@ -102,7 +93,7 @@ def chose_a_road(road, diff):
     return res
 
 
-def get_tracks(G, th=0.1, th_re=0.8, feature_name='solution', with_fit=True):
+def get_tracks(G, th=0.1, th_re=0.8, feature_name='solution', with_fit=True, min_hits=3):
     """
     Don't use nx.MultiGraphs
     """
@@ -116,7 +107,7 @@ def get_tracks(G, th=0.1, th_re=0.8, feature_name='solution', with_fit=True):
         diff = fit_road(G, road) if with_fit else [0.]*len(road)
         a_road = chose_a_road(road, diff)
 
-        if len(a_road) < 3:
+        if len(a_road) < min_hits:
             used_nodes.append(node)
             sub_graphs.append(G.subgraph([node]))
             continue
