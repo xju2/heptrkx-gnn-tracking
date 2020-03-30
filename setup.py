@@ -19,7 +19,7 @@ setup(
     url="https://github.com/xju2/hep-gnn-tracking",
     packages=find_packages(),
     install_requires=[
-        "graph_nets",
+        "graph_nets>=1.1",
         'gast',
         "future",
         "networkx",
@@ -36,7 +36,7 @@ setup(
         # 'h5py',
     ],
     extras_require={
-        "tensorflow": ['tensorflow>=2.0'],
+        "tensorflow": ['tensorflow>=2.1'],
     },
     setup_requires=['trackml'],
     classifiers=[

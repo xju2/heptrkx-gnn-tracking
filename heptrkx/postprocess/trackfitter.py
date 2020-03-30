@@ -26,16 +26,17 @@ def conformal_mapping(x, y, z):
     e = -pp[0] / (R/b)**3 # approximately equals to d0
     magnetic_filed = 2.0
     pT = 0.3*magnetic_filed*R/1000 # in GeV
+    # print(a, b, R, e, pT)
 
-    p_rz = np.polyfit(np.sqrt(r), z, 1)
+    p_rz = np.polyfit(np.sqrt(r), z, 2)
     pp_rz = np.poly1d(p_rz)
-    z0 = pp_rz(e)
+    z0 = pp_rz(abs(e))
 
     r3 = np.sqrt(r + z**2)
-    p_zr0 = np.polyfit(r3, z, 1)
-    p_zr = p_zr0[0]
-    theta = np.arccos(p_zr[0])
+    p_zr = np.polyfit(r3, z, 2)
+    cos_val = p_zr[0]*z0 + p_zr[1]
+    theta = np.arccos(cos_val)
     eta = -np.log(np.tan(theta/2.))
-    phi = math.arccos(b, a) * math.copysign(b)
+    phi = math.atan2(b, a)
 
     return e, z0, eta, phi, pT

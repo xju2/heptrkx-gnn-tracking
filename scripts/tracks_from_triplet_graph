@@ -23,7 +23,7 @@ if __name__ == "__main__":
 
     #df.score.plot(kind='hist', logy=True, bins=50)
     # get rid of most the fake ones
-    df_triplet = df_triplet[df_triplet.score > 0.90]
+    df_triplet = df_triplet[df_triplet.score > 0.05]
 
     nodes = np.unique(np.concatenate((df_triplet.d1.values, df_triplet.d2.values)))
     edges = [(e1, e2, {edge_feature: [v]}) for e1, e2, v in zip(
@@ -35,13 +35,14 @@ if __name__ == "__main__":
     print("{} nodes and {} edges".format(nodes.shape[0], len(edges)))
 
     now = time.time()    
-    tracks = wrangler.get_tracks(G3, th=0.99, th_re=0.999, feature_name=edge_feature, with_fit=False)
+    tracks = wrangler.get_tracks(G3, th=0.2, th_re=0.95, feature_name=edge_feature, with_fit=False)
     t_get_trkx = time.time() - now
     print("{} mins to get tracks".format(t_get_trkx/60))
     
     results = []
     for itrk, track in enumerate(tracks):
-        results += [(track.node[x], itrk) for x in track.nodes()]
+        results += [(track, itrk) for x in track.nodes()]
 
     df_tracks = pd.DataFrame(results, columns=['node_id', 'track_id'])
-    print(df_tracks.head())
+    df_tracks.to_csv("track_candidates.csv")
+    # print(df_tracks.head())
