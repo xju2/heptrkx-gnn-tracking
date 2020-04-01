@@ -8,9 +8,10 @@ import random
 from graph_nets import utils_tf
 from graph_nets import graphs
 import tensorflow as tf
+import time
 
-N_MAX_NODES = 6000
-N_MAX_EDGES = 80000
+N_MAX_NODES = 3500
+N_MAX_EDGES = 56500
 
 def concat_batch_dim(G):
     """
@@ -184,7 +185,7 @@ def make_graph_ntuples(hits, segments, n_eta, n_phi,
         hit_id = hits[mask].hit_id.values
         sub_doublets = segments[segments.hit_id_in.isin(hit_id) & segments.hit_id_out.isin(hit_id)]
 
-        # TODO: include all edges, uncomment this
+        # TODO: include all edges, uncomment following lines. <>
         # sub_doublets = segments[segments.hit_id_in.isin(hit_id)]
         # # extend the hits to include the hits used in the sub-doublets.
         # hit_id = hits[mask | hits.hit_id.isin(sub_doublets.hit_id_out.values)].hit_id.values
@@ -195,17 +196,11 @@ def make_graph_ntuples(hits, segments, n_eta, n_phi,
         edges = sub_doublets[edge_features].values.astype(np.float64)
         # print(nodes.dtype)
 
-        hits_id_dict = {}
-        for idx in range(n_nodes):
-            hits_id_dict[hit_id[idx]] = idx
-
-        senders = []
-        receivers = []
+        hits_id_dict = dict([(hit_id[idx], idx) for idx in range(n_nodes)])
         in_hit_ids = sub_doublets.hit_id_in.values
         out_hit_ids = sub_doublets.hit_id_out.values
-        for idx in range(n_edges):
-            senders.append( hits_id_dict[in_hit_ids[idx]] )
-            receivers.append( hits_id_dict[out_hit_ids[idx]] )
+        senders   = [hits_id_dict[in_hit_ids[idx]]  for idx in range(n_edges)]
+        receivers = [hits_id_dict[out_hit_ids[idx]] for idx in range(n_edges)]
         if verbose:
             print("\t{} nodes and {} edges".format(n_nodes, n_edges))
         senders = np.array(senders)
@@ -315,6 +310,7 @@ class DoubletGraphGenerator:
         self.with_pad = with_pad
 
     def add_file(self, hit_file, doublet_file):
+        now = time.time()
         with pd.HDFStore(hit_file, 'r') as hit_store:
             n_evts = len(list(hit_store.keys()))
             with pd.HDFStore(doublet_file, 'r') as doublet_store:
@@ -322,6 +318,7 @@ class DoubletGraphGenerator:
                 for key in hit_store.keys(): # loop over events
                     doublets = []
                     try:
+                        # FIXME: hardced 9 layers. <>
                         for ipair in range(9):
                             pair_key = key+'/pair{}'.format(ipair)
                             doublets.append(doublet_store[pair_key])
@@ -341,7 +338,8 @@ class DoubletGraphGenerator:
 
         self.tot_data = len(self.graphs)
         self.idx_mgr = IndexMgr(self.tot_data)
-        print("DoubletGraphGenerator added {} events, Total {} graphs".format(n_evts, len(self.graphs)))
+        read_time = time.time() - now
+        print("DoubletGraphGenerator added {} events, Total {} graphs, in {:.1f} mins".format(n_evts, len(self.graphs), read_time/60.))
 
     def _get_signature(self):
         if self.input_dtype and self.target_dtype:

@@ -213,7 +213,7 @@ class Event(object):
 
 
     def cluster_info(self, detector_dir, inplace=True):
-        if not self._detector:
+        if self._detector is None:
             self._detector = pd.read_csv(os.path.expandvars(detector_dir))
         df_hits = self._hits
         cells = self._cells

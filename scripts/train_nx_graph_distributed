@@ -119,10 +119,8 @@ if __name__ == "__main__":
     training_dataset = training_dataset.prefetch(tf.data.experimental.AUTOTUNE)
     # training_dataset = training_dataset.repeat(n_epochs)
     # training_dataset = training_dataset.shuffle(buffer_size)
-    training_dataset = training_dataset.cache('./tf.dataset.cache.{}epochs'.format(n_epochs))
+    # training_dataset = training_dataset.cache('./tf.dataset.cache.{}epochs'.format(n_epochs))
     training_dataset = training_dataset.batch(global_batch_size)
-
-
 
     testing_dataset = doublet_graphs.create_dataset(is_training=False)
 
@@ -207,15 +205,18 @@ if __name__ == "__main__":
 
     checkpoint = tf.train.Checkpoint(optimizer=optimizer, model=model)
     ckpt_manager = tf.train.CheckpointManager(checkpoint, directory=output_dir, max_to_keep=5)
-    if os.path.exists(os.path.join(output_dir, ckpt_name)):
-        print("Loading latest checkpoint")
-        status = checkpoint.restore(ckpt_manager.latest_checkpoint)
+    # if os.path.exists(os.path.join(output_dir, ckpt_name)):
+    print("Loading latest checkpoint")
+    status = checkpoint.restore(ckpt_manager.latest_checkpoint)
 
+    now = time.time()
     for epoch in range(n_epochs):
         print("Training epoch", epoch, "...", end=' ')
         training_dataset = training_dataset.shuffle(global_batch_size*2, reshuffle_each_iteration=True)
         # distributed dataset
         dist_training_dataset = strategy.experimental_distribute_dataset(training_dataset)
-
-        print("Loss :=", train_epoch(dist_training_dataset))
+        loss = train_epoch(dist_training_dataset)
+        this_epoch = time.time()
+        print("{:.2f} mins, Loss := {}".format((this_epoch-now)/60., loss/global_batch_size))
+        now = this_epoch
         ckpt_manager.save()

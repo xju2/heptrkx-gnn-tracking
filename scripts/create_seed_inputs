@@ -26,7 +26,10 @@ if __name__ == "__main__":
     data_dir = args.data
     n_events = args.nevts
     event = master.Event(data_dir)
-    for idx in range(n_events):
+    evts_produced = 0
+    idx = -1
+    while evts_produced < n_events:
+        idx += 1
         evtid = args.start_evt_id + idx
         if not event.read(evtid):
             print("Event {} not there".format(evtid))
@@ -36,7 +39,9 @@ if __name__ == "__main__":
             event.filter_hits(layers)
 
         hits = event.hits
+        # resolution of x = pitch / sqrt(12) = 0.05 mm / sqrt(12) = 0.0144
         output_hits = hits[['hit_id', 'layer', 'x', 'y', 'z']].assign(
             lxyz='lxyz', covr=0.01, covz=0.05)
         out_name = 'hits4seeding_{}.csv'.format(evtid)
         output_hits[['lxyz', 'hit_id', 'layer', 'x', 'y', 'z', 'covr', 'covz']].to_csv(out_name, header=False, index=False, sep=" ")
+        evts_produced += 1

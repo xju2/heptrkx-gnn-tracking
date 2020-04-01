@@ -60,10 +60,11 @@ setup(
         # random
         'scripts/peek_models',
         'scripts/view_training_log',
+        'scripts/trim_doublets',
         # GNN
         'scripts/train_nx_graph',
         'scripts/train_nx_graph_distributed',
         # track candidates
-        'scripts/tracks_from_triplet_graph'
+        'scripts/tracks_from_triplet_graph',
     ],
 )
