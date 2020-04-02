@@ -27,3 +27,8 @@ def ratio_error(a, b, in_percentage=False):
         ratio *= 100
     error = ratio * math.sqrt((a+b)/(a*b))
     return ratio, error
+
+def cov_r(x, y, xe, ye):
+    r = math.sqrt(x**2 + y**2)
+    dr = math.sqrt(x**2/r**2 * xe**2 + y**2/r**2 * ye**2)
+    return r, dr

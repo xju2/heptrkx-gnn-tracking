@@ -75,6 +75,7 @@ if __name__ == "__main__":
 
     outname = output+'.h5'
     if os.path.exists(outname) and not args.redo:
+        print("output {} is there, use --redo to update the results".format(outname))
         with pd.HDFStore(outname, 'r') as store:
             df_summary = store['summary']
             df_tot = store['tot']
