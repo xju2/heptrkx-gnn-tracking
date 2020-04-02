@@ -59,6 +59,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Train nx-graph with configurations')
     add_arg = parser.add_argument
     add_arg('config', help='configuration file')
+    add_arg('--tpu', help='use tpu', default=None)
     args = parser.parse_args()
 
     all_config = load_yaml(args.config)
@@ -83,11 +84,18 @@ if __name__ == "__main__":
     learning_rate = config_tr['learning_rate']
     physical_gpus = tf.config.experimental.list_physical_devices("GPU")
     physical_cpus = tf.config.experimental.list_physical_devices("CPU")
-    print(physical_cpus)
+    physical_tpus = tf.config.experimental.list_physical_devices("TPU")
+    print("{} CPUs, {} GPUs and {} TPUs".format(
+        len(physical_cpus), len(physical_gpus), len(physical_tpus)))
     n_gpus = len(physical_gpus)
     with_batch_dim = False
     with_pad = True
-    if n_gpus > 1:
+    if args.tpu is not None:
+        resolver = tf.distribute.cluster_resolver.TPUClusterResolver(tpu=args.tpu)
+        tf.config.experimental_connect_to_cluster(resolver)
+        tf.tpu.experimental.initialize_tpu_system(resolver)
+        strategy = tf.distribute.experimental.TPUStrategy(resolver)
+    elif n_gpus > 1:
         print("Useing SNT Replicator with {} GPUs".format(n_gpus))
         assert n_gpus == global_batch_size, "batch size {} does not equall to GPUs {}".format(global_batch_size, n_gpus)
         strategy = snt.distribute.Replicator(['/device:GPU:{}'.format(i) for i in range(n_gpus)],\

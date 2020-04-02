@@ -66,6 +66,16 @@ def dtype_shape_from_graphs_tuple(
     
     return graphs_tuple_dtype, graphs_tuple_shape
 
+def test_tpu():
+    resolver = tf.distribute.cluster_resolver.TPUClusterResolver(
+        tpu='feynman-tpu', 
+        # zone='us-central1-a',
+        # project='elegant-matrix-272417'
+    )
+    tf.config.experimental_connect_to_cluster(resolver)
+    tf.tpu.experimental.initialize_tpu_system(resolver)
+    strategy = tf.distribute.experimental.TPUStrategy(resolver)
+    print(strategy)
 
 def main():
     all_graphs = test_graph()
@@ -81,4 +91,5 @@ def main():
 if __name__ == "__main__":
     # test_gen()
     # test_gen_dict()
-    main()
+    # main()
+    test_tpu()
