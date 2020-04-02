@@ -62,6 +62,7 @@ if __name__ == "__main__":
     add_arg('--tpu', help='use tpu', default=None)
     args = parser.parse_args()
 
+    print(args.config)
     all_config = load_yaml(args.config)
     config = all_config['gnn_training']
 
@@ -91,7 +92,11 @@ if __name__ == "__main__":
     with_batch_dim = False
     with_pad = True
     if args.tpu is not None:
-        resolver = tf.distribute.cluster_resolver.TPUClusterResolver(tpu=args.tpu)
+        if args.tpu == 'colab':
+            resolver = tf.distribute.cluster_resolver.TPUClusterResolver()
+        else:
+            resolver = tf.distribute.cluster_resolver.TPUClusterResolver(tpu=args.tpu)
+        print('Running on TPU ', resolver.cluster_spec().as_dict()['worker'])
         tf.config.experimental_connect_to_cluster(resolver)
         tf.tpu.experimental.initialize_tpu_system(resolver)
         strategy = tf.distribute.experimental.TPUStrategy(resolver)
@@ -124,11 +129,13 @@ if __name__ == "__main__":
     n_epochs = config_tr['epochs']
     buffer_size = global_batch_size*2
     training_dataset = doublet_graphs.create_dataset(is_training=True)
-    training_dataset = training_dataset.prefetch(tf.data.experimental.AUTOTUNE)
+    training_dataset = training_dataset.repeat().shuffle(2048).batch(global_batch_size).prefetch(tf.data.experimental.AUTOTUNE)
+    # training_dataset = training_dataset.prefetch(tf.data.experimental.AUTOTUNE)
     # training_dataset = training_dataset.repeat(n_epochs)
     # training_dataset = training_dataset.shuffle(buffer_size)
     # training_dataset = training_dataset.cache('./tf.dataset.cache.{}epochs'.format(n_epochs))
-    training_dataset = training_dataset.batch(global_batch_size)
+    # training_dataset = training_dataset.cache()
+    # training_dataset = training_dataset.batch(global_batch_size)
 
     testing_dataset = doublet_graphs.create_dataset(is_training=False)
 

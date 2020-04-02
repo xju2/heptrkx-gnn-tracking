@@ -22,7 +22,8 @@ def evtids_at_disk(evt_dir):
 
 
 def load_yaml(file_name):
-    assert(os.path.exists(file_name))
+    if not os.path.exists(file_name):
+        raise NameError("{} not there".format(file_name))
     with open(file_name) as f:
         return yaml.load(f, Loader=yaml.FullLoader)
 
