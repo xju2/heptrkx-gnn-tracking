@@ -13,6 +13,52 @@ import time
 N_MAX_NODES = 3500
 N_MAX_EDGES = 56500
 
+
+graph_types_in = {
+    'n_node': tf.int32,
+    'n_edge': tf.int32,
+    'nodes': tf.float64,
+    'edges': tf.float64,
+    'receivers': tf.int32,
+    'senders': tf.int32,
+    'globals': tf.float64,
+}
+# NOTE: edges_OUT is with type tf.float16 <xju>
+graph_types_out = {
+    'n_node': tf.int32,
+    'n_edge': tf.int32,
+    'nodes': tf.float64,
+    'edges': tf.float16,
+    'receivers': tf.int32,
+    'senders': tf.int32,
+    'globals': tf.float64,
+}
+def parse_tfrec_function(example_proto):
+    features_description = dict(
+        [(key+"_IN",  tf.io.FixedLenFeature([], tf.string)) for key in graphs.ALL_FIELDS] + 
+        [(key+"_OUT", tf.io.FixedLenFeature([], tf.string)) for key in graphs.ALL_FIELDS])
+
+    example = tf.io.parse_single_example(example_proto, features_description)
+    input_dd = dict([(key, tf.io.parse_tensor(example[key+"_IN"], graph_types_in[key]))
+        for key in graphs.ALL_FIELDS])
+    out_dd = dict([(key, tf.io.parse_tensor(example[key+"_OUT"], graph_types_out[key]))
+        for key in graphs.ALL_FIELDS])
+    return input_dd, out_dd
+
+def _bytes_feature(value):
+  """Returns a bytes_list from a string / byte."""
+  if isinstance(value, type(tf.constant(0))):
+    value = value.numpy() # BytesList won't unpack a string from an EagerTensor.
+  return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
+
+def serialize_graph(G1, G2):
+    feature = {}
+    for key in graphs.ALL_FIELDS:
+        feature[key+"_IN"] = _bytes_feature(tf.io.serialize_tensor(getattr(G1, key)))
+        feature[key+"_OUT"] = _bytes_feature(tf.io.serialize_tensor(getattr(G2, key)))
+    example_proto = tf.train.Example(features=tf.train.Features(feature=feature))
+    return example_proto.SerializeToString()
+
 def concat_batch_dim(G):
     """
     G is a GraphNtuple Tensor, with additional dimension for batch-size.
@@ -46,10 +92,10 @@ def add_batch_dim(G, axis=0):
 
 
 def data_dicts_to_graphs_tuple(input_dd, target_dd, with_batch_dim=True):
-    if type(input_dd) is not list:
-        input_dd = [input_dd]
-    if type(target_dd) is not list:
-        target_dd = [target_dd]
+    # if type(input_dd) is not list:
+    #     input_dd = [input_dd]
+    # if type(target_dd) is not list:
+    #     target_dd = [target_dd]
         
     # input_graphs = utils_tf.data_dicts_to_graphs_tuple(input_dd)
     # target_graphs = utils_tf.data_dicts_to_graphs_tuple(target_dd)
@@ -139,7 +185,7 @@ def specs_from_graphs_tuple(
     return graphs.GraphsTuple(**graphs_tuple_description_fields)
 
 
-def dtype_shape_from_graphs_tuple(input_graph, with_batch_dim=False, debug=False):
+def dtype_shape_from_graphs_tuple(input_graph, with_batch_dim=False, with_padding=True, debug=False):
     graphs_tuple_dtype = {}
     graphs_tuple_shape = {}
 
@@ -148,9 +194,9 @@ def dtype_shape_from_graphs_tuple(input_graph, with_batch_dim=False, debug=False
         field_sample = getattr(input_graph, field_name)
         shape = list(field_sample.shape)
         dtype = field_sample.dtype
-        # print(field_name, shape, dtype)
+        print(field_name, shape, dtype)
 
-        if shape:
+        if shape and not with_padding:
             if with_batch_dim:
                 shape[1] = None
             else:
@@ -182,6 +228,7 @@ def make_graph_ntuples(hits, segments, n_eta, n_phi,
         print("{} graphs".format(n_graphs))
 
     def make_subgraph(mask):
+        f_dtype = np.float64
         hit_id = hits[mask].hit_id.values
         sub_doublets = segments[segments.hit_id_in.isin(hit_id) & segments.hit_id_out.isin(hit_id)]
 
@@ -192,8 +239,8 @@ def make_graph_ntuples(hits, segments, n_eta, n_phi,
 
         n_nodes = hit_id.shape[0]
         n_edges = sub_doublets.shape[0]
-        nodes = hits[mask][node_features].values.astype(np.float64)
-        edges = sub_doublets[edge_features].values.astype(np.float64)
+        nodes = hits[mask][node_features].values.astype(f_dtype)
+        edges = sub_doublets[edge_features].values.astype(f_dtype)
         # print(nodes.dtype)
 
         hits_id_dict = dict([(hit_id[idx], idx) for idx in range(n_nodes)])
@@ -216,8 +263,8 @@ def make_graph_ntuples(hits, segments, n_eta, n_phi,
         target_datadict = {
             "n_node": n_nodes,
             'n_edge': n_edges,
-            'nodes': np.zeros((n_nodes, n_node_features)),
-            'edges': np.expand_dims(sub_doublets.solution.values.astype(np.float32), axis=1),
+            'nodes': np.zeros((n_nodes, n_node_features), dtype=f_dtype),
+            'edges': np.expand_dims(sub_doublets.solution.values.astype(f_dtype), axis=1),
             'senders': senders,
             'receivers': receivers,
             'globals': np.array([0.0])
@@ -229,8 +276,8 @@ def make_graph_ntuples(hits, segments, n_eta, n_phi,
             input_pad_datadict = {
                 "n_node": n_nodes_pad,
                 "n_edge": n_edges_pad,
-                "nodes": np.zeros((n_nodes_pad, n_node_features)),
-                'edges': np.zeros((n_edges_pad, n_edge_features)),
+                "nodes": np.zeros((n_nodes_pad, n_node_features), dtype=f_dtype),
+                'edges': np.zeros((n_edges_pad, n_edge_features), dtype=f_dtype),
                 'receivers': np.array([0] * n_edges_pad),
                 'senders': np.array([0] * n_edges_pad),
                 'globals': np.array([0.0])
@@ -238,11 +285,11 @@ def make_graph_ntuples(hits, segments, n_eta, n_phi,
             target_pad_datadict = {
                 "n_node": n_nodes_pad,
                 "n_edge": n_edges_pad,
-                "nodes": np.zeros((n_nodes_pad, n_node_features)),
-                'edges': np.zeros((n_edges_pad, 1), dtype=np.float32),
+                "nodes": np.zeros((n_nodes_pad, n_node_features), dtype=f_dtype),
+                'edges': np.zeros((n_edges_pad, 1), dtype=f_dtype),
                 'receivers': np.array([0] * n_edges_pad),
                 'senders': np.array([0] * n_edges_pad),
-                'globals': np.array([0.0])
+                'globals': np.array([0.0], dtype=f_dtype)
             }
             input_graph = utils_tf.data_dicts_to_graphs_tuple([input_datadict, input_pad_datadict])
             target_graph = utils_tf.data_dicts_to_graphs_tuple([target_datadict, target_pad_datadict])
@@ -308,6 +355,7 @@ class DoubletGraphGenerator:
         self.target_shape = None
         self.with_batch_dim = with_batch_dim
         self.with_pad = with_pad
+        self.tf_record_idx = 0
 
     def add_file(self, hit_file, doublet_file):
         now = time.time()
@@ -357,7 +405,7 @@ class DoubletGraphGenerator:
             min_idx, max_idx = int(self.tot_data*0.8), self.tot_data-1
 
         for idx in range(min_idx, max_idx):
-            yield data_dicts_to_graphs_tuple(self.graphs[idx][0], self.graphs[idx][1], self.with_batch_dim)
+            yield data_dicts_to_graphs_tuple([self.graphs[idx][0]], [self.graphs[idx][1]], self.with_batch_dim)
 
 
     def create_dataset(self, is_training=True):
@@ -386,3 +434,30 @@ class DoubletGraphGenerator:
             targets.append(target_dd)
 
         return data_dicts_to_graphs_tuple(inputs, targets, self.with_batch_dim)
+
+    
+    def write_tfrecord(self, filename, n_evts_per_record=10):
+        self._get_signature()
+        def generator():
+            for G in self.graphs:
+                yield data_dicts_to_graphs_tuple([G[0]], [G[1]], self.with_batch_dim)
+        dataset = tf.data.Dataset.from_generator(
+            generator,
+            output_types=(self.input_dtype, self.target_dtype),
+            output_shapes=(self.input_shape, self.target_shape),
+            args=None
+        )
+
+        n_graphs_per_evt = self.n_eta * self.n_phi
+        n_evts = int(self.tot_data//n_graphs_per_evt)
+        n_files = n_evts//n_evts_per_record
+        if n_evts%n_evts_per_record > 0:
+            n_files += 1
+
+        for ifile in range(n_files):
+            outname = "{}_{}.tfrec".format(filename, ifile)
+            print("Writing to {}".format(outname))
+            with tf.io.TFRecordWriter(outname) as writer:
+                for data in dataset:
+                    example = serialize_graph(*data)
+                    writer.write(example)

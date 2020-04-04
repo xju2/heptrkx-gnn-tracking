@@ -5,12 +5,19 @@ Test make_graph_ntuples
 from heptrkx.dataset.graph import make_graph_ntuples
 from heptrkx.dataset.graph import DoubletGraphGenerator
 from heptrkx.dataset.graph import specs_from_graphs_tuple
+from heptrkx.dataset.graph import N_MAX_EDGES, N_MAX_NODES
+from heptrkx.dataset.graph import parse_tfrec_function
 import pandas as pd
 import tensorflow as tf
+from graph_nets import graphs
 
 
-hit_file_name = '/global/cscratch1/sd/xju/heptrkx/codalab/inputs/hitfiles/evt21001_test.h5'
-doublet_file_name = '/global/cscratch1/sd/xju/heptrkx/codalab/inputs/doublet_files/doublets-evt21001_test.h5'
+
+# hit_file_name = '/global/cscratch1/sd/xju/heptrkx/codalab/inputs/hitfiles/evt21001_test.h5'
+# doublet_file_name = '/global/cscratch1/sd/xju/heptrkx/codalab/inputs/doublet_files/doublets-evt21001_test.h5'
+
+hit_file_name = '/Volumes/GoogleDrive/My Drive/HEPTrk/Data//hitfiles/evt21001_test.h5'
+doublet_file_name = '/Volumes/GoogleDrive/My Drive/HEPTrk/Data//doublet_files/doublets-evt21001_test.h5'
 
 def test_graph():
     with pd.HDFStore(hit_file_name, 'r') as hit_store:
@@ -32,12 +39,114 @@ def test_graph():
 
     return all_graphs
 
+# The following functions can be used to convert a value to a type compatible
+# with tf.Example.
+
+def _bytes_feature(value):
+  """Returns a bytes_list from a string / byte."""
+  if isinstance(value, type(tf.constant(0))):
+    value = value.numpy() # BytesList won't unpack a string from an EagerTensor.
+  return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
+
+def _float_feature(value):
+  """Returns a float_list from a float / double."""
+  return tf.train.Feature(float_list=tf.train.FloatList(value=[value]))
+
+def _int64_feature(value):
+  """Returns an int64_list from a bool / enum / int / uint."""
+  return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
+
+
+def serialize_graph(G, G2):
+    feature = {}
+    for key in graphs.ALL_FIELDS:
+        data = getattr(G, key)
+        print("key:", key, data.shape)
+        feature[key+"_IN"] = _bytes_feature(tf.io.serialize_tensor(getattr(G, key)))
+        feature[key+"_OUT"] = _bytes_feature(tf.io.serialize_tensor(getattr(G2, key)))
+    
+    example_proto = tf.train.Example(features=tf.train.Features(feature=feature))
+    return example_proto.SerializeToString()
+
+
+tf_file_name = 'test.tfrecord'
+def write_tfrecord():
+    print("Is eager mode {}".format(tf.executing_eagerly()))
+    global_batch_size = 1
+    graph_gen = DoubletGraphGenerator(2, 12, ['x', 'y', 'z'], ['deta', 'dphi'], with_pad=True)
+    graph_gen.add_file(hit_file_name, doublet_file_name)
+    # training_dataset = graph_gen.create_dataset(is_training=True)
+
+    graph_gen.write_tfrecord(tf_file_name)
+
+    # with tf.io.TFRecordWriter(tf_file_name) as writer:
+    #     for data in training_dataset:
+    #         example = serialize_graph(*data)
+    #         writer.write(example)
+
+def read_tfrecord():
+    filenames = [tf_file_name]
+    raw_dataset = tf.data.TFRecordDataset(filenames)
+    # print(raw_dataset)
+    # features_description = {
+    #     'nodes': tf.io.FixedLenFeature([1, N_MAX_NODES, 3], tf.float32),
+    #     'edges': tf.io.FixedLenFeature([1, N_MAX_EDGES, 2], tf.float32),
+    #     'receivers': tf.io.FixedLenFeature([1, N_MAX_EDGES], tf.int64),
+    #     'senders': tf.io.FixedLenFeature([1, N_MAX_EDGES], tf.int64),
+    #     'globals': tf.io.FixedLenFeature([1, 1], tf.float32),
+    #     'n_node': tf.io.FixedLenFeature([1, 1], tf.float32),
+    #     'n_edge': tf.io.FixedLenFeature([1, 1], tf.float32)
+    # }
+    features_description = dict(
+        [(key+"_IN",  tf.io.FixedLenFeature([], tf.string)) for key in graphs.ALL_FIELDS] + 
+        [(key+"_OUT", tf.io.FixedLenFeature([], tf.string)) for key in graphs.ALL_FIELDS])
+
+    def _parse_function(example_proto):
+        example = tf.io.parse_single_example(example_proto, features_description)
+        n_node = tf.io.parse_tensor(example['globals_IN'], tf.float64)
+        return n_node
+
+    parsed_dataset = raw_dataset.map(parse_tfrec_function)
+    for raw_record in parsed_dataset.take(1):
+        print(raw_record)
+        
+        # print("parse example")
+        # example = tf.io.parse_single_example(raw_record, features_description)
+        # # print(example)
+        # nodes = tf.io.parse_tensor(example['edges_OUT'], tf.float16)
+        # print(nodes)
+        # for field in graphs.ALL_FIELDS:
+        #     print(field)
+        #     nodes = tf.io.parse_tensor(example[field+'_OUT'], tf.float64)
+        #     print(nodes)
+        # decoded_ex = tf.io.parse_single_example(example, features_description)
+        # print(decoded_ex.features.feature['n_node'])
+
+
 
 def test_dataset():
-    graph_gen = DoubletGraphGenerator(2, 8, ['x', 'y', 'z'], ['deta', 'dphi'])
+    print("Is eager mode {}".format(tf.executing_eagerly()))
+    global_batch_size = 1
+    graph_gen = DoubletGraphGenerator(2, 8, ['x', 'y', 'z'], ['deta', 'dphi'], with_pad=True)
     graph_gen.add_file(hit_file_name, doublet_file_name)
-    training_dataset = graph_gen.create_dataset()
-    print(list(training_dataset.take(1).as_numpy_iterator()))
+    training_dataset = graph_gen.create_dataset(is_training=True)
+
+    # serialized_dataset = training_dataset.map(tf_serialize_graph)
+
+    # file_name = 'test.tfrecord'
+    # writer = tf.data.experimental.TFRecordWriter(file_name)
+    # writer.write(serialized_dataset)
+
+    for g_input, g_target in training_dataset.take(1):
+        print("Input Graph")
+        print(g_input)
+        print("Target Graph")
+        print(g_target)
+        g1, g2 = serialize_graph(g_input, g_target)
+        print(g1)
+
+    # training_dataset = training_dataset.repeat().shuffle(2048).batch(global_batch_size).prefetch(tf.data.experimental.AUTOTUNE)
+    # print(list(training_dataset.take(1).as_numpy_iterator()))
 
     # testing_dataset = graph_gen.create_dataset()
     # print(list(testing_dataset.take(1).as_numpy_iterator()))
@@ -96,4 +205,6 @@ if __name__ == "__main__":
     # test_graph()
     # test_dataset()
     # test_signature()
-    test_mask()
+    # test_mask()
+    # write_tfrecord()
+    read_tfrecord()
