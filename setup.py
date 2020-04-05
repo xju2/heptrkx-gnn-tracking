@@ -67,5 +67,6 @@ setup(
         'scripts/train_nx_graph_tpu',
         # track candidates
         'scripts/tracks_from_triplet_graph',
+        'scripts/create_tfrec_doublets',
     ],
 )

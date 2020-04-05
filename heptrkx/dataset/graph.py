@@ -14,24 +14,14 @@ N_MAX_NODES = 3500
 N_MAX_EDGES = 56500
 
 
-graph_types_in = {
+graph_types = {
     'n_node': tf.int32,
     'n_edge': tf.int32,
-    'nodes': tf.float64,
-    'edges': tf.float64,
+    'nodes': tf.float32,
+    'edges': tf.float32,
     'receivers': tf.int32,
     'senders': tf.int32,
-    'globals': tf.float64,
-}
-# NOTE: edges_OUT is with type tf.float16 <xju>
-graph_types_out = {
-    'n_node': tf.int32,
-    'n_edge': tf.int32,
-    'nodes': tf.float64,
-    'edges': tf.float16,
-    'receivers': tf.int32,
-    'senders': tf.int32,
-    'globals': tf.float64,
+    'globals': tf.float32,
 }
 def parse_tfrec_function(example_proto):
     features_description = dict(
@@ -39,10 +29,10 @@ def parse_tfrec_function(example_proto):
         [(key+"_OUT", tf.io.FixedLenFeature([], tf.string)) for key in graphs.ALL_FIELDS])
 
     example = tf.io.parse_single_example(example_proto, features_description)
-    input_dd = dict([(key, tf.io.parse_tensor(example[key+"_IN"], graph_types_in[key]))
-        for key in graphs.ALL_FIELDS])
-    out_dd = dict([(key, tf.io.parse_tensor(example[key+"_OUT"], graph_types_out[key]))
-        for key in graphs.ALL_FIELDS])
+    input_dd = graphs.GraphsTuple(**dict([(key, tf.io.parse_tensor(example[key+"_IN"], graph_types[key]))
+        for key in graphs.ALL_FIELDS]))
+    out_dd = graphs.GraphsTuple(**dict([(key, tf.io.parse_tensor(example[key+"_OUT"], graph_types[key]))
+        for key in graphs.ALL_FIELDS]))
     return input_dd, out_dd
 
 def _bytes_feature(value):
@@ -228,7 +218,7 @@ def make_graph_ntuples(hits, segments, n_eta, n_phi,
         print("{} graphs".format(n_graphs))
 
     def make_subgraph(mask):
-        f_dtype = np.float64
+        f_dtype = np.float32
         hit_id = hits[mask].hit_id.values
         sub_doublets = segments[segments.hit_id_in.isin(hit_id) & segments.hit_id_out.isin(hit_id)]
 
@@ -252,6 +242,7 @@ def make_graph_ntuples(hits, segments, n_eta, n_phi,
             print("\t{} nodes and {} edges".format(n_nodes, n_edges))
         senders = np.array(senders)
         receivers = np.array(receivers)
+        zeros = np.array([0.0], dtype=f_dtype)
         input_datadict = {
             "n_node": n_nodes,
             'n_edge': n_edges,
@@ -259,7 +250,8 @@ def make_graph_ntuples(hits, segments, n_eta, n_phi,
             'edges': edges,
             'senders': senders,
             'receivers': receivers,
-            'globals': np.array([0.0])}
+            'globals': zeros
+        }
         target_datadict = {
             "n_node": n_nodes,
             'n_edge': n_edges,
@@ -267,29 +259,30 @@ def make_graph_ntuples(hits, segments, n_eta, n_phi,
             'edges': np.expand_dims(sub_doublets.solution.values.astype(f_dtype), axis=1),
             'senders': senders,
             'receivers': receivers,
-            'globals': np.array([0.0])
+            'globals': zeros
         }
 
         if with_pad:
             n_nodes_pad = N_MAX_NODES - n_nodes
             n_edges_pad = N_MAX_EDGES - n_edges
+            zeros_edges = np.array([0] * n_edges_pad, dtype=f_dtype)
             input_pad_datadict = {
                 "n_node": n_nodes_pad,
                 "n_edge": n_edges_pad,
                 "nodes": np.zeros((n_nodes_pad, n_node_features), dtype=f_dtype),
                 'edges': np.zeros((n_edges_pad, n_edge_features), dtype=f_dtype),
-                'receivers': np.array([0] * n_edges_pad),
-                'senders': np.array([0] * n_edges_pad),
-                'globals': np.array([0.0])
+                'receivers': zeros_edges,
+                'senders': zeros_edges,
+                'globals': zeros
             }
             target_pad_datadict = {
                 "n_node": n_nodes_pad,
                 "n_edge": n_edges_pad,
                 "nodes": np.zeros((n_nodes_pad, n_node_features), dtype=f_dtype),
                 'edges': np.zeros((n_edges_pad, 1), dtype=f_dtype),
-                'receivers': np.array([0] * n_edges_pad),
-                'senders': np.array([0] * n_edges_pad),
-                'globals': np.array([0.0], dtype=f_dtype)
+                'receivers': zeros_edges,
+                'senders': zeros_edges,
+                'globals': zeros
             }
             input_graph = utils_tf.data_dicts_to_graphs_tuple([input_datadict, input_pad_datadict])
             target_graph = utils_tf.data_dicts_to_graphs_tuple([target_datadict, target_pad_datadict])

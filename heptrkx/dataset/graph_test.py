@@ -69,11 +69,11 @@ def serialize_graph(G, G2):
     return example_proto.SerializeToString()
 
 
-tf_file_name = 'test.tfrecord'
+tf_file_name = 'test.tfrecord_0.tfrec'
 def write_tfrecord():
     print("Is eager mode {}".format(tf.executing_eagerly()))
     global_batch_size = 1
-    graph_gen = DoubletGraphGenerator(2, 12, ['x', 'y', 'z'], ['deta', 'dphi'], with_pad=True)
+    graph_gen = DoubletGraphGenerator(2, 12, ['x', 'y', 'z'], ['deta', 'dphi'], with_pad=True, with_batch_dim=False)
     graph_gen.add_file(hit_file_name, doublet_file_name)
     # training_dataset = graph_gen.create_dataset(is_training=True)
 
@@ -109,7 +109,7 @@ def read_tfrecord():
     parsed_dataset = raw_dataset.map(parse_tfrec_function)
     for raw_record in parsed_dataset.take(1):
         print(raw_record)
-        
+
         # print("parse example")
         # example = tf.io.parse_single_example(raw_record, features_description)
         # # print(example)

@@ -1,0 +1,34 @@
+#!/usr/bin/env python
+
+import argparse
+import os
+
+from heptrkx.utils import load_yaml
+from heptrkx.dataset import graph
+if __name__ == "__main__":
+
+
+    parser = argparse.ArgumentParser(description='create TFREcord for doublet training in cloud TPU')
+    add_arg = parser. add_argument
+    add_arg('config', help='configuration file')
+    args = parser.parse_args()
+
+    all_config = load_yaml(args.config)
+    config = all_config['gnn_training']
+    file_name = config['tfrec_name']
+
+    with_batch_dim = False
+    with_pad = True
+
+    print("Node features: ", config['node_features'])
+    print("Edge features: ", config['edge_features'])
+    doublet_graphs = graph.DoubletGraphGenerator(
+        config['n_eta'], config['n_phi'],
+        config['node_features'], config['edge_features'], 
+        with_batch_dim=with_batch_dim,
+        with_pad=with_pad
+    )
+    for hit_file, doublet_file in zip(config['hit_files'], config['doublet_files']):
+        doublet_graphs.add_file(hit_file, doublet_file)
+
+    doublet_graphs.write_tfrecord(file_name)

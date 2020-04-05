@@ -24,7 +24,7 @@ def make_mlp_model():
       snt.nets.MLP([LATENT_SIZE] * NUM_LAYERS,
                    activation=tf.nn.relu,
                    activate_final=True),
-      snt.LayerNorm(axis=-1, create_offset=True, create_scale=True)
+      # snt.LayerNorm(axis=-1, create_offset=True, create_scale=True)
   ])
 
 
