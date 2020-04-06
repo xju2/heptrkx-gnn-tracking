@@ -68,13 +68,15 @@ if __name__ == "__main__":
     print("Edge features: ", config['edge_features'])
 
     # FIXME: add as a argument. <xju>
-    file_names = tf.io.gfile.glob(os.path.join(config['tfrec_dir'], config['tfrec_name']+"*"))
+    # file_names = tf.io.gfile.glob(os.path.join(config['tfrec_dir'], config['tfrec_name']+"*"))
+    file_names = ['gs://gnn-v1/doublets_24regions_111evts_0.tfrec']
     print("Input file names: ", file_names)
     raw_dataset = tf.data.TFRecordDataset(file_names)
     training_dataset = raw_dataset.map(graph.parse_tfrec_function)
 
     AUTO = tf.data.experimental.AUTOTUNE
-    training_dataset = training_dataset.repeat().shuffle(2048).batch(global_batch_size).prefetch(AUTO)
+    # training_dataset = training_dataset.repeat().shuffle(2048).batch(global_batch_size).prefetch(AUTO)
+    training_dataset = training_dataset.shuffle(2048).batch(global_batch_size).prefetch(AUTO)
     def get_dataset_iterator(dataset, n_examples):
         return dataset.unbatch().batch(n_examples).as_numpy_iterator()
     
@@ -109,7 +111,6 @@ if __name__ == "__main__":
         # mask = tf.expand_dims(mask, axis=1)
         # weights = weights * mask
         loss_ops = [
-            # tf.compat.v1.losses.log_loss(target_op.edges, output_op.edges, weights=weights)
             tf.nn.weighted_cross_entropy_with_logits(target_op.edges, output_op.edges, pos_weight=real_weight)
             for output_op in output_ops
         ]
@@ -132,8 +133,8 @@ if __name__ == "__main__":
             gradients = tape.gradient(loss_op_tr, model.trainable_variables)
             # aggregate the gradients from the full batch.
             # this is not there for mirror strategy
-            # replica_ctx = tf.distribute.get_replica_context()
-            # gradients = replica_ctx.all_reduce("mean", gradients)
+            replica_ctx = tf.distribute.get_replica_context()
+            gradients = replica_ctx.all_reduce("mean", gradients)
 
             optimizer.apply(gradients, model.trainable_variables)
             return loss_op_tr
@@ -147,9 +148,7 @@ if __name__ == "__main__":
         total_loss = 0.
         num_batches = 0
         for inputs in dataset:
-            # print("Step {}".format(num_batches))
             input_tr, target_tr = inputs
-            # print(target_tr)
             total_loss += train_step(input_tr, target_tr)
             num_batches += 1
         return total_loss/num_batches
@@ -157,15 +156,9 @@ if __name__ == "__main__":
     now = time.time()
     for epoch in range(n_epochs):
         print("start epoch {}".format(epoch))
-        # training_dataset = training_dataset.shuffle(global_batch_size*2, reshuffle_each_iteration=True)
-        # print("after shuffle {}".format(epoch))
-        # distributed dataset
-        # dist_training_dataset = strategy.experimental_distribute_dataset(training_dataset)
+        training_dataset = training_dataset.shuffle(global_batch_size*2, reshuffle_each_iteration=True)
         print("starting training on TPU")
-        for inputs in training_dataset:
-            input_tr, target_tr = inputs
-            tf.print(tf.shape(input_tr.edges))
-        # loss = train_epoch(training_dataset)
+        loss = train_epoch(training_dataset)
         this_epoch = time.time()
         print("Training {} epoch, {:.2f} mins, Loss := {}".format(epoch, (this_epoch-now)/60., loss/global_batch_size))
         now = this_epoch
