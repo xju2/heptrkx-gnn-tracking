@@ -179,8 +179,11 @@ if __name__ == "__main__":
     for epoch in range(n_epochs):
         print("start epoch {} on {}".format(epoch, device))
         training_dataset = training_dataset.shuffle(global_batch_size*2, reshuffle_each_iteration=True)
-        dist_training_dataset = strategy.experimental_distribute_dataset(training_dataset)
-        loss = train_epoch(dist_training_dataset)
+        if "CPU" in device or "GPU" in device:
+            dist_training_dataset = strategy.experimental_distribute_dataset(training_dataset)
+            loss = train_epoch(dist_training_dataset)
+        else:
+            loss = train_epoch(training_dataset)
         this_epoch = time.time()
         print("Training {} epoch, {:.2f} mins, Loss := {}".format(epoch, (this_epoch-now)/60., loss/global_batch_size))
         now = this_epoch

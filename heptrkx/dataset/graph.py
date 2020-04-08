@@ -16,14 +16,13 @@ max_graph_dict = {
     'eta2-phi1': [37000, 680000]
 }
 
-def get_max_graph_size(n_eta, n_phi){
+def get_max_graph_size(n_eta, n_phi):
     try:
         res = max_graph_dict['eta{}-phi{}'.format(n_eta, n_phi)]
     except KeyError:
         print("{} and {} is unknown".format(n_eta, n_phi))
         res = max_graph_dict['eta2-phi1']
     return res
-}
 
 
 graph_types = {
