@@ -36,7 +36,7 @@ setup(
         # 'h5py',
     ],
     extras_require={
-        "tensorflow": ['tensorflow>=2.1'],
+        "tensorflow": ['tensorflow==2.2.0-rc2'],
     },
     setup_requires=['trackml'],
     classifiers=[

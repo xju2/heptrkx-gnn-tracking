@@ -10,8 +10,20 @@ from graph_nets import graphs
 import tensorflow as tf
 import time
 
-N_MAX_NODES = 3500
-N_MAX_EDGES = 56500
+
+max_graph_dict = {
+    "eta2-phi12": [3500, 56500],
+    'eta2-phi1': [37000, 680000]
+}
+
+def get_max_graph_size(n_eta, n_phi){
+    try:
+        res = max_graph_dict['eta{}-phi{}'.format(n_eta, n_phi)]
+    except KeyError:
+        print("{} and {} is unknown".format(n_eta, n_phi))
+        res = max_graph_dict['eta2-phi1']
+    return res
+}
 
 
 graph_types = {
@@ -23,6 +35,7 @@ graph_types = {
     'senders': tf.int32,
     'globals': tf.float32,
 }
+
 def parse_tfrec_function(example_proto):
     features_description = dict(
         [(key+"_IN",  tf.io.FixedLenFeature([], tf.string)) for key in graphs.ALL_FIELDS] + 
@@ -212,6 +225,7 @@ def make_graph_ntuples(hits, segments, n_eta, n_phi,
     eta_edges = np.linspace(*eta_range, num=n_eta+1)
     n_edge_features = len(edge_features)
     n_node_features = len(node_features)
+    N_MAX_NODES, N_MAX_EDGES = get_max_graph_size(n_eta, n_phi)
 
     n_graphs = n_eta * n_phi
     if verbose:
@@ -349,6 +363,9 @@ class DoubletGraphGenerator:
         self.with_batch_dim = with_batch_dim
         self.with_pad = with_pad
         self.tf_record_idx = 0
+        print("DoubletGraphGenerator settings: \n\twith_batch_dim={},\n\twith_pad={},\n\tverbose={}".format(
+            self.with_batch_dim, self.with_pad, self.verbose
+        ))
 
     def add_file(self, hit_file, doublet_file):
         now = time.time()
@@ -443,14 +460,25 @@ class DoubletGraphGenerator:
 
         n_graphs_per_evt = self.n_eta * self.n_phi
         n_evts = int(self.tot_data//n_graphs_per_evt)
+        if self.tot_data % n_graphs_per_evt > 0:
+            n_evts += 1
         n_files = n_evts//n_evts_per_record
         if n_evts%n_evts_per_record > 0:
             n_files += 1
 
-        for ifile in range(n_files):
-            outname = "{}_{}.tfrec".format(filename, ifile)
-            print("Writing to {}".format(outname))
-            with tf.io.TFRecordWriter(outname) as writer:
-                for data in dataset:
-                    example = serialize_graph(*data)
-                    writer.write(example)
+        print("In total {} graphs, {} graphs per event".format(self.tot_data, n_graphs_per_evt))
+        print("In total {} events, write to {} files".format(n_evts, n_files))
+        igraph = -1
+        ifile = -1
+        writer = None
+        n_graphs_per_record = n_graphs_per_evt * n_evts_per_record
+        for data in dataset:
+            igraph += 1
+            if igraph % n_graphs_per_record == 0:
+                ifile += 1
+                if writer is not None:
+                    writer.close()
+                outname = "{}_{}.tfrec".format(filename, ifile)
+                writer = tf.io.TFRecordWriter(outname)
+            example = serialize_graph(*data)
+            writer.write(example)

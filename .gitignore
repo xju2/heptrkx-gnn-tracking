@@ -15,3 +15,6 @@ bak
 /*.eggs
 *.pdf
 *.png
+
+# notebooks
+*ipynb

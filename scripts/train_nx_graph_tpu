@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 """
-Training GNN in TPU
+Training GNN in TPU/GPU/CPU with fixed graph size
+Its input is TFRecord
 """
 
 import tensorflow as tf
@@ -33,32 +34,49 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Train nx-graph with configurations')
     add_arg = parser.add_argument
     add_arg('config', help='configuration file')
-    add_arg('--tpu', help='use tpu', default='colab')
+    add_arg('--tpu', help='use tpu', default=None)
     args = parser.parse_args()
 
     print(args.config)
     all_config = load_yaml(args.config)
     config = all_config['gnn_training']
-    with_batch_dim = False
-    with_pad = True
+    config_tr = config['parameters']
+    use_tpu = args.tpu is not None
 
-    # first start the tpu
-    if args.tpu == 'colab':
-        resolver = tf.distribute.cluster_resolver.TPUClusterResolver()
+    global_batch_size = n_graphs   = config_tr['batch_size']   # need optimization
+    physical_gpus = tf.config.experimental.list_physical_devices("GPU")
+    n_gpus = len(physical_gpus)
+    device = 'CPU'
+    if use_tpu:
+        if args.tpu == 'colab':
+            resolver = tf.distribute.cluster_resolver.TPUClusterResolver()
+        else:
+            resolver = tf.distribute.cluster_resolver.TPUClusterResolver(tpu=args.tpu)
+        print('Running on TPU ', resolver.cluster_spec().as_dict()['worker'])
+        tf.config.experimental_connect_to_cluster(resolver)
+        tf.tpu.experimental.initialize_tpu_system(resolver)
+        strategy = snt.distribute.experimental.TpuReplicator(resolver)
+        device = 'TPU'
+    elif n_gpus > 1:
+        print("Useing SNT Replicator with {} GPUs".format(n_gpus))
+        assert n_gpus == global_batch_size, "batch size {} does not equall to GPUs {}".format(global_batch_size, n_gpus)
+        strategy = snt.distribute.Replicator(['/device:GPU:{}'.format(i) for i in range(n_gpus)],\
+            tf.distribute.ReductionToOneDevice("GPU:0"))
+        device = "{}GPUs".format(n_gpus)
+    elif n_gpus > 0:
+        strategy = tf.distribute.OneDeviceStrategy("/device:GPU:0")
+        device = "1GPU"
     else:
-        resolver = tf.distribute.cluster_resolver.TPUClusterResolver(tpu=args.tpu)
-    tf.config.experimental_connect_to_cluster(resolver)
-    tf.tpu.experimental.initialize_tpu_system(resolver)
-    strategy = snt.distribute.TpuReplicator(resolver)
+        strategy = tf.distribute.OneDeviceStrategy("/device:CPU:0")
 
     # add ops to save and restore all the variables
     prod_name = config['prod_name']
-    output_dir = os.path.join(config['output_dir'], prod_name)
+    if use_tpu:
+        output_dir = os.path.join(config['tpu_output_dir'], prod_name)
+    else:
+        output_dir = os.path.join(config['output_dir'], prod_name)
+        os.makedirs(output_dir, exist_ok=True)
     print("[{}] save models at {}".format(prog_name, output_dir))
-    # os.makedirs(output_dir, exist_ok=True)
-
-    config_tr = config['parameters']
-    global_batch_size = n_graphs   = config_tr['batch_size']   # need optimization
     num_processing_steps_tr = config_tr['n_iters']      ## level of message-passing
     n_epochs = config_tr['epochs']
     print("{} epochs".format(n_epochs))
@@ -66,10 +84,13 @@ if __name__ == "__main__":
     # prepare graphs
     print("Node features: ", config['node_features'])
     print("Edge features: ", config['edge_features'])
+    print("{} Eta bins and {} Phi bins".format(config['n_eta'], config['n_phi']))
 
-    # FIXME: add as a argument. <xju>
-    # file_names = tf.io.gfile.glob(os.path.join(config['tfrec_dir'], config['tfrec_name']+"*"))
-    file_names = ['gs://gnn-v1/doublets_24regions_111evts_0.tfrec']
+    if use_tpu:
+        file_names = tf.io.gfile.glob(os.path.join(config['tfrec_dir_cloud'], config['tfrec_name']))
+    else:
+        file_names = tf.io.gfile.glob(os.path.join(config['tfrec_dir_local'], config['tfrec_name']))
+
     print("Input file names: ", file_names)
     raw_dataset = tf.data.TFRecordDataset(file_names)
     training_dataset = raw_dataset.map(graph.parse_tfrec_function)
@@ -105,7 +126,7 @@ if __name__ == "__main__":
     # FIXME: remove padding graphs from loss function. <xju>
     def create_loss_ops(target_op, output_ops):
         weights = target_op.edges * real_weight + (1 - target_op.edges) * fake_weight
-        row_index = tf.range(tf.constant(graph.N_MAX_EDGES))
+        # row_index = tf.range(tf.constant(graph.N_MAX_EDGES))
         # n_valid_edges = target_op.n_edge[0]
         # mask = tf.cast(row_index < n_valid_edges, tf.float32)
         # mask = tf.expand_dims(mask, axis=1)
@@ -123,6 +144,7 @@ if __name__ == "__main__":
         
         def update_step(inputs_tr, targets_tr):
             print("Tracing update_step")
+            print(inputs_tr)
             inputs_tr = graph.concat_batch_dim(inputs_tr)
             targets_tr = graph.concat_batch_dim(targets_tr)
             with tf.GradientTape() as tape:
@@ -155,10 +177,10 @@ if __name__ == "__main__":
 
     now = time.time()
     for epoch in range(n_epochs):
-        print("start epoch {}".format(epoch))
+        print("start epoch {} on {}".format(epoch, device))
         training_dataset = training_dataset.shuffle(global_batch_size*2, reshuffle_each_iteration=True)
-        print("starting training on TPU")
-        loss = train_epoch(training_dataset)
+        dist_training_dataset = strategy.experimental_distribute_dataset(training_dataset)
+        loss = train_epoch(dist_training_dataset)
         this_epoch = time.time()
         print("Training {} epoch, {:.2f} mins, Loss := {}".format(epoch, (this_epoch-now)/60., loss/global_batch_size))
         now = this_epoch

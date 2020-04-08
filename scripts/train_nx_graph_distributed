@@ -1,9 +1,11 @@
 #!/usr/bin/env python
 """
-Training GNN
+Training GNN on GPU/CPU with dynamic graph size
+Its input is generated from a python generator
 """
 
 import tensorflow as tf
+print(tf.__version__)
 
 import os
 import sys
@@ -113,7 +115,6 @@ if __name__ == "__main__":
     with strategy.scope():
         optimizer = snt.optimizers.Adam(learning_rate)
         model = get_model(config['model_name'])
-
     # prepare graphs
     print("Node features: ", config['node_features'])
     print("Edge features: ", config['edge_features'])
