@@ -5,11 +5,12 @@ Test make_graph_ntuples
 from heptrkx.dataset.graph import make_graph_ntuples
 from heptrkx.dataset.graph import DoubletGraphGenerator
 from heptrkx.dataset.graph import specs_from_graphs_tuple
-from heptrkx.dataset.graph import N_MAX_EDGES, N_MAX_NODES
+# from heptrkx.dataset.graph import N_MAX_EDGES, N_MAX_NODES
 from heptrkx.dataset.graph import parse_tfrec_function
 import pandas as pd
 import tensorflow as tf
 from graph_nets import graphs
+from heptrkx.dataset import graph
 
 
 
@@ -201,10 +202,25 @@ def test_mask():
     print("Weight shape:", tf.shape(weights))
 
 
+def test_concat():
+    file_names = ['/global/cfs/cdirs/m3443/usr/xju/heptrkx/codalab/tfdata_doublets/one_evt_24regions/doublets_24regions_111evts_0.tfrec']
+    raw_dataset = tf.data.TFRecordDataset(file_names)
+    training_dataset = raw_dataset.map(parse_tfrec_function)
+
+    global_batch_size = 2
+    AUTO = tf.data.experimental.AUTOTUNE
+    training_dataset = training_dataset.batch(global_batch_size).prefetch(AUTO)
+    training_viz_iterator = training_dataset.as_numpy_iterator()
+    g1, g2 = next(training_viz_iterator)
+    print(g1.edges.shape)
+    g1_merged = graph.concat_batch_dim(g1)
+    print(g1_merged.edges.shape)
+
 if __name__ == "__main__":
     # test_graph()
     # test_dataset()
     # test_signature()
     # test_mask()
     # write_tfrecord()
-    read_tfrecord()
+    # read_tfrecord()
+    test_concat()

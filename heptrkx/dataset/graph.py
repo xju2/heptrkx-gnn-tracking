@@ -65,6 +65,7 @@ def concat_batch_dim(G):
     """
     G is a GraphNtuple Tensor, with additional dimension for batch-size.
     Concatenate them along the axis for batch
+    It only works for batch size of 1
     """
     n_node = tf.reshape(G.n_node, [-1])
     n_edge = tf.reshape(G.n_edge, [-1])
@@ -75,6 +76,28 @@ def concat_batch_dim(G):
     globals_ = tf.reshape(G.globals, [-1, G.globals.shape[-1]])
     return G.replace(n_node=n_node, n_edge=n_edge, nodes=nodes,\
         edges=edges, senders=senders, receivers=receivers, globals=globals_)
+
+
+def _concat_batch_dim(G):
+    """
+    G is a GraphNtuple Tensor, with additional dimension for batch-size.
+    Concatenate them along the axis for batch
+    """
+    input_graphs = []
+    for ibatch in [0, 1]:
+        data_dict = {
+            "nodes": G.nodes[ibatch],
+            "edges": G.edges[ibatch],
+            "receivers": G.receivers[ibatch],
+            'senders': G.senders[ibatch],
+            'globals': G.globals[ibatch],
+            'n_node': G.n_node[ibatch],
+            'n_edge': G.n_edge[ibatch],
+        }
+        input_graphs.append(graphs.GraphsTuple(**data_dict))
+        return (tf.add(ibatch, 1), input_graphs)
+    print("{} graphs".format(len(input_graphs)))
+    return utils_tf.concat(input_graphs, axis=0)
 
 
 def add_batch_dim(G, axis=0):

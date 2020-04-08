@@ -52,4 +52,4 @@ gnn_training:
         learning_rate: 0.001
         real_weight: 10.0
         fake_weight: 1.
-        epochs: 20
+        epochs: 2

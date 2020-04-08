@@ -97,7 +97,7 @@ if __name__ == "__main__":
 
     AUTO = tf.data.experimental.AUTOTUNE
     # training_dataset = training_dataset.repeat().shuffle(2048).batch(global_batch_size).prefetch(AUTO)
-    training_dataset = training_dataset.shuffle(2048).batch(global_batch_size).prefetch(AUTO)
+    training_dataset = training_dataset.batch(global_batch_size).prefetch(AUTO)
     def get_dataset_iterator(dataset, n_examples):
         return dataset.unbatch().batch(n_examples).as_numpy_iterator()
     
@@ -144,9 +144,11 @@ if __name__ == "__main__":
         
         def update_step(inputs_tr, targets_tr):
             print("Tracing update_step")
-            print(inputs_tr)
+            print("before contatenate:", inputs_tr.nodes.shape)
             inputs_tr = graph.concat_batch_dim(inputs_tr)
             targets_tr = graph.concat_batch_dim(targets_tr)
+            print("after concatenate:", inputs_tr.nodes.shape)
+
             with tf.GradientTape() as tape:
                 outputs_tr = model(inputs_tr, num_processing_steps_tr)
                 loss_ops_tr = create_loss_ops(targets_tr, outputs_tr)

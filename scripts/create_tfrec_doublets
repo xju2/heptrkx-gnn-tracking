@@ -11,18 +11,21 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='create TFREcord for doublet training in cloud TPU')
     add_arg = parser. add_argument
     add_arg('config', help='configuration file')
+    add_arg('outname', help='output file name')
     add_arg("--no-padding", help='do not pad the input graph', action='store_true')
     add_arg('--evts-per-record', default=10, help='number of events per output file')
     args = parser.parse_args()
 
-    all_config = load_yaml(args.config)
-    config = all_config['gnn_training']
-    file_name = config['tfrec_name']
+    file_name = args.outname
     with_pad = not args.no_padding
     n_evts_per_record = args.evts_per_record
 
+    all_config = load_yaml(args.config)
+    config = all_config['gnn_training']
     print("Node features: ", config['node_features'])
     print("Edge features: ", config['edge_features'])
+    print("Output Name {}".format(file_name))
+    print("{} events per record".format(n_evts_per_record))
     doublet_graphs = graph.DoubletGraphGenerator(
         config['n_eta'], config['n_phi'],
         config['node_features'], config['edge_features'], 
