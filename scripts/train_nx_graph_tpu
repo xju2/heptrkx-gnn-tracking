@@ -49,7 +49,8 @@ if __name__ == "__main__":
     if n_gpus > 0:
         assert n_gpus == global_batch_size, "batch size {} does not equall to GPUs {}".format(global_batch_size, n_gpus)
     else:
-        assert global_batch_size == 1, "batch size {} does not equall to 1".format(global_batch_size)
+        pass
+        # assert global_batch_size == 1, "batch size {} does not equall to 1".format(global_batch_size)
 
     device = 'CPU'
     if use_tpu:
@@ -200,6 +201,8 @@ if __name__ == "__main__":
             dist_training_dataset = strategy.experimental_distribute_dataset(training_dataset)
             loss = train_epoch(dist_training_dataset)
         else:
+            # dist_training_dataset = strategy.experimental_distribute_dataset(training_dataset)
+            # loss = train_epoch(dist_training_dataset)
             loss = train_epoch(training_dataset)
         this_epoch = time.time()
         print("Training {} epoch, {:.2f} mins, Loss := {:.4f}".format(epoch, (this_epoch-now)/60., loss/global_batch_size))
