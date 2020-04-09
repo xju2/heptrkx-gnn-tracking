@@ -28,9 +28,10 @@ gnn_training:
         - /global/cscratch1/sd/xju/heptrkx/codalab/inputs/trimed_doublets/doublets-evt22021-100events.h5
     n_eta: 2
     n_phi: 12
-    tfrec_name: 'doublets_24regions_111evts*.tfrec'
+    tfrec_name: 'doublets_24regions_110evts_noPadding_*.tfrec'
     tfrec_dir_cloud: 'gs://gnn-v1'
-    tfrec_dir_local: /global/cfs/cdirs/m3443/usr/xju/heptrkx/codalab/tfdata_doublets/one_evt_24regions
+    # tfrec_dir_local: /global/cfs/cdirs/m3443/usr/xju/heptrkx/codalab/tfdata_doublets/one_evt_24regions_padding
+    tfrec_dir_local: /global/cfs/cdirs/m3443/usr/xju/heptrkx/codalab/tfdata_doublets/one_evt_24regions_padding
     # node_features: ['x', 'y', 'z', 'geta', 'gphi', 'eta', 'phi', 'r', 'r3']
     # edge_features: ['deta', 'dphi', 'dr', 'dz', 'phi_slope', 'deta1', 'dphi1', 'z0']
     node_features: ['r', 'phi', 'z', 'geta', 'eta']
@@ -52,4 +53,4 @@ gnn_training:
         learning_rate: 0.001
         real_weight: 10.0
         fake_weight: 1.
-        epochs: 2
+        epochs: 10
