@@ -46,6 +46,11 @@ if __name__ == "__main__":
     global_batch_size = n_graphs   = config_tr['batch_size']   # need optimization
     physical_gpus = tf.config.experimental.list_physical_devices("GPU")
     n_gpus = len(physical_gpus)
+    if n_gpus > 0:
+        assert n_gpus == global_batch_size, "batch size {} does not equall to GPUs {}".format(global_batch_size, n_gpus)
+    else:
+        assert global_batch_size == 1, "batch size {} does not equall to 1".format(global_batch_size)
+
     device = 'CPU'
     if use_tpu:
         if args.tpu == 'colab':
@@ -59,7 +64,6 @@ if __name__ == "__main__":
         device = 'TPU'
     elif n_gpus > 1:
         print("Useing SNT Replicator with {} GPUs".format(n_gpus))
-        assert n_gpus == global_batch_size, "batch size {} does not equall to GPUs {}".format(global_batch_size, n_gpus)
         strategy = snt.distribute.Replicator(['/device:GPU:{}'.format(i) for i in range(n_gpus)],\
             tf.distribute.ReductionToOneDevice("GPU:0"))
         device = "{}GPUs".format(n_gpus)
@@ -85,6 +89,7 @@ if __name__ == "__main__":
     print("Node features: ", config['node_features'])
     print("Edge features: ", config['edge_features'])
     print("{} Eta bins and {} Phi bins".format(config['n_eta'], config['n_phi']))
+    max_nodes, max_edges = graph.get_max_graph_size(config['n_eta'], config['n_phi'])
 
     if use_tpu:
         file_names = tf.io.gfile.glob(os.path.join(config['tfrec_dir_cloud'], config['tfrec_name']))
@@ -98,12 +103,6 @@ if __name__ == "__main__":
     AUTO = tf.data.experimental.AUTOTUNE
     # training_dataset = training_dataset.repeat().shuffle(2048).batch(global_batch_size).prefetch(AUTO)
     training_dataset = training_dataset.batch(global_batch_size).prefetch(AUTO)
-    def get_dataset_iterator(dataset, n_examples):
-        return dataset.unbatch().batch(n_examples).as_numpy_iterator()
-    
-    training_viz_iterator = get_dataset_iterator(training_dataset, 1)
-    g1, g2 = next(training_viz_iterator)
-    print(g1.edges.shape)
 
     learning_rate = config_tr['learning_rate']
     with strategy.scope():
@@ -123,21 +122,28 @@ if __name__ == "__main__":
     else:
         real_weight = fake_weight = 1.0
 
+    def log_loss(label, prediction, eps=1e-7, weights=1.):
+        prediction = tf.clip_by_value(prediction, eps, 1-eps)
+        loss = tf.negative(tf.add(
+            tf.multiply(label, tf.math.log(prediction)),
+            tf.multiply((1 - label), tf.math.log(1 - prediction))))
+        weighted_losses = tf.multiply(loss, weights)
+        return weighted_losses
+
     # FIXME: remove padding graphs from loss function. <xju>
     def create_loss_ops(target_op, output_ops):
         weights = target_op.edges * real_weight + (1 - target_op.edges) * fake_weight
-        # row_index = tf.range(tf.constant(graph.N_MAX_EDGES))
-        # n_valid_edges = target_op.n_edge[0]
-        # mask = tf.cast(row_index < n_valid_edges, tf.float32)
-        # mask = tf.expand_dims(mask, axis=1)
-        # weights = weights * mask
+        raw_index = tf.range(tf.constant(max_edges))
+        n_valid_edges = target_op.n_edge[0]
+        cond = (raw_index < n_valid_edges)
+        zeros = tf.zeros_like(weights, dtype=weights.dtype)
+        masked_weights = tf.where(cond, weights, zeros)
         loss_ops = [
-            tf.nn.weighted_cross_entropy_with_logits(target_op.edges, output_op.edges, pos_weight=real_weight)
-            for output_op in output_ops
+            log_loss(target_op.edges, output_op.edges, weights=masked_weights) for output_op in output_ops
         ]
         return tf.stack(loss_ops)
 
-    @tf.function(autograph=False)
+    @tf.function
     def train_step(inputs_tr, targets_tr):
         print("Tracing train_step")
         print(inputs_tr)
@@ -163,7 +169,6 @@ if __name__ == "__main__":
             optimizer.apply(gradients, model.trainable_variables)
             return loss_op_tr
 
-
         per_example_losses = strategy.run(update_step, args=(inputs_tr,targets_tr))
         mean_loss = strategy.reduce("sum", per_example_losses, axis=None)
         return mean_loss
@@ -187,6 +192,6 @@ if __name__ == "__main__":
         else:
             loss = train_epoch(training_dataset)
         this_epoch = time.time()
-        print("Training {} epoch, {:.2f} mins, Loss := {}".format(epoch, (this_epoch-now)/60., loss/global_batch_size))
+        print("Training {} epoch, {:.2f} mins, Loss := {:.4f}".format(epoch, (this_epoch-now)/60., loss/global_batch_size))
         now = this_epoch
         ckpt_manager.save()

@@ -207,14 +207,16 @@ def test_concat():
     raw_dataset = tf.data.TFRecordDataset(file_names)
     training_dataset = raw_dataset.map(parse_tfrec_function)
 
-    global_batch_size = 2
+    global_batch_size = 1
     AUTO = tf.data.experimental.AUTOTUNE
     training_dataset = training_dataset.batch(global_batch_size).prefetch(AUTO)
     training_viz_iterator = training_dataset.as_numpy_iterator()
     g1, g2 = next(training_viz_iterator)
     print(g1.edges.shape)
     g1_merged = graph.concat_batch_dim(g1)
-    print(g1_merged.edges.shape)
+    g2_merged = graph.concat_batch_dim(g2)
+    print(g1_merged)
+    print(g2_merged)
 
 if __name__ == "__main__":
     # test_graph()

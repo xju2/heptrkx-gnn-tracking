@@ -91,7 +91,7 @@ if __name__ == "__main__":
  
     # prepare graphs
     with_batch_dim = False
-    with_pad = True
+    with_pad = False
     print("Node features: ", config['node_features'])
     print("Edge features: ", config['edge_features'])
     doublet_graphs = graph.DoubletGraphGenerator(

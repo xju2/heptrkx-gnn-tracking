@@ -118,19 +118,19 @@ if __name__ == "__main__":
     # prepare graphs
     print("Node features: ", config['node_features'])
     print("Edge features: ", config['edge_features'])
-    doublet_graphs = graph.DoubletGraphGenerator(
-        config['n_eta'], config['n_phi'],
-        config['node_features'], config['edge_features'], 
-        with_batch_dim=with_batch_dim,
-        with_pad=with_pad
-        )
-    for hit_file, doublet_file in zip(config['hit_files'], config['doublet_files']):
-        doublet_graphs.add_file(hit_file, doublet_file)
+    # doublet_graphs = graph.DoubletGraphGenerator(
+    #     config['n_eta'], config['n_phi'],
+    #     config['node_features'], config['edge_features'], 
+    #     with_batch_dim=with_batch_dim,
+    #     with_pad=with_pad
+    #     )
+    # for hit_file, doublet_file in zip(config['hit_files'], config['doublet_files']):
+    #     doublet_graphs.add_file(hit_file, doublet_file)
 
     n_epochs = config_tr['epochs']
-    buffer_size = global_batch_size*2
-    training_dataset = doublet_graphs.create_dataset(is_training=True)
-    training_dataset = training_dataset.repeat().shuffle(2048).batch(global_batch_size).prefetch(tf.data.experimental.AUTOTUNE)
+    # buffer_size = global_batch_size*2
+    # training_dataset = doublet_graphs.create_dataset(is_training=True)
+    # training_dataset = training_dataset.repeat().shuffle(2048).batch(global_batch_size).prefetch(tf.data.experimental.AUTOTUNE)
     # training_dataset = training_dataset.prefetch(tf.data.experimental.AUTOTUNE)
     # training_dataset = training_dataset.repeat(n_epochs)
     # training_dataset = training_dataset.shuffle(buffer_size)
@@ -138,7 +138,17 @@ if __name__ == "__main__":
     # training_dataset = training_dataset.cache()
     # training_dataset = training_dataset.batch(global_batch_size)
 
-    testing_dataset = doublet_graphs.create_dataset(is_training=False)
+    file_names = tf.io.gfile.glob(os.path.join(config['tfrec_dir_local'], config['tfrec_name']))
+    print("Input file names: ", file_names)
+    raw_dataset = tf.data.TFRecordDataset(file_names)
+    training_dataset = raw_dataset.map(graph.parse_tfrec_function)
+
+    AUTO = tf.data.experimental.AUTOTUNE
+    # training_dataset = training_dataset.repeat().shuffle(2048).batch(global_batch_size).prefetch(AUTO)
+    training_dataset = training_dataset.batch(global_batch_size).prefetch(AUTO)
+
+
+    # testing_dataset = doublet_graphs.create_dataset(is_training=False)
 
 
     # training loss
@@ -172,7 +182,7 @@ if __name__ == "__main__":
         weights = target_op.edges * real_weight + (1 - target_op.edges) * fake_weight
         row_index = tf.range(tf.math.reduce_sum(target_op.n_edge))
         n_valid_edges = target_op.n_edge[0]
-        mask = tf.cast(row_index < n_valid_edges, tf.float16)
+        mask = tf.cast(row_index < n_valid_edges, tf.float32)
         mask = tf.expand_dims(mask, axis=1)
         weights = weights * mask
         loss_ops = [
@@ -203,8 +213,7 @@ if __name__ == "__main__":
             optimizer.apply(gradients, model.trainable_variables)
             return loss_op_tr
 
-
-        per_example_losses = strategy.experimental_run_v2(update_step, args=(inputs_tr,targets_tr))
+        per_example_losses = strategy.run(update_step, args=(inputs_tr,targets_tr))
         mean_loss = strategy.reduce("sum", per_example_losses, axis=None)
         return mean_loss
 
