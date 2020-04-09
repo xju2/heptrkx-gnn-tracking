@@ -60,7 +60,7 @@ if __name__ == "__main__":
         print('Running on TPU ', resolver.cluster_spec().as_dict()['worker'])
         tf.config.experimental_connect_to_cluster(resolver)
         tf.tpu.experimental.initialize_tpu_system(resolver)
-        strategy = snt.distribute.experimental.TpuReplicator(resolver)
+        strategy = snt.distribute.TpuReplicator(resolver)
         device = 'TPU'
     elif n_gpus > 1:
         print("Useing SNT Replicator with {} GPUs".format(n_gpus))
