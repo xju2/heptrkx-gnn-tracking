@@ -29,7 +29,7 @@ gnn_training:
     n_eta: 2
     n_phi: 12
     tfrec_name: 'doublets_24regions_111evts*.tfrec'
-    tfrec_dir_cloud: 'gs://gnn-v1'
+    tfrec_dir_cloud: 'gs://gnn-v1/one_evt_24regions'
     tfrec_dir_local: /global/cfs/cdirs/m3443/usr/xju/heptrkx/codalab/tfdata_doublets/one_evt_24regions
     # node_features: ['x', 'y', 'z', 'geta', 'gphi', 'eta', 'phi', 'r', 'r3']
     # edge_features: ['deta', 'dphi', 'dr', 'dz', 'phi_slope', 'deta1', 'dphi1', 'z0']
