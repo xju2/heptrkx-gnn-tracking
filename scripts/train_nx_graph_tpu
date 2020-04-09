@@ -128,19 +128,22 @@ if __name__ == "__main__":
         loss = tf.negative(tf.add(
             tf.multiply(label, tf.math.log(prediction+eps)),
             tf.multiply((1 - label), tf.math.log(1 - prediction+eps))))
-        weighted_losses = tf.multiply(loss, weights)
+        loss = tf.multiply(loss, weights)
         present = tf.where(
             tf.math.equal(weights, 0.0), tf.zeros_like(weights), tf.ones_like(weights))
-        loss = tf.math.divide_no_nan(tf.math.reduce_sum(weighted_losses), tf.math.reduce_sum(present))
+        loss = tf.math.divide_no_nan(tf.math.reduce_sum(loss), tf.math.reduce_sum(present))
         return loss
 
     def create_loss_ops(target_op, output_ops):
         weights = target_op.edges * real_weight + (1 - target_op.edges) * fake_weight
         row_index = tf.range(tf.constant(max_edges))
         n_valid_edges = target_op.n_edge[0]
-        # cond = (raw_index < n_valid_edges)
+        
+        # NOTE: this implementation is very low
+        # cond = (row_index < n_valid_edges)
         # zeros = tf.zeros_like(weights, dtype=weights.dtype)
-        # masked_weights = tf.where(cond, weights, zeros)
+        # weights = tf.where(cond, weights, zeros)
+
         mask = tf.cast(row_index < n_valid_edges, tf.float32)
         mask = tf.expand_dims(mask, axis=1)
         weights = weights * mask
