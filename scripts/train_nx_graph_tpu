@@ -35,7 +35,7 @@ if __name__ == "__main__":
     add_arg = parser.add_argument
     add_arg('config', help='configuration file')
     add_arg('--tpu', help='use tpu', default=None)
-    add_arg('--zone', help='gcloud zone for tpu', defautl='us-central1-b')
+    add_arg('--zone', help='gcloud zone for tpu', default='us-central1-b')
     args = parser.parse_args()
 
     print(args.config)
@@ -159,7 +159,7 @@ if __name__ == "__main__":
         ]
         return tf.stack(loss_ops)
 
-    @tf.function
+    @tf.function(autograph=False)
     def train_step(inputs_tr, targets_tr):
         print("Tracing train_step")
         print(inputs_tr)
@@ -204,6 +204,7 @@ if __name__ == "__main__":
         training_dataset = training_dataset.shuffle(global_batch_size*2, reshuffle_each_iteration=True)
         dist_training_dataset = strategy.experimental_distribute_dataset(training_dataset)
         loss = train_epoch(dist_training_dataset)
+        # loss = train_epoch(training_dataset)
         this_epoch = time.time()
         print("Training {} epoch, {:.2f} mins, Loss := {:.4f}".format(epoch, (this_epoch-now)/60., loss/global_batch_size))
         now = this_epoch
