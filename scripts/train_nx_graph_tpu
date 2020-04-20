@@ -35,6 +35,7 @@ if __name__ == "__main__":
     add_arg = parser.add_argument
     add_arg('config', help='configuration file')
     add_arg('--tpu', help='use tpu', default=None)
+    add_arg('--zone', help='gcloud zone for tpu', default='us-central1-b')
     args = parser.parse_args()
 
     print(args.config)
@@ -43,22 +44,20 @@ if __name__ == "__main__":
     config_tr = config['parameters']
     use_tpu = args.tpu is not None
 
+    device = 'CPU'
     global_batch_size = n_graphs   = config_tr['batch_size']   # need optimization
     physical_gpus = tf.config.experimental.list_physical_devices("GPU")
     n_gpus = len(physical_gpus)
-    if n_gpus > 0:
-        assert n_gpus == global_batch_size, "batch size {} does not equall to GPUs {}".format(global_batch_size, n_gpus)
-    else:
-        pass
-        # assert global_batch_size == 1, "batch size {} does not equall to 1".format(global_batch_size)
-
-    device = 'CPU'
+    n_tpus = 0
+    n_cores_per_tpu = 8
     if use_tpu:
         if args.tpu == 'colab':
             resolver = tf.distribute.cluster_resolver.TPUClusterResolver()
         else:
-            resolver = tf.distribute.cluster_resolver.TPUClusterResolver(tpu=args.tpu)
-        print('Running on TPU ', resolver.cluster_spec().as_dict()['worker'])
+            resolver = tf.distribute.cluster_resolver.TPUClusterResolver(tpu=args.tpu, zone=args.zone)
+        workers = resolver.cluster_spec().as_dict()['worker']
+        n_tpus = len(workers)
+        print('Running on {} TPUs '.format(n_tpus), resolver.cluster_spec().as_dict()['worker'])
         tf.config.experimental_connect_to_cluster(resolver)
         tf.tpu.experimental.initialize_tpu_system(resolver)
         strategy = snt.distribute.TpuReplicator(resolver)
@@ -74,6 +73,12 @@ if __name__ == "__main__":
     else:
         strategy = tf.distribute.OneDeviceStrategy("/device:CPU:0")
 
+    if n_gpus > 0:
+        assert n_gpus == global_batch_size, "batch size {} does not equall to GPUs {}".format(global_batch_size, n_gpus)
+    else:
+        pass
+        # assert global_batch_size == 1, "batch size {} does not equall to 1".format(global_batch_size)
+
     # add ops to save and restore all the variables
     prod_name = config['prod_name']
     if use_tpu:
@@ -84,7 +89,7 @@ if __name__ == "__main__":
     print("[{}] save models at {}".format(prog_name, output_dir))
     num_processing_steps_tr = config_tr['n_iters']      ## level of message-passing
     n_epochs = config_tr['epochs']
-    print("{} epochs".format(n_epochs))
+    print("{} epochs with batch size {}".format(n_epochs, global_batch_size))
     print("{} processing steps in the model".format(num_processing_steps_tr))
     # prepare graphs
     print("Node features: ", config['node_features'])
@@ -102,8 +107,11 @@ if __name__ == "__main__":
     training_dataset = raw_dataset.map(graph.parse_tfrec_function)
 
     AUTO = tf.data.experimental.AUTOTUNE
+    options = tf.data.Options()
+    options.experimental_distribute.auto_shard_policy = tf.data.experimental.AutoShardPolicy.DATA
+    training_dataset = training_dataset.with_options(options)
     # training_dataset = training_dataset.repeat().shuffle(2048).batch(global_batch_size).prefetch(AUTO)
-    training_dataset = training_dataset.batch(global_batch_size).prefetch(AUTO)
+    training_dataset = training_dataset.batch(global_batch_size, drop_remainder=True).prefetch(AUTO)
 
     learning_rate = config_tr['learning_rate']
     with strategy.scope():
@@ -156,7 +164,7 @@ if __name__ == "__main__":
 
         return tf.stack(loss_ops)
 
-    @tf.function
+    @tf.function(autograph=False)
     def train_step(inputs_tr, targets_tr):
         print("Tracing train_step")
         print(inputs_tr)
@@ -193,19 +201,16 @@ if __name__ == "__main__":
             input_tr, target_tr = inputs
             total_loss += train_step(input_tr, target_tr)
             num_batches += 1
+        print("total batches:", num_batches)
         return total_loss/num_batches
 
     now = time.time()
     for epoch in range(n_epochs):
         print("start epoch {} on {}".format(epoch, device))
         training_dataset = training_dataset.shuffle(global_batch_size*2, reshuffle_each_iteration=True)
-        if "CPU" in device or "GPU" in device:
-            dist_training_dataset = strategy.experimental_distribute_dataset(training_dataset)
-            loss = train_epoch(dist_training_dataset)
-        else:
-            dist_training_dataset = strategy.experimental_distribute_dataset(training_dataset)
-            loss = train_epoch(dist_training_dataset)
-            # loss = train_epoch(training_dataset)
+        dist_training_dataset = strategy.experimental_distribute_dataset(training_dataset)
+        loss = train_epoch(dist_training_dataset)
+        # loss = train_epoch(training_dataset)
         this_epoch = time.time()
         print("Training {} epoch, {:.2f} mins, Loss := {:.4f}".format(epoch, (this_epoch-now)/60., loss/global_batch_size))
         now = this_epoch
