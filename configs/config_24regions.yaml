@@ -28,7 +28,7 @@ gnn_training:
         - /global/cscratch1/sd/xju/heptrkx/codalab/inputs/trimed_doublets/doublets-evt22021-100events.h5
     n_eta: 2
     n_phi: 12
-    tfrec_name: 'doublets_24regions_110evts_noPadding*.tfrec'
+    tfrec_name: 'doublets_24regions_110evts_noPadding_0.tfrec'
     tfrec_dir_cloud: 'gs://gnn-v1/one_evt_24regions_padding'
     tfrec_dir_local: /global/cfs/cdirs/m3443/usr/xju/heptrkx/codalab/tfdata_doublets/one_evt_24regions_padding
     # node_features: ['x', 'y', 'z', 'geta', 'gphi', 'eta', 'phi', 'r', 'r3']
@@ -45,7 +45,7 @@ gnn_training:
     input_type: 'data_dict'
     parameters:
         time_lapse:  60 # how often save checkpoint in seconds
-        batch_size: 1
+        batch_size: 32
         iterations: 200000
         iter_per_job: 200000
         n_iters: 8

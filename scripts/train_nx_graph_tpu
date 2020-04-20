@@ -148,10 +148,12 @@ if __name__ == "__main__":
         mask = tf.cast(row_index < n_valid_edges, tf.float32)
         mask = tf.expand_dims(mask, axis=1)
         weights = weights * mask
+
         loss_ops = [
             log_loss(target_op.edges, output_op.edges, weights=weights)
                 for output_op in output_ops
         ]
+
         return tf.stack(loss_ops)
 
     @tf.function
@@ -201,9 +203,9 @@ if __name__ == "__main__":
             dist_training_dataset = strategy.experimental_distribute_dataset(training_dataset)
             loss = train_epoch(dist_training_dataset)
         else:
-            # dist_training_dataset = strategy.experimental_distribute_dataset(training_dataset)
-            # loss = train_epoch(dist_training_dataset)
-            loss = train_epoch(training_dataset)
+            dist_training_dataset = strategy.experimental_distribute_dataset(training_dataset)
+            loss = train_epoch(dist_training_dataset)
+            # loss = train_epoch(training_dataset)
         this_epoch = time.time()
         print("Training {} epoch, {:.2f} mins, Loss := {:.4f}".format(epoch, (this_epoch-now)/60., loss/global_batch_size))
         now = this_epoch

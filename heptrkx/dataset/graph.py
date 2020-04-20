@@ -69,11 +69,11 @@ def concat_batch_dim(G):
     """
     n_node = tf.reshape(G.n_node, [-1])
     n_edge = tf.reshape(G.n_edge, [-1])
-    nodes = tf.reshape(G.nodes, [-1, G.nodes.shape[-1]])
-    edges = tf.reshape(G.edges, [-1, G.edges.shape[-1]])
+    nodes = tf.reshape(G.nodes, [-1, tf.shape(G.nodes)[-1]])
+    edges = tf.reshape(G.edges, [-1, tf.shape(G.edges)[-1]])
     senders = tf.reshape(G.senders, [-1])
     receivers = tf.reshape(G.receivers, [-1])
-    globals_ = tf.reshape(G.globals, [-1, G.globals.shape[-1]])
+    globals_ = tf.reshape(G.globals, [-1, tf.shape(G.globals)[-1]])
     return G.replace(n_node=n_node, n_edge=n_edge, nodes=nodes,\
         edges=edges, senders=senders, receivers=receivers, globals=globals_)
 
