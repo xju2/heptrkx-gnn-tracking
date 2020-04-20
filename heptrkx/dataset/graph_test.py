@@ -218,6 +218,21 @@ def test_concat():
     print(g1_merged)
     print(g2_merged)
 
+def test_gs_tf():
+    # file_names = ['gs://gnn-v1/one_evt_24regions_padding/doublets_24regions_110evts_noPadding_0.tfrec']
+    file_names = tf.io.gfile.glob("gs://gnn-v1/one_evt_24regions_padding/doublets_24regions_110evts_noPadding_*.tfrec")
+    print(file_names)
+    raw_dataset = tf.data.TFRecordDataset(file_names)
+    training_dataset = raw_dataset.map(graph.parse_tfrec_function)
+    global_batch_size = 32
+    training_dataset = training_dataset.batch(global_batch_size, drop_remainder=True).prefetch(1)
+    num_batches = 0
+    for inputs in training_dataset:
+        num_batches += 1
+
+    print("total batches:", num_batches)
+
+
 if __name__ == "__main__":
     # test_graph()
     # test_dataset()
@@ -225,4 +240,5 @@ if __name__ == "__main__":
     # test_mask()
     # write_tfrecord()
     # read_tfrecord()
-    test_concat()
+    # test_concat()
+    test_gs_tf()
