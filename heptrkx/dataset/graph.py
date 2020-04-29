@@ -13,7 +13,8 @@ import time
 
 max_graph_dict = {
     "eta2-phi12": [3500, 56500],
-    'eta2-phi1': [37000, 680000]
+    'eta2-phi1': [37000, 680000],
+    'eta1-phi1': [74000, 1360000]
 }
 
 def get_max_graph_size(n_eta, n_phi):
@@ -504,3 +505,6 @@ class DoubletGraphGenerator:
                 writer = tf.io.TFRecordWriter(outname)
             example = serialize_graph(*data)
             writer.write(example)
+
+    def write_edge_distributed_tfrecord(self, filename, n_evts_per_record=10):
+        pass

@@ -14,11 +14,11 @@ from heptrkx.dataset import graph
 
 
 
-# hit_file_name = '/global/cscratch1/sd/xju/heptrkx/codalab/inputs/hitfiles/evt21001_test.h5'
-# doublet_file_name = '/global/cscratch1/sd/xju/heptrkx/codalab/inputs/doublet_files/doublets-evt21001_test.h5'
+hit_file_name = '/global/cscratch1/sd/xju/heptrkx/codalab/inputs/hitfiles/evt21001_test.h5'
+doublet_file_name = '/global/cscratch1/sd/xju/heptrkx/codalab/inputs/doublet_files/doublets-evt21001_test.h5'
 
-hit_file_name = '/Volumes/GoogleDrive/My Drive/HEPTrk/Data//hitfiles/evt21001_test.h5'
-doublet_file_name = '/Volumes/GoogleDrive/My Drive/HEPTrk/Data//doublet_files/doublets-evt21001_test.h5'
+# hit_file_name = '/Volumes/GoogleDrive/My Drive/HEPTrk/Data//hitfiles/evt21001_test.h5'
+# doublet_file_name = '/Volumes/GoogleDrive/My Drive/HEPTrk/Data//doublet_files/doublets-evt21001_test.h5'
 
 def test_graph():
     with pd.HDFStore(hit_file_name, 'r') as hit_store:
@@ -232,6 +232,17 @@ def test_gs_tf():
 
     print("total batches:", num_batches)
 
+def test_edge_distributed():
+    with_batch_dim = False
+    with_pad = False
+    graph_gen = DoubletGraphGenerator(1, 1, ['x', 'y', 'z'], ['deta', 'dphi'], \
+        with_batch_dim=with_batch_dim, with_pad=with_pad)
+    graph_gen.add_file(hit_file_name, doublet_file_name)
+
+    g = graph_gen.graphs[0]
+    print(g[0].n_node, g[0].n_edge)
+
+    
 
 if __name__ == "__main__":
     # test_graph()
@@ -241,4 +252,5 @@ if __name__ == "__main__":
     # write_tfrecord()
     # read_tfrecord()
     # test_concat()
-    test_gs_tf()
+    # test_gs_tf()
+    test_edge_distributed()
