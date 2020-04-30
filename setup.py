@@ -34,6 +34,7 @@ setup(
         'pyyaml>=5.1',
         'trackml@ https://github.com/LAL/trackml-library/tarball/master#egg=trackml-3',
         'tables',
+        'more-itertools',
         # 'h5py',
     ],
     extras_require={

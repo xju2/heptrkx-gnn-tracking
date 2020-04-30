@@ -4,7 +4,7 @@ Preare hits-graph from origin data
 import numpy as np
 import pandas as pd
 from heptrkx.datasets.graph import Graph
-from heptrkx import pairwise
+from more_itertools import pairwise
 
 def construct_graph(hits, layer_pairs,
                     phi_slope_max, z0_max,

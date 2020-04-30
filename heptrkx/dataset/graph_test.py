@@ -242,7 +242,7 @@ def test_edge_distributed():
     g = graph_gen.graphs[0]
     print(g[0].n_node, g[0].n_edge)
 
-    
+
 
 if __name__ == "__main__":
     # test_graph()

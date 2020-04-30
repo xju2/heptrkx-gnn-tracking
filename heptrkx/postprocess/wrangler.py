@@ -1,6 +1,6 @@
 
 # from heptrkx.postprocess import trackfitter
-from heptrkx import pairwise
+from more_itertools import pairwise
 
 import networkx as nx
 import numpy as np

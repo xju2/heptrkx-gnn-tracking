@@ -34,10 +34,3 @@ def load_yaml(file_name):
     assert(os.path.exists(file_name))
     with open(file_name) as f:
         return yaml.load(f, Loader=yaml.FullLoader)
-
-import itertools
-def pairwise(iterable):
-  """s -> (s0,s1), (s1,s2), (s2, s3), ..."""
-  a, b = itertools.tee(iterable)
-  next(b, None)
-  return zip(a, b)

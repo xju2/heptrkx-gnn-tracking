@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 
 import sklearn.metrics
 
-from heptrkx import pairwise
+from more_itertools import pairwise
 
 fontsize=16
 minor_size=14
