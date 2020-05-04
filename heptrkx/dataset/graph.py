@@ -214,7 +214,7 @@ def specs_from_graphs_tuple(
     return graphs.GraphsTuple(**graphs_tuple_description_fields)
 
 
-def dtype_shape_from_graphs_tuple(input_graph, with_batch_dim=False, with_padding=True, debug=False):
+def dtype_shape_from_graphs_tuple(input_graph, with_batch_dim=False, with_padding=True, debug=False, with_fixed_size=False):
     graphs_tuple_dtype = {}
     graphs_tuple_shape = {}
 
@@ -225,7 +225,7 @@ def dtype_shape_from_graphs_tuple(input_graph, with_batch_dim=False, with_paddin
         dtype = field_sample.dtype
         print(field_name, shape, dtype)
 
-        if shape and not with_padding:
+        if not with_fixed_size and shape and not with_padding:
             if with_batch_dim:
                 shape[1] = None
             else:

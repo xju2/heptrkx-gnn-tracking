@@ -21,11 +21,11 @@ gnn_training:
     hit_files:
         - /global/cscratch1/sd/xju/heptrkx/codalab/inputs/hitfiles/evt21001_test.h5
         - /global/cscratch1/sd/xju/heptrkx/codalab/inputs/hitfiles/evt22011-10events.h5
-        - /global/cscratch1/sd/xju/heptrkx/codalab/inputs/hitfiles/evt22021-100events.h5
+        # - /global/cscratch1/sd/xju/heptrkx/codalab/inputs/hitfiles/evt22021-100events.h5
     doublet_files:
         - /global/cscratch1/sd/xju/heptrkx/codalab/inputs/trimed_doublets/doublets-evt21001_test.h5
         - /global/cscratch1/sd/xju/heptrkx/codalab/inputs/trimed_doublets/doublets-evt22011-10events.h5
-        - /global/cscratch1/sd/xju/heptrkx/codalab/inputs/trimed_doublets/doublets-evt22021-100events.h5
+        # - /global/cscratch1/sd/xju/heptrkx/codalab/inputs/trimed_doublets/doublets-evt22021-100events.h5
     n_eta: 1
     n_phi: 1
     tfrec_name: '*.tfrec'
@@ -45,7 +45,7 @@ gnn_training:
     input_type: 'data_dict'
     parameters:
         time_lapse:  60 # how often save checkpoint in seconds
-        batch_size: 1
+        batch_size: 8
         iterations: 200000
         iter_per_job: 200000
         n_iters: 8
