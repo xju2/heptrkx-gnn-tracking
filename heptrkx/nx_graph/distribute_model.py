@@ -1,7 +1,9 @@
-from tensorflow import tf
+import tensorflow as tf
 from graph_nets import utils_tf
 from graph_nets import blocks
 from graph_nets import _base
+from graph_nets import modules
+import sonnet as snt
 
 class EdgeBlock(_base.AbstractModule):
     def __init__(self, edge_model_fn, name='dist_edge_block'):    
@@ -52,8 +54,8 @@ class NodeBlock(_base.AbstractModule):
         return graph.replace(nodes=updated_nodes)
 
 
-NUM_LAYERS = 2    # Hard-code number of layers in the edge/node/global models.
-LATENT_SIZE = 128 # Hard-code latent layer sizes for demos.
+NUM_LAYERS = 4    # Hard-code number of layers in the edge/node/global models.
+LATENT_SIZE = 256 # Hard-code latent layer sizes for demos.
 
 
 def make_mlp_model():
@@ -88,8 +90,8 @@ class MLPGraphIndependent(snt.Module):
 
 
 class InteractionNetwork(_base.AbstractModule):
-    def __init__(self, edge_model_nf, node_model_fn,
-                reducer=tf.math.unsorted_segment_sum),
+    def __init__(self, edge_model_fn, node_model_fn,
+                reducer=tf.math.unsorted_segment_sum,
                 name='DistInteractionNetwork'):
         super(InteractionNetwork, self).__init__(name=name)
         with self._enter_variable_scope():

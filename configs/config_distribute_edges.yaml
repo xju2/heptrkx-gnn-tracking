@@ -40,12 +40,12 @@ gnn_training:
     output_dir: /global/cfs/projectdirs/atlas/xju/tracking/PairsFromNN/GNNEdgeClassifier
     tpu_output_dir: "gs://gnn-v1/model"
     model_name: default 
-    prod_name: Distributed_Edges
+    prod_name: Distributed_Edges_Test
     log_name: big.log
     input_type: 'data_dict'
     parameters:
         time_lapse:  60 # how often save checkpoint in seconds
-        batch_size: 1
+        batch_size: 8
         iterations: 200000
         iter_per_job: 200000
         n_iters: 8
