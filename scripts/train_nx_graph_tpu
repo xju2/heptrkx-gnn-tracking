@@ -25,7 +25,8 @@ from graph_nets import utils_np
 import sonnet as snt
 
 from heptrkx.dataset import graph
-from heptrkx.nx_graph import get_model
+from heptrkx.nx_graph.distribute_model import SegmentClassifier
+# from heptrkx.nx_graph.model import SegmentClassifier
 from heptrkx.utils import load_yaml
 
 prog_name = os.path.basename(sys.argv[0])
@@ -116,7 +117,8 @@ if __name__ == "__main__":
     learning_rate = config_tr['learning_rate']
     with strategy.scope():
         optimizer = snt.optimizers.Adam(learning_rate)
-        model = get_model(config['model_name'])
+        model = SegmentClassifier()
+        # model = get_model(config['model_name'])
 
     # output_dir = 'gs://gnn-v1/model'
     checkpoint = tf.train.Checkpoint(optimizer=optimizer, model=model)
@@ -145,17 +147,17 @@ if __name__ == "__main__":
 
     def create_loss_ops(target_op, output_ops):
         weights = target_op.edges * real_weight + (1 - target_op.edges) * fake_weight
-        row_index = tf.range(tf.constant(max_edges))
-        n_valid_edges = target_op.n_edge[0]
+        # row_index = tf.range(tf.constant(max_edges))
+        # n_valid_edges = target_op.n_edge[0]
         
-        # NOTE: this implementation is very low
-        # cond = (row_index < n_valid_edges)
-        # zeros = tf.zeros_like(weights, dtype=weights.dtype)
-        # weights = tf.where(cond, weights, zeros)
+        # # NOTE: this implementation is very low
+        # # cond = (row_index < n_valid_edges)
+        # # zeros = tf.zeros_like(weights, dtype=weights.dtype)
+        # # weights = tf.where(cond, weights, zeros)
 
-        mask = tf.cast(row_index < n_valid_edges, tf.float32)
-        mask = tf.expand_dims(mask, axis=1)
-        weights = weights * mask
+        # mask = tf.cast(row_index < n_valid_edges, tf.float32)
+        # mask = tf.expand_dims(mask, axis=1)
+        # weights = weights * mask
 
         loss_ops = [
             log_loss(target_op.edges, output_op.edges, weights=weights)
@@ -171,10 +173,10 @@ if __name__ == "__main__":
         
         def update_step(inputs_tr, targets_tr):
             print("Tracing update_step")
-            print("before contatenate:", inputs_tr.nodes.shape)
+            print("before contatenate:", inputs_tr.n_node.shape)
             inputs_tr = graph.concat_batch_dim(inputs_tr)
             targets_tr = graph.concat_batch_dim(targets_tr)
-            print("after concatenate:", inputs_tr.nodes.shape)
+            print("after concatenate:", inputs_tr.n_node.shape)
 
             with tf.GradientTape() as tape:
                 outputs_tr = model(inputs_tr, num_processing_steps_tr)
@@ -193,6 +195,7 @@ if __name__ == "__main__":
         per_example_losses = strategy.run(update_step, args=(inputs_tr,targets_tr))
         mean_loss = strategy.reduce("sum", per_example_losses, axis=None)
         return mean_loss
+        return tf.constant(0.0)
 
     def train_epoch(dataset):
         total_loss = 0.

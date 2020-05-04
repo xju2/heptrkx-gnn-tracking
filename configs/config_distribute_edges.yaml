@@ -40,7 +40,7 @@ gnn_training:
     output_dir: /global/cfs/projectdirs/atlas/xju/tracking/PairsFromNN/GNNEdgeClassifier
     tpu_output_dir: "gs://gnn-v1/model"
     model_name: default 
-    prod_name: Distributed_Edges
+    prod_name: Distributed_Edges_Test
     log_name: big.log
     input_type: 'data_dict'
     parameters:
