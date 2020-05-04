@@ -18,8 +18,6 @@ from heptrkx.dataset.event import layer_pairs, select_pair_layers
 from heptrkx.utils import list_from_str
 from heptrkx.utils import is_df_there
 
-def process(hit_file_name, evtid, pairid):
-    return pd.DataFrame(data=np.array([0.]), columns=['data'])
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="read hit files and produce pre-doublets")

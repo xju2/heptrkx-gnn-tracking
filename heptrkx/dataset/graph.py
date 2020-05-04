@@ -1,20 +1,22 @@
 """
 Make doublet GraphNtuple
 """
-import numpy as np
-import pandas as pd
+import time
+import os
 import itertools
 import random
+
+import numpy as np
+import pandas as pd
+import tensorflow as tf
 from graph_nets import utils_tf
 from graph_nets import graphs
-import tensorflow as tf
-import time
 
 
 max_graph_dict = {
     "eta2-phi12": [3500, 56500],
     'eta2-phi1': [37000, 680000],
-    'eta1-phi1': [74000, 1360000]
+    'eta1-phi1': [74000, 1430000]
 }
 
 def get_max_graph_size(n_eta, n_phi):
@@ -138,6 +140,7 @@ def data_dicts_to_graphs_tuple(input_dd, target_dd, with_batch_dim=True):
         target_graphs = add_batch_dim(target_graphs)
     return input_graphs, target_graphs
 
+
 ## TODO place holder for the case PerReplicaSpec is exported.
 def get_signature(graphs_tuple_sample):
     from graph_nets import graphs
@@ -236,6 +239,7 @@ def dtype_shape_from_graphs_tuple(input_graph, with_batch_dim=False, with_paddin
     
     return graphs.GraphsTuple(**graphs_tuple_dtype), graphs.GraphsTuple(**graphs_tuple_shape)
 
+
 # TODO: use one-hot-encoding to add layer info for nodes,
 # attach the flattened encoding to node features
 def make_graph_ntuples(hits, segments, n_eta, n_phi,
@@ -302,6 +306,9 @@ def make_graph_ntuples(hits, segments, n_eta, n_phi,
         if with_pad:
             n_nodes_pad = N_MAX_NODES - n_nodes
             n_edges_pad = N_MAX_EDGES - n_edges
+            if n_edges_pad < 0:
+                raise ValueError("Max Edges: {}, but {} edges in graph".format(N_MAX_EDGES, n_edges))
+
             zeros_edges = np.array([0] * n_edges_pad, dtype=f_dtype)
             input_pad_datadict = {
                 "n_node": n_nodes_pad,
@@ -326,7 +333,27 @@ def make_graph_ntuples(hits, segments, n_eta, n_phi,
         else:
             input_graph = utils_tf.data_dicts_to_graphs_tuple([input_datadict])
             target_graph = utils_tf.data_dicts_to_graphs_tuple([target_datadict])
-        return input_graph, target_graph
+
+        # HACK, reverse a fixed number of edges, for testing distributing edges, <xju>
+        # distribute the edges to 8 devices
+        n_devices = 8
+        def reduce_edges(gg, n_edges_fixed, edge_slice):
+            # n_edges_fixed = 170000
+            return gg.replace(n_edge=tf.convert_to_tensor(np.array([n_edges_fixed]), tf.int32), 
+                edges=gg.edges[edge_slice],
+                receivers=gg.receivers[edge_slice],
+                senders=gg.senders[edge_slice])
+
+        splitted_graphs = []
+        n_edges_fixed = N_MAX_EDGES // n_devices
+        for idevice in range(n_devices):
+            edge_slice = slice(idevice*n_edges_fixed, (idevice+1)*n_edges_fixed)
+            splitted_graphs.append((
+                reduce_edges(input_graph, n_edges_fixed, edge_slice),
+                reduce_edges(target_graph, n_edges_fixed, edge_slice)
+                ))
+
+        return splitted_graphs
         # add pad graph to have a constant
 
     all_graphs = []
@@ -340,12 +367,13 @@ def make_graph_ntuples(hits, segments, n_eta, n_phi,
             eta_min -= deta
             eta_max += deta
             eta_mask = (hits.eta > eta_min) & (hits.eta < eta_max)
-            all_graphs.append(make_subgraph(eta_mask & phi_mask))
+            all_graphs += make_subgraph(eta_mask & phi_mask)
     tot_nodes = sum([x.n_node for x, _ in all_graphs])
     tot_edges = sum([x.n_edge for x, _ in all_graphs])
     if verbose:
         print("\t{} nodes and {} edges".format(tot_nodes, tot_edges))
     return all_graphs
+
 
 class IndexMgr:
     def __init__(self, n_total, training_frac=0.8):
@@ -386,6 +414,7 @@ class DoubletGraphGenerator:
         self.with_batch_dim = with_batch_dim
         self.with_pad = with_pad
         self.tf_record_idx = 0
+        self.n_evts = 0
         print("DoubletGraphGenerator settings: \n\twith_batch_dim={},\n\twith_pad={},\n\tverbose={}".format(
             self.with_batch_dim, self.with_pad, self.verbose
         ))
@@ -394,6 +423,7 @@ class DoubletGraphGenerator:
         now = time.time()
         with pd.HDFStore(hit_file, 'r') as hit_store:
             n_evts = len(list(hit_store.keys()))
+            self.n_evts += n_evts
             with pd.HDFStore(doublet_file, 'r') as doublet_store:
                 n_doublet_keys = len(list(doublet_store.keys()))
                 for key in hit_store.keys(): # loop over events
@@ -414,6 +444,7 @@ class DoubletGraphGenerator:
                                         edge_features=self.edge_features,
                                         with_pad=self.with_pad,
                                         verbose=self.verbose)
+                    self.n_graphs_per_evt = len(all_graphs)
                     self.graphs += all_graphs
                     self.evt_list.append(key)
 
@@ -481,16 +512,20 @@ class DoubletGraphGenerator:
             args=None
         )
 
-        n_graphs_per_evt = self.n_eta * self.n_phi
-        n_evts = int(self.tot_data//n_graphs_per_evt)
-        if self.tot_data % n_graphs_per_evt > 0:
-            n_evts += 1
+        # n_graphs_per_evt = self.n_eta * self.n_phi
+        # n_evts = int(self.tot_data//n_graphs_per_evt)
+        # n_evts = len(self.evt_list)
+        n_graphs_per_evt = self.n_graphs_per_evt
+        n_evts = self.n_evts
         n_files = n_evts//n_evts_per_record
         if n_evts%n_evts_per_record > 0:
             n_files += 1
 
         print("In total {} graphs, {} graphs per event".format(self.tot_data, n_graphs_per_evt))
         print("In total {} events, write to {} files".format(n_evts, n_files))
+        if not os.path.exists(os.path.dirname(filename)):
+            os.makedirs(os.path.dirname(filename))
+
         igraph = -1
         ifile = -1
         writer = None
@@ -505,6 +540,3 @@ class DoubletGraphGenerator:
                 writer = tf.io.TFRecordWriter(outname)
             example = serialize_graph(*data)
             writer.write(example)
-
-    def write_edge_distributed_tfrecord(self, filename, n_evts_per_record=10):
-        pass

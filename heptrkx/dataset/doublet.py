@@ -44,8 +44,7 @@ def create_segments(hits, layer_pairs,
 def calculate_segment_features(segments):
     dr = segments.r_out - segments.r_in
     dz = segments.z_out - segments.z_in
-    cottheta = dz/dr
-    zorg = segments.z_out - segments.r_out * cottheta
+    zorg = segments.z_out - segments.r_out * dz / dr
     dphi = calc_dphi(segments.phi_in, segments.phi_out)
     phi_slope = dphi/dr
 

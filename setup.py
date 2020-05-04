@@ -48,6 +48,7 @@ setup(
         # select doublets
         'scripts/create_hit_files',
         'scripts/create_predoublets',
+        'scripts/create_predoublets_mpi',
         'scripts/train_doublets',
         'scripts/check_nnbased_doublet_sel',
         'scripts/merge_h5',

@@ -1,0 +1,55 @@
+layers: [7, 8, 9, 10, 24, 25, 26, 27, 40, 41]
+track_ml:
+    dir:      /global/cfs/projectdirs/m3443/usr/xju/heptrkx/codalab/inputs/train_all
+    detector: /global/cfs/projectdirs/m3443/usr/xju/heptrkx/codalab/inputs/detector.csv
+
+doublet_training:
+    batch_size: 512
+    epochs: 50
+    eff_cut: 0.95
+    model_output_dir: /global/cfs/projectdirs/atlas/xju/tracking/PairsFromNN/model10evtsTF2
+    model: fully_connected_classifier
+    features: ['dphi', 'dz', 'dr', 'phi_slope', 'z0', 'deta', 'deta1', 'dphi1']
+    cuts: [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]
+
+# full hit features
+# cluster: ['leta', 'lphi', 'lx', 'ly', 'lz', 'geta', 'gphi']
+# position: [x, y, z, |z|, phi, theta, eta, r, r3, layer]
+# full edge features
+# ['dr', 'dz', 'cottheta', 'dphi', 'zorg', 'phi_slope', 'deta', 'deta1', 'dphi1']
+gnn_training:
+    hit_files:
+        - /global/cscratch1/sd/xju/heptrkx/codalab/inputs/hitfiles/evt21001_test.h5
+        - /global/cscratch1/sd/xju/heptrkx/codalab/inputs/hitfiles/evt22011-10events.h5
+        - /global/cscratch1/sd/xju/heptrkx/codalab/inputs/hitfiles/evt22021-100events.h5
+    doublet_files:
+        - /global/cscratch1/sd/xju/heptrkx/codalab/inputs/trimed_doublets/doublets-evt21001_test.h5
+        - /global/cscratch1/sd/xju/heptrkx/codalab/inputs/trimed_doublets/doublets-evt22011-10events.h5
+        - /global/cscratch1/sd/xju/heptrkx/codalab/inputs/trimed_doublets/doublets-evt22021-100events.h5
+    n_eta: 1
+    n_phi: 1
+    tfrec_name: '*.tfrec'
+    tfrec_dir_cloud: 'gs://gnn-v1/one_evt_2regions_split_edges'
+    tfrec_dir_local: /global/cfs/cdirs/m3443/usr/xju/heptrkx/codalab/tfdata_doublets/one_evt_2regions_split_edges
+    # node_features: ['x', 'y', 'z', 'geta', 'gphi', 'eta', 'phi', 'r', 'r3']
+    # edge_features: ['deta', 'dphi', 'dr', 'dz', 'phi_slope', 'deta1', 'dphi1', 'z0']
+    node_features: ['r', 'phi', 'z', 'geta', 'eta']
+    edge_features: ['deta', 'dphi', 'phi_slope', 'deta1', 'z0']
+    # node_features: ['x', 'y', 'z']
+    # edge_features: ['deta', 'dphi']
+    output_dir: /global/cfs/projectdirs/atlas/xju/tracking/PairsFromNN/GNNEdgeClassifier
+    tpu_output_dir: "gs://gnn-v1/model"
+    model_name: default 
+    prod_name: Distributed_Edges
+    log_name: big.log
+    input_type: 'data_dict'
+    parameters:
+        time_lapse:  60 # how often save checkpoint in seconds
+        batch_size: 1
+        iterations: 200000
+        iter_per_job: 200000
+        n_iters: 8
+        learning_rate: 0.001
+        real_weight: 10.0
+        fake_weight: 1.
+        epochs: 10

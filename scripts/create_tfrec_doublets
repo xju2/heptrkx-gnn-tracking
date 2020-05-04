@@ -13,7 +13,7 @@ if __name__ == "__main__":
     add_arg('config', help='configuration file')
     add_arg('outname', help='output file name')
     add_arg("--no-padding", help='do not pad the input graph', action='store_true')
-    add_arg('--evts-per-record', default=10, help='number of events per output file')
+    add_arg('--evts-per-record', default=10, type=int, help='number of events per output file')
     args = parser.parse_args()
 
     file_name = args.outname
@@ -34,5 +34,6 @@ if __name__ == "__main__":
     )
     for hit_file, doublet_file in zip(config['hit_files'], config['doublet_files']):
         doublet_graphs.add_file(hit_file, doublet_file)
+
 
     doublet_graphs.write_tfrecord(file_name, n_evts_per_record)

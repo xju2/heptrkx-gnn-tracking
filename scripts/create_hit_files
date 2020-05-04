@@ -43,7 +43,6 @@ if __name__ == "__main__":
             comm = MPI.COMM_WORLD
             size = comm.Get_size()
             rank = comm.Get_rank()
-            print("World size:", size, ", rank:", rank)
         except ImportError:
             rank = 0
             size = 1
@@ -72,6 +71,7 @@ if __name__ == "__main__":
     if is_df_there(outname):
         print("{} is there".format(outname))
         exit(0)
+    print(rank, "has", len(evtids), "jobs")
 
     with pd.HDFStore(outname, 'w') as store:
         event = master.Event(input_dir)
@@ -83,3 +83,5 @@ if __name__ == "__main__":
                 event.filter_hits(layers)
                 event.cluster_info(det_conf)
                 store['evt{}'.format(evtid)] = event.hits
+                
+    print(rank, "finished")
