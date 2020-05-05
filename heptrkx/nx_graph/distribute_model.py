@@ -16,9 +16,9 @@ class EdgeBlock(_base.AbstractModule):
         agg_sender_nodes_features = blocks.broadcast_sender_nodes_to_edges(graph)
 
         # aggreate across replicas
-        replica_ctx = tf.distribute.get_replica_context()
-        agg_receiver_nodes_features = replica_ctx.all_reduce("sum", agg_receiver_nodes_features)
-        agg_sender_nodes_features = replica_ctx.all_reduce("sum", agg_sender_nodes_features)
+        # replica_ctx = tf.distribute.get_replica_context()
+        # agg_receiver_nodes_features = replica_ctx.all_reduce("sum", agg_receiver_nodes_features)
+        # agg_sender_nodes_features = replica_ctx.all_reduce("sum", agg_sender_nodes_features)
 
         edges_to_collect = [graph.edges, agg_receiver_nodes_features, agg_sender_nodes_features]
         collected_edges = tf.concat(edges_to_collect, axis=-1)
