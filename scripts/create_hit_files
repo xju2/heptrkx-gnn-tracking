@@ -25,7 +25,7 @@ if __name__ == "__main__":
             default='/global/cfs/projectdirs/m3443/usr/xju/heptrkx/codalab/inputs/detector.csv')
     add_arg('--start-evt-id', default=21001, type=int)
     add_arg('--mpi', action='store_true', help='use MPI')
-    add_arg('--layers', default="7, 8, 9, 10, 24, 25, 26, 27, 40, 41", help='layers of interest')
+    add_arg('--layers', default="7, 8, 9, 10, 24, 25, 26, 27, 40, 41", help='layers of interest', const="-1")
 
     args = parser.parse_args()
 
@@ -80,7 +80,8 @@ if __name__ == "__main__":
         for idx in evtids:
             evtid = start_evt_id + idx
             if event.read(evtid):
-                event.filter_hits(layers)
+                if layers[0] >= 0:
+                    event.filter_hits(layers)
                 event.cluster_info(det_conf)
                 store['evt{}'.format(evtid)] = event.hits
                 
