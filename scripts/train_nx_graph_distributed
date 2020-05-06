@@ -180,11 +180,11 @@ if __name__ == "__main__":
 
     def create_loss_ops(target_op, output_ops):
         weights = target_op.edges * real_weight + (1 - target_op.edges) * fake_weight
-        row_index = tf.range(tf.math.reduce_sum(target_op.n_edge))
-        n_valid_edges = target_op.n_edge[0]
-        mask = tf.cast(row_index < n_valid_edges, tf.float32)
-        mask = tf.expand_dims(mask, axis=1)
-        weights = weights * mask
+        # row_index = tf.range(tf.math.reduce_sum(target_op.n_edge))
+        # n_valid_edges = target_op.n_edge[0]
+        # mask = tf.cast(row_index < n_valid_edges, tf.float32)
+        # mask = tf.expand_dims(mask, axis=1)
+        # weights = weights * mask
         loss_ops = [
             tf.compat.v1.losses.log_loss(target_op.edges, output_op.edges, weights=weights)
             for output_op in output_ops

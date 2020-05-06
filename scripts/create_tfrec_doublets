@@ -14,9 +14,12 @@ if __name__ == "__main__":
     add_arg('outname', help='output file name')
     add_arg("--no-padding", help='do not pad the input graph', action='store_true')
     add_arg('--evts-per-record', default=10, type=int, help='number of events per output file')
+    add_arg('--from-hitsgraph', help='from hits graph', action='store_true')
+    add_arg('--histgraph-dir', help='histgraph directories',
+            default='/project/projectdirs/m3443/usr/dtmurnane/doublets/high_fullsplit')
     args = parser.parse_args()
 
-    file_name = args.outname
+    outname = args.outname
     with_pad = not args.no_padding
     n_evts_per_record = args.evts_per_record
 
@@ -24,7 +27,7 @@ if __name__ == "__main__":
     config = all_config['gnn_training']
     print("Node features: ", config['node_features'])
     print("Edge features: ", config['edge_features'])
-    print("Output Name {}".format(file_name))
+    print("Output Name {}".format(outname))
     print("{} events per record".format(n_evts_per_record))
     doublet_graphs = graph.DoubletGraphGenerator(
         config['n_eta'], config['n_phi'],
@@ -32,8 +35,19 @@ if __name__ == "__main__":
         with_batch_dim=False,
         with_pad=with_pad
     )
-    for hit_file, doublet_file in zip(config['hit_files'], config['doublet_files']):
-        doublet_graphs.add_file(hit_file, doublet_file)
+    if args.from_hitsgraph:
+        nevts = 10
+        base_filename = os.path.join(args.histgraph_dir, "event{}_{}")
+        for ievt in range(nevts):
+            evtid = 1000 + ievt
+            file_name = base_filename.format(evtid, 0) + ".npz"
+            if not os.path.exists(file_name):
+                continue
+            else:
+                print("reading {}".format(file_name))
+            doublet_graphs.add_daniels_doublets(base_filename, evtid)
+    else:
+        for hit_file, doublet_file in zip(config['hit_files'], config['doublet_files']):
+            doublet_graphs.add_file(hit_file, doublet_file)
 
-
-    doublet_graphs.write_tfrecord(file_name, n_evts_per_record)
+    doublet_graphs.write_tfrecord(outname, n_evts_per_record)

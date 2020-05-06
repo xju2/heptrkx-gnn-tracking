@@ -26,21 +26,23 @@ gnn_training:
         - /global/cscratch1/sd/xju/heptrkx/codalab/inputs/trimed_doublets/doublets-evt21001_test.h5
         - /global/cscratch1/sd/xju/heptrkx/codalab/inputs/trimed_doublets/doublets-evt22011-10events.h5
         - /global/cscratch1/sd/xju/heptrkx/codalab/inputs/trimed_doublets/doublets-evt22021-100events.h5
-    n_eta: 2
+    n_eta: 1
     n_phi: 1
-    tfrec_name: 'doublets_2regions_110evts_noPadding*.tfrec'
+    # tfrec_name: 'doublets_2regions_110evts_noPadding*.tfrec'
+    tfrec_name: '*.tfrec'
     tfrec_dir_cloud: 'gs://gnn-v1/one_evt_2regions_padding'
-    tfrec_dir_local: /global/cfs/cdirs/m3443/usr/xju/heptrkx/codalab/tfdata_doublets/one_evt_24regions_padding
+    # tfrec_dir_local: /global/cfs/cdirs/m3443/usr/xju/heptrkx/codalab/tfdata_doublets/one_evt_24regions_padding
+    tfrec_dir_local: /global/cscratch1/sd/xju/heptrkx/codalab/Daniel_Doublets
     # node_features: ['x', 'y', 'z', 'geta', 'gphi', 'eta', 'phi', 'r', 'r3']
     # edge_features: ['deta', 'dphi', 'dr', 'dz', 'phi_slope', 'deta1', 'dphi1', 'z0']
-    node_features: ['r', 'phi', 'z', 'geta', 'eta']
-    edge_features: ['deta', 'dphi', 'phi_slope', 'deta1', 'z0']
-    # node_features: ['x', 'y', 'z']
-    # edge_features: ['deta', 'dphi']
+    # node_features: ['r', 'phi', 'z', 'geta', 'eta']
+    # edge_features: ['deta', 'dphi', 'phi_slope', 'deta1', 'z0']
+    node_features: ['x', 'y', 'z']
+    edge_features: ['deta', 'dphi']
     output_dir: /global/cfs/projectdirs/atlas/xju/tracking/PairsFromNN/GNNEdgeClassifier
     tpu_output_dir: "gs://gnn-v1/model"
-    model_name: default 
-    prod_name: Distributed_TPU
+    model_name: vary2 
+    prod_name: test_DD
     log_name: big.log
     input_type: 'data_dict'
     parameters:

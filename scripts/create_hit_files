@@ -25,7 +25,7 @@ if __name__ == "__main__":
             default='/global/cfs/projectdirs/m3443/usr/xju/heptrkx/codalab/inputs/detector.csv')
     add_arg('--start-evt-id', default=21001, type=int)
     add_arg('--mpi', action='store_true', help='use MPI')
-    add_arg('--layers', default="7, 8, 9, 10, 24, 25, 26, 27, 40, 41", help='layers of interest', const="-1")
+    add_arg('--layers', nargs='?', default="7, 8, 9, 10, 24, 25, 26, 27, 40, 41", help='layers of interest', const="-1")
 
     args = parser.parse_args()
 
@@ -54,6 +54,8 @@ if __name__ == "__main__":
         evtids = list(range(nevts))
         # check if the file is there and remove those
         evtids = [x.tolist() for x in np.array_split(evtids, size)]
+        if not os.path.exists(outdir):
+            os.makedirs(outdir)
     else:
         evtids = None
     
