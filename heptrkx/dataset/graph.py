@@ -244,13 +244,16 @@ def dtype_shape_from_graphs_tuple(input_graph, with_batch_dim=False, with_paddin
 # attach the flattened encoding to node features
 def make_graph_ntuples(hits, segments, n_eta, n_phi,
                     node_features=['r', 'phi', 'z'],
-                    edge_features=['deta', 'dphi'],
+                    edge_features=None,
                     dphi=0.0, deta=0.0, with_pad=False, verbose=False):
     phi_range = (-np.pi, np.pi)
     eta_range = (-5, 5)
     phi_edges = np.linspace(*phi_range, num=n_phi+1)
     eta_edges = np.linspace(*eta_range, num=n_eta+1)
-    n_edge_features = len(edge_features)
+    if edge_features is None:
+        n_edge_features = 1
+    else:
+        n_edge_features = len(edge_features)
     n_node_features = len(node_features)
     N_MAX_NODES, N_MAX_EDGES = get_max_graph_size(n_eta, n_phi)
 
@@ -258,8 +261,9 @@ def make_graph_ntuples(hits, segments, n_eta, n_phi,
     if verbose:
         print("{} graphs".format(n_graphs))
 
+    f_dtype = np.float32
+    zeros = np.array([0.0], dtype=f_dtype)
     def make_subgraph(mask):
-        f_dtype = np.float32
         hit_id = hits[mask].hit_id.values
         sub_doublets = segments[segments.hit_id_in.isin(hit_id) & segments.hit_id_out.isin(hit_id)]
 
@@ -271,7 +275,10 @@ def make_graph_ntuples(hits, segments, n_eta, n_phi,
         n_nodes = hit_id.shape[0]
         n_edges = sub_doublets.shape[0]
         nodes = hits[mask][node_features].values.astype(f_dtype)
-        edges = sub_doublets[edge_features].values.astype(f_dtype)
+        if edge_features is None:
+            edges = zeros
+        else:
+            edges = sub_doublets[edge_features].values.astype(f_dtype)
         # print(nodes.dtype)
 
         hits_id_dict = dict([(hit_id[idx], idx) for idx in range(n_nodes)])
@@ -283,7 +290,7 @@ def make_graph_ntuples(hits, segments, n_eta, n_phi,
             print("\t{} nodes and {} edges".format(n_nodes, n_edges))
         senders = np.array(senders)
         receivers = np.array(receivers)
-        zeros = np.array([0.0], dtype=f_dtype)
+
         input_datadict = {
             "n_node": n_nodes,
             'n_edge': n_edges,
@@ -334,26 +341,28 @@ def make_graph_ntuples(hits, segments, n_eta, n_phi,
             input_graph = utils_tf.data_dicts_to_graphs_tuple([input_datadict])
             target_graph = utils_tf.data_dicts_to_graphs_tuple([target_datadict])
 
-        # HACK, reverse a fixed number of edges, for testing distributing edges, <xju>
-        # distribute the edges to 8 devices
-        n_devices = 8
-        def reduce_edges(gg, n_edges_fixed, edge_slice):
-            # n_edges_fixed = 170000
-            return gg.replace(n_edge=tf.convert_to_tensor(np.array([n_edges_fixed]), tf.int32), 
-                edges=gg.edges[edge_slice],
-                receivers=gg.receivers[edge_slice],
-                senders=gg.senders[edge_slice])
+        return [(input_graph, target_graph)]
 
-        splitted_graphs = []
-        n_edges_fixed = N_MAX_EDGES // n_devices
-        for idevice in range(n_devices):
-            edge_slice = slice(idevice*n_edges_fixed, (idevice+1)*n_edges_fixed)
-            splitted_graphs.append((
-                reduce_edges(input_graph, n_edges_fixed, edge_slice),
-                reduce_edges(target_graph, n_edges_fixed, edge_slice)
-                ))
+        # # HACK, reverse a fixed number of edges, for testing distributing edges, <xju>
+        # # distribute the edges to 8 devices
+        # n_devices = 8
+        # def reduce_edges(gg, n_edges_fixed, edge_slice):
+        #     # n_edges_fixed = 170000
+        #     return gg.replace(n_edge=tf.convert_to_tensor(np.array([n_edges_fixed]), tf.int32), 
+        #         edges=gg.edges[edge_slice],
+        #         receivers=gg.receivers[edge_slice],
+        #         senders=gg.senders[edge_slice])
 
-        return splitted_graphs
+        # splitted_graphs = []
+        # n_edges_fixed = N_MAX_EDGES // n_devices
+        # for idevice in range(n_devices):
+        #     edge_slice = slice(idevice*n_edges_fixed, (idevice+1)*n_edges_fixed)
+        #     splitted_graphs.append((
+        #         reduce_edges(input_graph, n_edges_fixed, edge_slice),
+        #         reduce_edges(target_graph, n_edges_fixed, edge_slice)
+        #         ))
+
+        # return splitted_graphs
         # add pad graph to have a constant
 
     all_graphs = []
@@ -420,6 +429,13 @@ class DoubletGraphGenerator:
         ))
 
     def add_file(self, hit_file, doublet_file):
+        """
+        hit-file: pandas dataframe for hits, minimum  columns:
+            ['hit_id', 'eta', 'phi'] + [node-features],
+        doublet-file: pandas dataframe for edges, minimum columns:
+            ['hit_id_in', 'hit_id_out', 'solution'], where 'solution' identifies if the edge is true
+            + [edge_features]
+        """
         now = time.time()
         with pd.HDFStore(hit_file, 'r') as hit_store:
             n_evts = len(list(hit_store.keys()))
@@ -452,6 +468,45 @@ class DoubletGraphGenerator:
         self.idx_mgr = IndexMgr(self.tot_data)
         read_time = time.time() - now
         print("DoubletGraphGenerator added {} events, Total {} graphs, in {:.1f} mins".format(n_evts, len(self.graphs), read_time/60.))
+
+    def add_daniels_doublets(self, base_filename, evtid, n_sections=8):
+        # base /project/projectdirs/m3443/usr/dtmurnane/doublets/high_fullsplit/event{}_{}
+        node_features = ['r', 'phi', 'z']
+        all_graphs = []
+        for isec in range(n_sections):
+            file_name = base_filename.format(evtid, isec)+".npz"
+            array = np.load(file_name)
+            # hitid_filename = base_filename.format(evtid, isec)+"_ID.npz"
+            # array2 = np.load(hitid_filename)
+
+            hits = pd.DataFrame(array['X'], columns=node_features)
+            hits = hits.assign(hit_id=np.arange(hits.shape[0]), eta=0)
+
+            doublets = pd.DataFrame.from_dict({
+                "hit_id_in": array['e'][0], 
+                "hit_id_out": array['e'][1],
+                'solution': array['y']
+            })
+            this_graph = make_graph_ntuples(
+                hits, doublets, self.n_eta, self.n_phi,
+                node_features=node_features,
+                edge_features=None,
+                with_pad=self.with_pad,
+                verbose=self.verbose
+            )
+            all_graphs += this_graph
+        
+        input_graphs = utils_tf.concat([x[0] for x in all_graphs], axis=0)
+        target_graphs = utils_tf.concat([x[1] for x in all_graphs], axis=0)
+        # print(input_graphs)
+        all_graphs = [(input_graphs, target_graphs)]
+        self.n_graphs_per_evt = len(all_graphs)
+        self.graphs += all_graphs
+        self.evt_list.append(str(evtid))
+        self.tot_data = len(self.graphs)
+        self.idx_mgr = IndexMgr(self.tot_data)
+        self.n_evts += 1
+
 
     def _get_signature(self):
         if self.input_dtype and self.target_dtype:
@@ -497,14 +552,16 @@ class DoubletGraphGenerator:
             inputs.append(input_dd)
             targets.append(target_dd)
 
-        return data_dicts_to_graphs_tuple(inputs, targets, self.with_batch_dim)
+        return utils_tf.concat(inputs, axis=0), utils_tf.concat(targets, axis=0)
+        # return data_dicts_to_graphs_tuple(inputs, targets, self.with_batch_dim)
 
     
     def write_tfrecord(self, filename, n_evts_per_record=10):
         self._get_signature()
         def generator():
             for G in self.graphs:
-                yield data_dicts_to_graphs_tuple([G[0]], [G[1]], self.with_batch_dim)
+                yield (G[0], G[1])
+                # yield data_dicts_to_graphs_tuple([G[0]], [G[1]], self.with_batch_dim)
         dataset = tf.data.Dataset.from_generator(
             generator,
             output_types=(self.input_dtype, self.target_dtype),

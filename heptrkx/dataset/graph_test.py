@@ -242,7 +242,16 @@ def test_edge_distributed():
     g = graph_gen.graphs[0]
     print(g[0].n_node, g[0].n_edge)
 
+def test_daniel_graph():
+    base_filename = '/project/projectdirs/m3443/usr/dtmurnane/doublets/high_fullsplit/event{}_{}'
+    evtid = 9999
 
+    with_batch_dim = False
+    with_pad = False
+    graph_gen = DoubletGraphGenerator(1, 1, ['x', 'y', 'z'], ['deta', 'dphi'], \
+        with_batch_dim=with_batch_dim, with_pad=with_pad)
+    graph_gen.add_daniels_doublets(base_filename, evtid)
+    print(graph_gen.graphs[0][0])
 
 if __name__ == "__main__":
     # test_graph()
@@ -253,4 +262,5 @@ if __name__ == "__main__":
     # read_tfrecord()
     # test_concat()
     # test_gs_tf()
-    test_edge_distributed()
+    # test_edge_distributed()
+    test_daniel_graph()
