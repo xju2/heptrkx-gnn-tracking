@@ -143,13 +143,19 @@ if __name__ == "__main__":
     raw_dataset = tf.data.TFRecordDataset(file_names)
     training_dataset = raw_dataset.map(graph.parse_tfrec_function)
 
+
+
     AUTO = tf.data.experimental.AUTOTUNE
     # training_dataset = training_dataset.repeat().shuffle(2048).batch(global_batch_size).prefetch(AUTO)
-    training_dataset = training_dataset.batch(global_batch_size).prefetch(AUTO)
+    training_dataset = training_dataset.prefetch(AUTO)
 
-
-    # testing_dataset = doublet_graphs.create_dataset(is_training=False)
-
+    with_batch_dim = False
+    inputs, targets = next(training_dataset.take(1).as_numpy_iterator())
+    input_signature = (
+        graph.specs_from_graphs_tuple(inputs, with_batch_dim),
+        graph.specs_from_graphs_tuple(targets, with_batch_dim)
+    )
+    print(input_signature)
 
     # training loss
     if config_tr['real_weight']:
@@ -191,40 +197,58 @@ if __name__ == "__main__":
         ]
         return tf.stack(loss_ops)
 
-    @tf.function
-    def train_step(inputs_tr, targets_tr):
-        print("Tracing train_step")
-        
-        def update_step(inputs_tr, targets_tr):
-            print("Tracing update_step")
-            inputs_tr = graph.concat_batch_dim(inputs_tr)
-            targets_tr = graph.concat_batch_dim(targets_tr)
-            with tf.GradientTape() as tape:
-                outputs_tr = model(inputs_tr, num_processing_steps_tr)
-                loss_ops_tr = create_loss_ops(targets_tr, outputs_tr)
-                loss_op_tr = tf.math.reduce_sum(loss_ops_tr) / tf.constant(num_processing_steps_tr, dtype=tf.float32)
 
-            gradients = tape.gradient(loss_op_tr, model.trainable_variables)
-            # aggregate the gradients from the full batch.
-            # this is not there for mirror strategy
-            replica_ctx = tf.distribute.get_replica_context()
-            gradients = replica_ctx.all_reduce("mean", gradients)
+    # def train_step(inputs_tr, targets_tr):
 
-            optimizer.apply(gradients, model.trainable_variables)
-            return loss_op_tr
+    #     # @functools.partial(tf.function, input_signature=input_signature)        
+    #     def update_step(inputs_tr, targets_tr):
+    #         print("Tracing update_step")
+    #         with tf.GradientTape() as tape:
+    #             outputs_tr = model(inputs_tr, num_processing_steps_tr)
+    #             loss_ops_tr = create_loss_ops(targets_tr, outputs_tr)
+    #             loss_op_tr = tf.math.reduce_sum(loss_ops_tr) / tf.constant(num_processing_steps_tr, dtype=tf.float32)
 
-        per_example_losses = strategy.experimental_run_v2(update_step, args=(inputs_tr,targets_tr))
-        mean_loss = strategy.reduce("sum", per_example_losses, axis=None)
-        return mean_loss
+    #         gradients = tape.gradient(loss_op_tr, model.trainable_variables)
+    #         # aggregate the gradients from the full batch.
+    #         # this is not there for mirror strategy
+    #         replica_ctx = tf.distribute.get_replica_context()
+    #         gradients = replica_ctx.all_reduce("mean", gradients)
+
+    #         optimizer.apply(gradients, model.trainable_variables)
+    #         return loss_op_tr
+
+    #     compiled_update_step = tf.function(update_step, input_signature=input_signature)
+    #     per_example_losses = strategy.experimental_run_v2(compiled_update_step, args=(inputs_tr,targets_tr))
+    #     mean_loss = strategy.reduce("sum", per_example_losses, axis=None)
+    #     return mean_loss
+    @functools.partial(tf.function, input_signature=input_signature)
+    def update_step(inputs_tr, targets_tr):
+        print("Tracing update_step")
+        with tf.GradientTape() as tape:
+            outputs_tr = model(inputs_tr, num_processing_steps_tr)
+            loss_ops_tr = create_loss_ops(targets_tr, outputs_tr)
+            loss_op_tr = tf.math.reduce_sum(loss_ops_tr) / tf.constant(num_processing_steps_tr, dtype=tf.float32)
+
+        gradients = tape.gradient(loss_op_tr, model.trainable_variables)
+        # # aggregate the gradients from the full batch.
+        # # this is not there for mirror strategy
+        # replica_ctx = tf.distribute.get_replica_context()
+        # gradients = replica_ctx.all_reduce("mean", gradients)
+
+        optimizer.apply(gradients, model.trainable_variables)
+        return loss_op_tr
 
     def train_epoch(dataset):
         total_loss = 0.
         num_batches = 0
         for inputs in dataset:
             # print("Step {}".format(num_batches))
-            input_tr, target_tr = inputs
+            inputs_tr, targets_tr = inputs
+            # inputs_tr = graph.concat_batch_dim(inputs_tr)
+            # targets_tr = graph.concat_batch_dim(targets_tr)
             # print(target_tr)
-            total_loss += train_step(input_tr, target_tr).numpy()
+            total_loss += update_step(inputs_tr, targets_tr).numpy()
+
             num_batches += 1
         return total_loss/num_batches
 
@@ -239,8 +263,8 @@ if __name__ == "__main__":
         print("Training epoch", epoch, "...", end=' ')
         training_dataset = training_dataset.shuffle(global_batch_size*2, reshuffle_each_iteration=True)
         # distributed dataset
-        dist_training_dataset = strategy.experimental_distribute_dataset(training_dataset)
-        loss = train_epoch(dist_training_dataset)
+        # dist_training_dataset = strategy.experimental_distribute_dataset(training_dataset)
+        loss = train_epoch(training_dataset)
         this_epoch = time.time()
         print("{:.2f} mins, Loss := {}".format((this_epoch-now)/60., loss/global_batch_size))
         now = this_epoch

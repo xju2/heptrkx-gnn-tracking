@@ -36,18 +36,26 @@ if __name__ == "__main__":
         with_pad=with_pad
     )
     if args.from_hitsgraph:
-        nevts = 10
+        nevts = 9000
+        print("reading {} events".format(nevts))
         base_filename = os.path.join(args.histgraph_dir, "event{}_{}")
+        nevts_added = 0
         for ievt in range(nevts):
             evtid = 1000 + ievt
             file_name = base_filename.format(evtid, 0) + ".npz"
             if not os.path.exists(file_name):
                 continue
             else:
-                print("reading {}".format(file_name))
+                pass
+                # print("reading {}".format(file_name))
             doublet_graphs.add_daniels_doublets(base_filename, evtid)
+            nevts_added += 1
+            if nevts_added % n_evts_per_record == 0:
+                doublet_graphs.write_tfrecord(outname, n_evts_per_record)
+                doublet_graphs.graphs = []
+                doublet_graphs.n_evts = 0
     else:
         for hit_file, doublet_file in zip(config['hit_files'], config['doublet_files']):
             doublet_graphs.add_file(hit_file, doublet_file)
 
-    doublet_graphs.write_tfrecord(outname, n_evts_per_record)
+        doublet_graphs.write_tfrecord(outname, n_evts_per_record)

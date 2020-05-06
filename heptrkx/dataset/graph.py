@@ -208,6 +208,7 @@ def specs_from_graphs_tuple(
                 or (dynamic_num_edges \
                     and field_name in edge_dim_fields)): shape[0] = None
 
+        print(field_name, shape, dtype)
         graphs_tuple_description_fields[field_name] = description_fn(
             shape=shape, dtype=dtype)
 
@@ -276,7 +277,7 @@ def make_graph_ntuples(hits, segments, n_eta, n_phi,
         n_edges = sub_doublets.shape[0]
         nodes = hits[mask][node_features].values.astype(f_dtype)
         if edge_features is None:
-            edges = zeros
+            edges = np.expand_dims(np.array([0.0], dtype=np.float32), axis=1)
         else:
             edges = sub_doublets[edge_features].values.astype(f_dtype)
         # print(nodes.dtype)
@@ -427,6 +428,7 @@ class DoubletGraphGenerator:
         print("DoubletGraphGenerator settings: \n\twith_batch_dim={},\n\twith_pad={},\n\tverbose={}".format(
             self.with_batch_dim, self.with_pad, self.verbose
         ))
+        self.n_files_saved = 0
 
     def add_file(self, hit_file, doublet_file):
         """
@@ -593,7 +595,8 @@ class DoubletGraphGenerator:
                 ifile += 1
                 if writer is not None:
                     writer.close()
-                outname = "{}_{}.tfrec".format(filename, ifile)
+                outname = "{}_{}.tfrec".format(filename, self.n_files_saved+ifile)
                 writer = tf.io.TFRecordWriter(outname)
             example = serialize_graph(*data)
             writer.write(example)
+        self.n_files_saved += n_files

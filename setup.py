@@ -65,6 +65,7 @@ setup(
         'scripts/trim_doublets',
         # GNN
         'scripts/train_nx_graph',
+        'scripts/train_nx_graph_single',
         'scripts/train_nx_graph_distributed',
         'scripts/train_distributed',
         'scripts/train_nx_graph_tpu',

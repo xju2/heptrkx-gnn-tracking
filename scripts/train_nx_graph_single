@@ -83,7 +83,7 @@ if __name__ == "__main__":
 
     config_tr = config['parameters']
     log_every_seconds       = config_tr['time_lapse']
-    batch_size = n_graphs   = config_tr['batch_size']   # need optimization
+    global_batch_size = n_graphs   = config_tr['batch_size']   # need optimization
     num_training_iterations = config_tr['iterations']
     iter_per_job            = 2500 if 'iter_per_job' not in config_tr else config_tr['iter_per_job']
     num_processing_steps_tr = config_tr['n_iters']      ## level of message-passing
@@ -98,42 +98,31 @@ if __name__ == "__main__":
     with_pad = False
     print("Node features: ", config['node_features'])
     print("Edge features: ", config['edge_features'])
-    doublet_graphs = graph.DoubletGraphGenerator(
-        config['n_eta'], config['n_phi'],
-        config['node_features'], config['edge_features'],
-        with_batch_dim=with_batch_dim,
-        with_pad=with_pad
-        )
 
-    if args.from_hitsgraph:
-        nevts = 200
-        print("reading {} events".format(nevts))
-        base_filename = os.path.join(args.hitsgraph_dir, "event{}_{}")
-        for ievt in range(nevts):
-            evtid = 1000 + ievt
-            file_name = base_filename.format(evtid, 0) + ".npz"
-            if not os.path.exists(file_name):
-                continue
-            else:
-                pass
-                # print("reading {}".format(file_name))
-            doublet_graphs.add_daniels_doublets(base_filename, evtid)
+    file_names = tf.io.gfile.glob(os.path.join(config['tfrec_dir_local'], config['tfrec_name']))
+    n_files = len(file_names)
+    n_train = int(0.9*n_files)
+    if n_train < 1: n_train = 1
+
+    print("Input file names: ", file_names)
+    print("{} input files".format(n_files))
+    print("{} training files".format(n_train))
+
+    raw_train_dataset = tf.data.TFRecordDataset(file_names[:n_train])
+    training_dataset = raw_train_dataset.map(graph.parse_tfrec_function)
+    AUTO = tf.data.experimental.AUTOTUNE
+    training_dataset = training_dataset.prefetch(AUTO)
+
+    if n_train == n_files:
+        testing_dataset = training_dataset
     else:
-        for hit_file, doublet_file in zip(config['hit_files'], config['doublet_files']):
-            doublet_graphs.add_file(hit_file, doublet_file)
-
-    @tf.function
-    def get_data():
-        in_graphs, out_graphs = doublet_graphs.create_graph(batch_size, is_training=True)        
-        return in_graphs, out_graphs
-
-    @tf.function
-    def get_test_data():
-        in_graphs, out_graphs = doublet_graphs.create_graph(batch_size, is_training=False)
-        return in_graphs, out_graphs
+        raw_test_dataset = tf.data.TFRecordDataset(file_names[n_train:])
+        testing_dataset = raw_test_dataset.map(graph.parse_tfrec_function)
+    testing_dataset = testing_dataset.prefetch(AUTO)
 
     # inputs, targets = doublet_graphs.create_graph(batch_size)
-    inputs, targets = get_data()
+    with_batch_dim = False
+    inputs, targets = next(training_dataset.take(1).as_numpy_iterator())
     input_signature = (
         graph.specs_from_graphs_tuple(inputs, with_batch_dim),
         graph.specs_from_graphs_tuple(targets, with_batch_dim)
@@ -190,32 +179,41 @@ if __name__ == "__main__":
     iruns = 0
     print("# (iteration number), TD (get graph), TR (TF run)")
     last_iteration = 0
-    for iteration in range(last_iteration, num_training_iterations):
-        if iruns > iter_per_job:
-            print("runs larger than {} iterations per job, stop".format(iter_per_job))
-            break
-        else: iruns += 1
-        last_iteration = iteration
+    n_epochs = config_tr['epochs']
+    for epoch in range(n_epochs):
 
-        inputs_tr, targets_tr = get_data()
-        outputs_tr, loss_tr = update_step(inputs_tr, targets_tr)
+        total_loss = 0.
+        num_batches = 0
+        for inputs in training_dataset:
 
+            inputs_tr, targets_tr = inputs
+            total_loss += update_step(inputs_tr, targets_tr)[1].numpy()
+            num_batches += 1
 
-        the_time = time.time()
-        elapsed_since_last_log = the_time - last_log_time
+            the_time = time.time()
+            elapsed_since_last_log = the_time - last_log_time
+            if elapsed_since_last_log > log_every_seconds:
+                # save a checkpoint
+                ckpt_manager.save()
+                last_log_time = time.time()
 
-        if elapsed_since_last_log > log_every_seconds:
-            # save a checkpoint
-            ckpt_manager.save()
+        loss_tr = total_loss/num_batches
 
-            last_log_time = the_time
-            inputs_te, targets_te = get_test_data()
+        elapsed = time.time() - start_time
+        outputs_te_list = []
+        targets_te_list = []
+        for inputs in testing_dataset.take(10).as_numpy_iterator():
+            inputs_te, targets_te = inputs
             outputs_te, loss_te = update_step(inputs_te, targets_te)
-            correct_tr, solved_tr = compute_matrics(targets_te, outputs_te[-1])
+            outputs_te_list.append(outputs_te[-1])
+            targets_te_list.append(targets_te)
+        outputs_te = utils_tf.concat(outputs_te_list, axis=0)
+        targets_te = utils_tf.concat(targets_te_list, axis=0)
+        correct_tr, solved_tr = compute_matrics(targets_te, outputs_te)
+        out_str = "# {:05d}, T {:.1f}, Ltr {:.4f}, Lge {:.4f}, Precision {:.4f}, Recall {:.4f}".format(
+            epoch, elapsed, loss_tr, loss_te,
+            correct_tr, solved_tr)
+        print(out_str)
 
-            elapsed = time.time() - start_time
-            logged_iterations.append(iteration)
-            out_str = "# {:05d}, T {:.1f}, Ltr {:.4f}, Lge {:.4f}, Precision {:.4f}, Recall {:.4f}".format(
-                iteration, elapsed, loss_tr, loss_te,
-                correct_tr, solved_tr)
-            print(out_str)
+        training_dataset = training_dataset.shuffle(global_batch_size*2, reshuffle_each_iteration=True)
+        testing_dataset = testing_dataset.shuffle(global_batch_size*2, reshuffle_each_iteration=True)

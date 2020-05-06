@@ -26,7 +26,7 @@ def make_mlp_model():
     A Sonnet module which contains the MLP and LayerNorm.
   """
   return snt.Sequential([
-      snt.nets.MLP([LATENT_SIZE] * NUM_LAYERS,
+      snt.nets.MLP([128, 64],
                    activation=tf.nn.relu,
                    activate_final=True),
       # snt.LayerNorm()
@@ -99,10 +99,7 @@ class SegmentClassifier(snt.Module):
     super(SegmentClassifier, self).__init__(name=name)
 
     self._edge_block = blocks.EdgeBlock(
-        edge_model_fn=lambda : snt.nets.MLP([LATENT_SIZE]*2,
-                                            activation=tf.nn.relu,
-                                            activate_final=True),
-        #edge_model_fn=make_mlp_model,
+        edge_model_fn=make_mlp_model,
         use_edges=False,
         use_receiver_nodes=True,
         use_sender_nodes=True,
