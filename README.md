@@ -8,9 +8,6 @@ After installed the conda, please write following to `~/.condarc`
 envs_dirs:
   - ~/.conda/envs
 report_errors: true
-channels:
-  - conda-forge
-  - defaults
 ```
 Then install
 ```bash
@@ -23,3 +20,6 @@ git clone https://github.com/xju2/heptrkx-gnn-tracking.git heptrkx
 cd heptrkx
 pip install -e .
 ```
+
+For your reference, I exported all packages from my setup, attached the [environment.yml](https://github.com/xju2/heptrkx-gnn-tracking/blob/tf2/environment.yml).
+Note that it may contain packages that are not used in this project.
