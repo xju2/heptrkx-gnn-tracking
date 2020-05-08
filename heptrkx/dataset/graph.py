@@ -16,7 +16,8 @@ from graph_nets import graphs
 max_graph_dict = {
     "eta2-phi12": [3500, 56500],
     'eta2-phi1': [37000, 680000],
-    'eta1-phi1': [74000, 1430000]
+    # 'eta1-phi1': [74000, 1430000] # mine doublets
+    'eta1-phi1': [96500, 566000]
 }
 
 def get_max_graph_size(n_eta, n_phi):
@@ -37,6 +38,45 @@ graph_types = {
     'senders': tf.int32,
     'globals': tf.float32,
 }
+
+def padding(g, max_nodes, max_edges, do_concat=True):
+    f_dtype = np.float32
+    n_nodes = np.sum(g.n_node)
+    n_edges = np.sum(g.n_edge)
+    n_nodes_pad = max_nodes - n_nodes
+    n_edges_pad = max_edges - n_edges
+
+    if n_nodes_pad < 0:
+        raise ValueError("Max Edges: {}, but {} edges in graph".format(max_nodes, n_nodes))
+
+    if n_edges_pad < 0:
+        raise ValueError("Max Edges: {}, but {} edges in graph".format(max_edges, n_edges))
+
+    # padding edges all pointing to the last node
+    # TODO: make the graphs more general <xju>
+    edges_idx = tf.constant([max_nodes-1] * n_edges_pad, dtype=np.int32)
+    zeros = np.array([0.0], dtype=f_dtype)
+    n_node_features = g.nodes.shape[-1]
+    n_edge_features = g.edges.shape[-1]
+    # print("input graph global: ", g.globals.shape)
+    # print("zeros: ", np.zeros_like(g.globals.numpy()))
+    # print("input edges", n_edges, "padding edges:", n_edges_pad)
+
+    padding_datadict = {
+        "n_node": n_nodes_pad,
+        "n_edge": n_edges_pad,
+        "nodes": np.zeros((n_nodes_pad, n_node_features), dtype=f_dtype),
+        'edges': np.zeros((n_edges_pad, n_edge_features), dtype=f_dtype),
+        'receivers': edges_idx,
+        'senders': edges_idx,
+        'globals':zeros
+    }
+    padding_graph = utils_tf.data_dicts_to_graphs_tuple([padding_datadict])
+    if do_concat:
+        return utils_tf.concat([g, padding_graph], axis=0)
+    else:
+        return padding_graph
+
 
 def parse_tfrec_function(example_proto):
     features_description = dict(
@@ -277,7 +317,7 @@ def make_graph_ntuples(hits, segments, n_eta, n_phi,
         n_edges = sub_doublets.shape[0]
         nodes = hits[mask][node_features].values.astype(f_dtype)
         if edge_features is None:
-            edges = np.expand_dims(np.array([0.0], dtype=np.float32), axis=1)
+            edges = np.expand_dims(np.array([0.0]*n_edges, dtype=np.float32), axis=1)
         else:
             edges = sub_doublets[edge_features].values.astype(f_dtype)
         # print(nodes.dtype)
@@ -310,37 +350,13 @@ def make_graph_ntuples(hits, segments, n_eta, n_phi,
             'receivers': receivers,
             'globals': zeros
         }
+        
+        input_graph = utils_tf.data_dicts_to_graphs_tuple([input_datadict])
+        target_graph = utils_tf.data_dicts_to_graphs_tuple([target_datadict])
 
         if with_pad:
-            n_nodes_pad = N_MAX_NODES - n_nodes
-            n_edges_pad = N_MAX_EDGES - n_edges
-            if n_edges_pad < 0:
-                raise ValueError("Max Edges: {}, but {} edges in graph".format(N_MAX_EDGES, n_edges))
-
-            zeros_edges = np.array([0] * n_edges_pad, dtype=f_dtype)
-            input_pad_datadict = {
-                "n_node": n_nodes_pad,
-                "n_edge": n_edges_pad,
-                "nodes": np.zeros((n_nodes_pad, n_node_features), dtype=f_dtype),
-                'edges': np.zeros((n_edges_pad, n_edge_features), dtype=f_dtype),
-                'receivers': zeros_edges,
-                'senders': zeros_edges,
-                'globals': zeros
-            }
-            target_pad_datadict = {
-                "n_node": n_nodes_pad,
-                "n_edge": n_edges_pad,
-                "nodes": np.zeros((n_nodes_pad, n_node_features), dtype=f_dtype),
-                'edges': np.zeros((n_edges_pad, 1), dtype=f_dtype),
-                'receivers': zeros_edges,
-                'senders': zeros_edges,
-                'globals': zeros
-            }
-            input_graph = utils_tf.data_dicts_to_graphs_tuple([input_datadict, input_pad_datadict])
-            target_graph = utils_tf.data_dicts_to_graphs_tuple([target_datadict, target_pad_datadict])
-        else:
-            input_graph = utils_tf.data_dicts_to_graphs_tuple([input_datadict])
-            target_graph = utils_tf.data_dicts_to_graphs_tuple([target_datadict])
+            input_graph = padding(input_graph, N_MAX_NODES, N_MAX_EDGES)
+            target_graph = padding(target_graph, N_MAX_NODES, N_MAX_EDGES)
 
         return [(input_graph, target_graph)]
 
@@ -428,6 +444,10 @@ class DoubletGraphGenerator:
         print("DoubletGraphGenerator settings: \n\twith_batch_dim={},\n\twith_pad={},\n\tverbose={}".format(
             self.with_batch_dim, self.with_pad, self.verbose
         ))
+        if self.with_pad:
+            print("all graphs are padded to {} nodes and {} edges".format(*get_max_graph_size(self.n_eta, self.n_phi)))
+        else:
+            print("dynamic graph sizes will be generated")
         self.n_files_saved = 0
 
     def add_file(self, hit_file, doublet_file):
@@ -493,13 +513,17 @@ class DoubletGraphGenerator:
                 hits, doublets, self.n_eta, self.n_phi,
                 node_features=node_features,
                 edge_features=None,
-                with_pad=self.with_pad,
+                with_pad=False,
                 verbose=self.verbose
             )
             all_graphs += this_graph
         
         input_graphs = utils_tf.concat([x[0] for x in all_graphs], axis=0)
         target_graphs = utils_tf.concat([x[1] for x in all_graphs], axis=0)
+        if self.with_pad:
+            max_nodes, max_edges = get_max_graph_size(self.n_eta, self.n_phi)
+            input_graphs = padding(input_graphs, max_nodes, max_edges)
+            target_graphs = padding(target_graphs, max_nodes, max_edges)
         # print(input_graphs)
         all_graphs = [(input_graphs, target_graphs)]
         self.n_graphs_per_evt = len(all_graphs)

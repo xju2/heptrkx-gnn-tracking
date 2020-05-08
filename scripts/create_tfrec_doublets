@@ -17,6 +17,7 @@ if __name__ == "__main__":
     add_arg('--from-hitsgraph', help='from hits graph', action='store_true')
     add_arg('--histgraph-dir', help='histgraph directories',
             default='/project/projectdirs/m3443/usr/dtmurnane/doublets/high_fullsplit')
+    add_arg("--nevts", help='number of events to process', default=9000, type=int)
     args = parser.parse_args()
 
     outname = args.outname
@@ -27,6 +28,7 @@ if __name__ == "__main__":
     config = all_config['gnn_training']
     print("Node features: ", config['node_features'])
     print("Edge features: ", config['edge_features'])
+    print("Eta bins: {}, Phi bins: {}".format(config['n_eta'], config['n_phi']))
     print("Output Name {}".format(outname))
     print("{} events per record".format(n_evts_per_record))
     doublet_graphs = graph.DoubletGraphGenerator(
@@ -36,7 +38,7 @@ if __name__ == "__main__":
         with_pad=with_pad
     )
     if args.from_hitsgraph:
-        nevts = 9000
+        nevts = args.nevts
         print("reading {} events".format(nevts))
         base_filename = os.path.join(args.histgraph_dir, "event{}_{}")
         nevts_added = 0
@@ -44,6 +46,7 @@ if __name__ == "__main__":
             evtid = 1000 + ievt
             file_name = base_filename.format(evtid, 0) + ".npz"
             if not os.path.exists(file_name):
+                print("NOT HERE", file_name)
                 continue
             else:
                 pass
@@ -58,4 +61,4 @@ if __name__ == "__main__":
         for hit_file, doublet_file in zip(config['hit_files'], config['doublet_files']):
             doublet_graphs.add_file(hit_file, doublet_file)
 
-        doublet_graphs.write_tfrecord(outname, n_evts_per_record)
+    doublet_graphs.write_tfrecord(outname, n_evts_per_record)

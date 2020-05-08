@@ -29,7 +29,7 @@ gnn_training:
     n_eta: 1
     n_phi: 1
     # tfrec_name: 'doublets_2regions_110evts_noPadding*.tfrec'
-    tfrec_name: '*.tfrec'
+    tfrec_name: '*_0.tfrec'
     tfrec_dir_cloud: 'gs://gnn-v1/one_evt_2regions_padding'
     # tfrec_dir_local: /global/cfs/cdirs/m3443/usr/xju/heptrkx/codalab/tfdata_doublets/one_evt_24regions_padding
     tfrec_dir_local: /global/cscratch1/sd/xju/heptrkx/codalab/Daniel_Doublets
@@ -50,8 +50,8 @@ gnn_training:
         batch_size: 1
         iterations: 200000
         iter_per_job: 200000
-        n_iters: 8
-        learning_rate: 0.00001
-        real_weight: 5.0
+        n_iters: 10
+        learning_rate: 0.000001
+        real_weight: 1.
         fake_weight: 1.
         epochs: 20
