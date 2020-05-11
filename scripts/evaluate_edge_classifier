@@ -1,6 +1,15 @@
 #!/usr/bin/env python
+
+import os
+
 import tensorflow as tf
 import sonnet as snt
+
+import pickle
+import pandas as pd
+import numpy as np
+
+from graph_nets import utils_tf
 
 from heptrkx.dataset import graph
 from heptrkx.nx_graph import get_model
@@ -15,10 +24,13 @@ if __name__ == "__main__":
     add_arg = parser.add_argument
     add_arg("config", help='training configuration')
     add_arg("input_data", help='input tfrec data')
+    add_arg("evt_index", help='the index in the tfrec data', type=int)
+    add_arg("outdir", help='output directory')
     add_arg('--model-dir', help='model directory', default=None)
     args = parser.parse_args()
 
     filenames = tf.io.gfile.glob(args.input_data)
+    evt_index = args.evt_index
     print("Input file names:", filenames)
     print("In total", len(filenames), "files")
 
@@ -29,7 +41,7 @@ if __name__ == "__main__":
     dataset = dataset.prefetch(AUTO)
 
     with_batch_dim = False
-    inputs, targets = next(training_dataset.take(1).as_numpy_iterator())
+    inputs, targets = next(dataset.take(1).as_numpy_iterator())
     input_signature = (
         graph.specs_from_graphs_tuple(inputs, with_batch_dim),
         graph.specs_from_graphs_tuple(targets, with_batch_dim)
@@ -59,20 +71,59 @@ if __name__ == "__main__":
     else:
         raise ValueError("cannot find model at:", output_dir)
 
+    # NOTE: prepare to get ID info for the doublets, all hard-coded. <xju>
+    evt_filename = '/global/cscratch1/sd/xju/heptrkx/codalab/daniel_doublets.pkl'
+    with open(evt_filename, 'rb') as f:
+        pickler = pickle.Unpickler(f)
+        all_evtids = pickler.load()
+    evtids = all_evtids[evt_index]
+    origin_doublets_input = '/project/projectdirs/m3443/usr/dtmurnane/doublets/high_fullsplit'
+    id_basename = os.path.join(origin_doublets_input, 'event{}_{}_ID.npz')
+    nsections = 8
+
     outputs_te_list = []
     targets_te_list = []
+    ievt = 0
+
     for inputs in dataset.take(1).as_numpy_iterator():
         inputs_te, targets_te = inputs
         outputs_te = model(inputs_te, num_processing_steps_tr)
         outputs_te_list.append(outputs_te[-1])
         targets_te_list.append(targets_te)
+        evtid = evtids[ievt]
+
+        # each event has 8 sections
+        hits_id_nsecs = []
+        hits_pid_nsecs = []
+        for isec in range(nsections):
+            id_filename = id_basename.format(evtid, isec)
+            if not os.path.exists(id_filename):
+                raise ValueError("cannot find", id_filename)
+            else:
+                array = np.load(id_filename)
+                hits_id_nsecs.append(array['I'])
+                hits_pid_nsecs.append(array['pid'])
+        
+        hits_id_nsecs = np.concatenate(hits_id_nsecs)
+        hits_pid_nsecs = np.concatenate(hits_pid_nsecs)
+
+        output = os.path.join(args.outdir, "event{}.npz".format(evtid))
+        np.savez(
+            output,
+            receivers=inputs_te.receivers,
+            senders=inputs_te.senders,
+            score=tf.reshape(outputs_te[-1].edges, (-1, )),
+            I=hits_id_nsecs,
+            pid=hits_pid_nsecs
+            )
+
 
     outputs_te = utils_tf.concat(outputs_te_list, axis=0)
     targets_te = utils_tf.concat(targets_te_list, axis=0)
-    prediction = outputs_te.edges.numpy().flatten()
-    y_test = targets_te.edges.numpy().flatten()
+    prediction = tf.reshape(outputs_te.edges, (-1,))
+    y_test = tf.reshape(targets_te.edges, (-1, ))
     plot_metrics(
         prediction, y_test, 
-        outname='test'
+        outname=os.path.join(args.outdir, "roc.pdf"),
         off_interactive=True
         )

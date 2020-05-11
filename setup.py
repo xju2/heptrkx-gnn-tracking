@@ -70,9 +70,11 @@ setup(
         'scripts/train_distributed',
         'scripts/train_nx_graph_tpu',
         # GNN evaluation
-        'scripts/evaluate_edge_classifer',
+        'scripts/evaluate_edge_classifier',
         # track candidates
         'scripts/tracks_from_triplet_graph',
         'scripts/create_tfrec_doublets',
+        # utils
+        'scripts/list_evtids',
     ],
 )
