@@ -63,12 +63,14 @@ setup(
         'scripts/peek_models',
         'scripts/view_training_log',
         'scripts/trim_doublets',
-        # GNN
+        # GNN training
         'scripts/train_nx_graph',
         'scripts/train_nx_graph_single',
         'scripts/train_nx_graph_distributed',
         'scripts/train_distributed',
         'scripts/train_nx_graph_tpu',
+        # GNN evaluation
+        'scripts/evaluate_edge_classifer',
         # track candidates
         'scripts/tracks_from_triplet_graph',
         'scripts/create_tfrec_doublets',

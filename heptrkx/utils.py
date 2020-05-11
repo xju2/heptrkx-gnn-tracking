@@ -10,6 +10,7 @@ import yaml
 import os
 
 import networkx as nx
+import sklearn.metrics
 
 import matplotlib.pyplot as plt
 
@@ -126,3 +127,28 @@ def is_diff_networkx(g1, g2):
     m1 = nx.to_numpy_matrix(g1)
     m2 = nx.to_numpy_matrix(g2)
     return m1 == m2
+
+
+def eval_output(target, output):
+    """
+    target, output are graph-tuple from TF-GNN,
+    each of them contains N=batch-size graphs
+    """
+    tdds = utils_np.graphs_tuple_to_data_dicts(target)
+    odds = utils_np.graphs_tuple_to_data_dicts(output)
+
+    test_target = []
+    test_pred = []
+    for td, od in zip(tdds, odds):
+        test_target.append(np.squeeze(td['edges']))
+        test_pred.append(np.squeeze(od['edges']))
+
+    test_target = np.concatenate(test_target, axis=0)
+    test_pred   = np.concatenate(test_pred,   axis=0)
+    return test_pred, test_target
+
+
+def compute_matrics(target, output, thresh=0.5):
+    test_pred, test_target = eval_output(target, output)
+    y_pred, y_true = (test_pred > thresh), (test_target > thresh)
+    return sklearn.metrics.precision_score(y_true, y_pred), sklearn.metrics.recall_score(y_true, y_pred)
