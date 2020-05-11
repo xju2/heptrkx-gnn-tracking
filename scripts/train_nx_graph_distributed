@@ -139,7 +139,13 @@ if __name__ == "__main__":
     # training_dataset = training_dataset.batch(global_batch_size)
 
     file_names = tf.io.gfile.glob(os.path.join(config['tfrec_dir_local'], config['tfrec_name']))
+    n_files = len(file_names)
+    n_train = int(0.9*n_files)
+    if n_train < 1: n_train = 1
+
     print("Input file names: ", file_names)
+    print("{} input files".format(n_files))
+    print("{} training files".format(n_train))
     raw_dataset = tf.data.TFRecordDataset(file_names)
     training_dataset = raw_dataset.map(graph.parse_tfrec_function)
 

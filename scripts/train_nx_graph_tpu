@@ -25,8 +25,9 @@ from graph_nets import utils_np
 import sonnet as snt
 
 from heptrkx.dataset import graph
-from heptrkx.nx_graph.distribute_model import SegmentClassifier
+# from heptrkx.nx_graph.distribute_model import SegmentClassifier
 # from heptrkx.nx_graph.model import SegmentClassifier
+from heptrkx.nx_graph import get_model
 from heptrkx.utils import load_yaml
 
 prog_name = os.path.basename(sys.argv[0])
@@ -103,7 +104,13 @@ if __name__ == "__main__":
     else:
         file_names = tf.io.gfile.glob(os.path.join(config['tfrec_dir_local'], config['tfrec_name']))
 
+    n_files = len(file_names)
+    n_train = int(0.9*n_files)
+    if n_train < 1: n_train = 1
+
     print("Input file names: ", file_names)
+    print("{} input files".format(n_files))
+    print("{} training files".format(n_train))
     raw_dataset = tf.data.TFRecordDataset(file_names)
     training_dataset = raw_dataset.map(graph.parse_tfrec_function)
 
@@ -117,8 +124,8 @@ if __name__ == "__main__":
     learning_rate = config_tr['learning_rate']
     with strategy.scope():
         optimizer = snt.optimizers.Adam(learning_rate)
-        model = SegmentClassifier()
-        # model = get_model(config['model_name'])
+        # model = SegmentClassifier()
+        model = get_model(config['model_name'])
 
     # output_dir = 'gs://gnn-v1/model'
     checkpoint = tf.train.Checkpoint(optimizer=optimizer, model=model)
