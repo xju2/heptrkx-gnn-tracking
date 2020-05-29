@@ -5,9 +5,10 @@ import os
 
 from heptrkx.utils import load_yaml
 from heptrkx.dataset import graph
+from heptrkx.dataset import event as master
+
+
 if __name__ == "__main__":
-
-
     parser = argparse.ArgumentParser(description='create TFREcord for doublet training in cloud TPU')
     add_arg = parser. add_argument
     add_arg('config', help='configuration file')
@@ -18,6 +19,7 @@ if __name__ == "__main__":
     add_arg('--histgraph-dir', help='histgraph directories',
             default='/project/projectdirs/m3443/usr/dtmurnane/doublets/high_fullsplit')
     add_arg("--nevts", help='number of events to process', default=9000, type=int)
+    add_arg('--input-dir', default='/global/homes/x/xju/m3443/data/trackml-kaggle/train_all', help='input track ml data')
     args = parser.parse_args()
 
     outname = args.outname
@@ -39,6 +41,7 @@ if __name__ == "__main__":
     )
     if args.from_hitsgraph:
         nevts = args.nevts
+        event = master.Event(args.input_dir)
         print("reading {} events".format(nevts))
         base_filename = os.path.join(args.histgraph_dir, "event{}_{}")
         nevts_added = 0
@@ -51,7 +54,8 @@ if __name__ == "__main__":
             else:
                 pass
                 # print("reading {}".format(file_name))
-            doublet_graphs.add_daniels_doublets(base_filename, evtid)
+            event.read(evtid)
+            doublet_graphs.add_daniels_doublets(base_filename, evtid, event.hits)
             nevts_added += 1
             if nevts_added % n_evts_per_record == 0:
                 doublet_graphs.write_tfrecord(outname, n_evts_per_record)

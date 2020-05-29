@@ -13,14 +13,14 @@ minor_size=14
 def get_pos(Gp):
     pos = {}
     for node in Gp.nodes():
-        r, phi, z = Gp.node[node]['pos'][:3]
+        r, phi, z = Gp.nodes[node]['pos'][:3]
         x = r * np.cos(phi)
         y = r * np.sin(phi)
         pos[node] = np.array([x, y])
     return pos
 
 
-def plot_networkx(G, ax=None, only_true=False):
+def plot_networkx(G, ax=None, only_true=False, edge_feature='solution', threshold=0.5):
     """G is networkx graph,
     node feature: {'pos': [r, phi, z]}
     edge feature: {"solution": []}
@@ -32,7 +32,12 @@ def plot_networkx(G, ax=None, only_true=False):
     edge_colors = [0.]*n_edges
     true_edges = []
     for iedge,edge in enumerate(G.edges(data=True)):
-        if int(edge[2]['solution'][0]) == 1:
+        if np.isscalar(edge[2][edge_feature]):
+            score = edge[2][edge_feature]
+        else:
+            score = edge[2][edge_feature][0]
+
+        if score > threshold:
             edge_colors[iedge] = 'r'
             true_edges.append((edge[0], edge[1]))
         else:
@@ -48,9 +53,9 @@ def plot_networkx(G, ax=None, only_true=False):
 
 
 
-def plot_nx_with_edge_cmaps(
-    G, weight_name='predict', weight_range=(0, 1),
-    ax=None, cmaps=plt.get_cmap('Greys'), threshold=0.):
+def plot_nx_with_edge_cmaps(G, weight_name='predict', weight_range=(0, 1),
+                            alpha=1.0, ax=None,
+                            cmaps=plt.get_cmap('Greys'), threshold=0.):
 
     if ax is None:
         _, ax = plt.subplots(figsize=(8, 8), constrained_layout=True)
@@ -58,14 +63,18 @@ def plot_nx_with_edge_cmaps(
     pos = get_pos(G)
     #edges, weights = zip(*nx.get_edge_attributes(G, weight_name).items())
     #weights = [x[0] for x in weights]
-    res = [(edge, G.edges[edge]['predict'][0]) for edge in G.edges() if G.edges[edge]['predict'][0] > threshold]
+
+    #res = [(edge, G.edges[edge][weight_name][0]) for edge in G.edges() if G.edges[edge][weight_name][0] > threshold]
+    res = [(edge, G.edges[edge][weight_name]) for edge in G.edges() if G.edges[edge][weight_name] > threshold]
     edges, weights = zip(*dict(res).items())
 
     vmin, vmax = weight_range
 
     nx.draw(G, pos, node_color='#A0CBE2', edge_color=weights, edge_cmap=cmaps,
             edgelist=edges, width=0.5, with_labels=False,
-            node_size=1, edge_vmin=vmin, edge_vmax=vmax, ax=ax, arrows=False)
+            node_size=1, edge_vmin=vmin, edge_vmax=vmax,
+            ax=ax, arrows=False, alpha=alpha
+           )
 
 
 def plot_hits(hits, numb=5, fig=None):
@@ -117,20 +126,36 @@ def plot_hits(hits, numb=5, fig=None):
     return fig, axs
 
 
-def plot_metrics(odd, tdd, odd_th=0.5, tdd_th=0.5, outname='roc_graph_nets.eps', off_interactive=False):
+def plot_metrics(odd, tdd, odd_th=0.5, tdd_th=0.5, outname='roc_graph_nets.eps', off_interactive=False, alternative=True):
     if off_interactive:
         plt.ioff()
 
     y_pred, y_true = (odd > odd_th), (tdd > tdd_th)
-    accuracy  = sklearn.metrics.accuracy_score(y_true, y_pred)
-    precision = sklearn.metrics.precision_score(y_true, y_pred)
-    recall    = sklearn.metrics.recall_score(y_true, y_pred)
-
-    print('Accuracy:            %.6f' % accuracy)
-    print('Precision (purity):  %.6f' % precision)
-    print('Recall (efficiency): %.6f' % recall)
-
     fpr, tpr, _ = sklearn.metrics.roc_curve(y_true, odd)
+
+    if alternative:
+        results = []
+        labels = ['Accuracy:           ', 'Precision (purity): ', 'Recall (efficiency):']
+        thresholds = [0.1, 0.5, 0.8]
+
+        for threshold in thresholds:
+            y_p, y_t = (odd > threshold), (tdd > threshold)
+            accuracy  = sklearn.metrics.accuracy_score(y_t, y_p)
+            precision = sklearn.metrics.precision_score(y_t, y_p)
+            recall    = sklearn.metrics.recall_score(y_t, y_p)
+            results.append((accuracy, precision, recall))
+        
+        print("{:25.2f} {:7.2f} {:7.2f}".format(*thresholds))
+        for idx,lab in enumerate(labels):
+            print("{} {:6.4f} {:6.4f} {:6.4f}".format(lab, *[x[idx] for x in results]))
+
+    else:
+        accuracy  = sklearn.metrics.accuracy_score(y_true, y_pred)
+        precision = sklearn.metrics.precision_score(y_true, y_pred)
+        recall    = sklearn.metrics.recall_score(y_true, y_pred)
+        print('Accuracy:            %.6f' % accuracy)
+        print('Precision (purity):  %.6f' % precision)
+        print('Recall (efficiency): %.6f' % recall)
 
 
     fig, axs = plt.subplots(2, 2, figsize=(12, 10), constrained_layout=True)

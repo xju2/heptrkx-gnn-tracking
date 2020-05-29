@@ -8,6 +8,8 @@ import sonnet as snt
 import pickle
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
+import networkx as nx
 
 from graph_nets import utils_tf
 
@@ -15,6 +17,9 @@ from heptrkx.dataset import graph
 from heptrkx.nx_graph import get_model
 from heptrkx.utils import load_yaml
 from heptrkx.utils_plot import plot_metrics
+from heptrkx import utils
+from heptrkx import utils_plot
+from heptrkx.dataset import event as master
 
 ckpt_name = 'checkpoint'
 
@@ -24,15 +29,20 @@ if __name__ == "__main__":
     add_arg = parser.add_argument
     add_arg("config", help='training configuration')
     add_arg("input_data", help='input tfrec data')
-    add_arg("evt_index", help='the index in the tfrec data', type=int)
+    add_arg("tf_index", help='the index in the tfrec data', type=int)
     add_arg("outdir", help='output directory')
     add_arg('--model-dir', help='model directory', default=None)
+    add_arg('--nevts', help='number of events', default=1, type=int)
+    add_arg('--inspect', help='inspect intermediate results', action='store_true')
+    add_arg("--input-dir", help='dataset input directory', default='/global/homes/x/xju/m3443/data/trackml-kaggle/train_all')
     args = parser.parse_args()
 
     filenames = tf.io.gfile.glob(args.input_data)
-    evt_index = args.evt_index
+    tf_index = args.tf_index
+    nevts = args.nevts
     print("Input file names:", filenames)
     print("In total", len(filenames), "files")
+    print("Process", nevts, "events")
 
     # load data
     raw_dataset = tf.data.TFRecordDataset(filenames)
@@ -66,8 +76,10 @@ if __name__ == "__main__":
     checkpoint = tf.train.Checkpoint(optimizer=optimizer, model=model)
     ckpt_manager = tf.train.CheckpointManager(checkpoint, directory=output_dir, max_to_keep=5)
     if os.path.exists(os.path.join(output_dir, ckpt_name)):
+        print("Find model:", output_dir)
         print("Loading latest checkpoint")
         status = checkpoint.restore(ckpt_manager.latest_checkpoint)
+        # print("Total trainable parameters: {}".format(len(model.trainable_variables)))
     else:
         raise ValueError("cannot find model at:", output_dir)
 
@@ -76,7 +88,12 @@ if __name__ == "__main__":
     with open(evt_filename, 'rb') as f:
         pickler = pickle.Unpickler(f)
         all_evtids = pickler.load()
-    evtids = all_evtids[evt_index]
+    try:
+        evtids = all_evtids[tf_index]
+    except IndexError:
+        print("available event IDs:", all_evtids)
+        exit(1)
+
     origin_doublets_input = '/project/projectdirs/m3443/usr/dtmurnane/doublets/high_fullsplit'
     id_basename = os.path.join(origin_doublets_input, 'event{}_{}_ID.npz')
     nsections = 8
@@ -85,7 +102,10 @@ if __name__ == "__main__":
     targets_te_list = []
     ievt = 0
 
-    for inputs in dataset.take(1).as_numpy_iterator():
+    if args.inspect:
+        event = master.Event(args.input_dir)
+
+    for inputs in dataset.take(nevts).as_numpy_iterator():
         inputs_te, targets_te = inputs
         outputs_te = model(inputs_te, num_processing_steps_tr)
         outputs_te_list.append(outputs_te[-1])
@@ -103,9 +123,9 @@ if __name__ == "__main__":
                 array = np.load(id_filename)
                 hits_id_nsecs.append(array['I'])
                 hits_pid_nsecs.append(array['pid'])
-        
-        hits_id_nsecs = np.concatenate(hits_id_nsecs)
-        hits_pid_nsecs = np.concatenate(hits_pid_nsecs)
+
+        hits_id_nsecs = np.unique(np.concatenate(hits_id_nsecs))
+        hits_pid_nsecs = np.unique(np.concatenate(hits_pid_nsecs))
 
         output = os.path.join(args.outdir, "event{}.npz".format(evtid))
         np.savez(
@@ -113,17 +133,61 @@ if __name__ == "__main__":
             receivers=inputs_te.receivers,
             senders=inputs_te.senders,
             score=tf.reshape(outputs_te[-1].edges, (-1, )),
+            truth=tf.reshape(targets_te.edges, (-1, )),
             I=hits_id_nsecs,
             pid=hits_pid_nsecs
             )
-
+        if args.inspect:
+            array = {}
+            array['I'] = hits_id_nsecs
+            array['receivers'] = inputs_te.receivers
+            array['senders'] = inputs_te.senders
+            array['truth'] = tf.reshape(targets_te.edges, (-1, ))
+            event.read(evtid) 
+            y_test = array['truth']
+            for i in range(num_processing_steps_tr):
+                array['score'] = tf.reshape(outputs_te[i].edges, (-1, )).numpy()
+                score =  array['score']
+                plot_metrics(
+                    score, y_test,
+                    outname=os.path.join(args.outdir, "event{}_roc_{}.pdf".format(evtid, i)),
+                    off_interactive=True
+                )
+                nx_filename = os.path.join(args.outdir, "event{}_nx_{}.pkl".format(evtid, i))
+                if os.path.exists(nx_filename):
+                    G = nx.read_gpickle(nx_filename)
+                else:
+                    G = utils.np_to_nx(array, event.hits)
+                    nx.write_gpickle(G, nx_filename)
+                _, ax = plt.subplots(figsize=(8, 8))
+                #utils_plot.plot_nx_with_edge_cmaps(G, weight_name='weight', threshold=0.01, cmaps=plt.get_cmap("bwr"), alpha=0.5, ax=ax)
+                utils_plot.plot_nx_with_edge_cmaps(G, weight_name='weight', threshold=0.01, ax=ax)
+                plt.savefig(os.path.join(args.outdir, "event{}_display_all_{}.png".format(evtid, i)))
+                del ax
+                # do truth
+                G1 = nx.Graph()
+                G1.add_nodes_from(G.nodes(data=True))
+                G1.add_edges_from([edge for edge in G.edges(data=True) if edge[2]['solution'] == 1])
+                _, ax = plt.subplots(figsize=(8, 8))
+                utils_plot.plot_nx_with_edge_cmaps(G1, weight_name='weight', threshold=0.01, ax=ax, cmaps=plt.get_cmap("gray"))
+                plt.savefig(os.path.join(args.outdir, "event{}_display_truth_{}.png".format(evtid, i)))
+                del ax
+                # do fake 
+                G2 = nx.Graph()
+                G2.add_nodes_from(G.nodes(data=True))
+                G2.add_edges_from([edge for edge in G.edges(data=True) if edge[2]['solution'] == 0])
+                _, ax = plt.subplots(figsize=(8, 8))
+                utils_plot.plot_nx_with_edge_cmaps(G2, weight_name='weight', threshold=0.01, ax=ax, cmaps=plt.get_cmap("Greys"))
+                plt.savefig(os.path.join(args.outdir, "event{}_display_fake_{}.png".format(evtid, i)))
+                del ax
+                plt.close("all")
 
     outputs_te = utils_tf.concat(outputs_te_list, axis=0)
     targets_te = utils_tf.concat(targets_te_list, axis=0)
     prediction = tf.reshape(outputs_te.edges, (-1,))
     y_test = tf.reshape(targets_te.edges, (-1, ))
     plot_metrics(
-        prediction, y_test, 
+        prediction, y_test,
         outname=os.path.join(args.outdir, "roc.pdf"),
         off_interactive=True
         )

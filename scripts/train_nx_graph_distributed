@@ -61,7 +61,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Train nx-graph with configurations')
     add_arg = parser.add_argument
     add_arg('config', help='configuration file')
-    add_arg('--tpu', help='use tpu', default=None)
     args = parser.parse_args()
 
     print(args.config)
@@ -93,16 +92,7 @@ if __name__ == "__main__":
     n_gpus = len(physical_gpus)
     with_batch_dim = False
     with_pad = True
-    if args.tpu is not None:
-        if args.tpu == 'colab':
-            resolver = tf.distribute.cluster_resolver.TPUClusterResolver()
-        else:
-            resolver = tf.distribute.cluster_resolver.TPUClusterResolver(tpu=args.tpu)
-        print('Running on TPU ', resolver.cluster_spec().as_dict()['worker'])
-        tf.config.experimental_connect_to_cluster(resolver)
-        tf.tpu.experimental.initialize_tpu_system(resolver)
-        strategy = tf.distribute.experimental.TPUStrategy(resolver)
-    elif n_gpus > 1:
+    if n_gpus > 1:
         print("Useing SNT Replicator with {} GPUs".format(n_gpus))
         assert n_gpus == global_batch_size, "batch size {} does not equall to GPUs {}".format(global_batch_size, n_gpus)
         strategy = snt.distribute.Replicator(['/device:GPU:{}'.format(i) for i in range(n_gpus)],\
@@ -115,29 +105,11 @@ if __name__ == "__main__":
     with strategy.scope():
         optimizer = snt.optimizers.Adam(learning_rate)
         model = get_model(config['model_name'])
+
     # prepare graphs
     print("Node features: ", config['node_features'])
     print("Edge features: ", config['edge_features'])
-    # doublet_graphs = graph.DoubletGraphGenerator(
-    #     config['n_eta'], config['n_phi'],
-    #     config['node_features'], config['edge_features'], 
-    #     with_batch_dim=with_batch_dim,
-    #     with_pad=with_pad
-    #     )
-    # for hit_file, doublet_file in zip(config['hit_files'], config['doublet_files']):
-    #     doublet_graphs.add_file(hit_file, doublet_file)
-
     n_epochs = config_tr['epochs']
-    # buffer_size = global_batch_size*2
-    # training_dataset = doublet_graphs.create_dataset(is_training=True)
-    # training_dataset = training_dataset.repeat().shuffle(2048).batch(global_batch_size).prefetch(tf.data.experimental.AUTOTUNE)
-    # training_dataset = training_dataset.prefetch(tf.data.experimental.AUTOTUNE)
-    # training_dataset = training_dataset.repeat(n_epochs)
-    # training_dataset = training_dataset.shuffle(buffer_size)
-    # training_dataset = training_dataset.cache('./tf.dataset.cache.{}epochs'.format(n_epochs))
-    # training_dataset = training_dataset.cache()
-    # training_dataset = training_dataset.batch(global_batch_size)
-
     file_names = tf.io.gfile.glob(os.path.join(config['tfrec_dir_local'], config['tfrec_name']))
     n_files = len(file_names)
     n_train = int(0.9*n_files)
@@ -146,14 +118,14 @@ if __name__ == "__main__":
     print("Input file names: ", file_names)
     print("{} input files".format(n_files))
     print("{} training files".format(n_train))
-    raw_dataset = tf.data.TFRecordDataset(file_names)
+    raw_dataset = tf.data.TFRecordDataset(file_names[:n_train])
     training_dataset = raw_dataset.map(graph.parse_tfrec_function)
-
-
-
     AUTO = tf.data.experimental.AUTOTUNE
-    # training_dataset = training_dataset.repeat().shuffle(2048).batch(global_batch_size).prefetch(AUTO)
-    training_dataset = training_dataset.prefetch(AUTO)
+
+    #options = tf.data.Options()
+    #options.experimental_distribute.auto_shard_policy = tf.data.experimental.AutoShardPolicy.DATA
+    #training_dataset = training_dataset.with_options(options)
+#    training_dataset = training_dataset.batch(global_batch_size, drop_remainder=True).prefetch(AUTO)
 
     with_batch_dim = False
     inputs, targets = next(training_dataset.take(1).as_numpy_iterator())
@@ -163,6 +135,8 @@ if __name__ == "__main__":
     )
     print(input_signature)
 
+    dist_training_dataset = strategy.experimental_distribute_dataset(training_dataset)
+
     # training loss
     if config_tr['real_weight']:
         real_weight = config_tr['real_weight']
@@ -170,108 +144,78 @@ if __name__ == "__main__":
     else:
         real_weight = fake_weight = 1.0
 
-    def __create_loss_ops(target_op, output_ops):
-        loss_ops = []
-        for output_op in output_ops:
-            num_graphs = utils_tf.get_num_graphs(output_op)
-            if with_pad:
-                num_graphs -= 1
-            for igraph in range(num_graphs):
-                target_slice = utils_tf.get_graph(target_op, igraph)
-                output_slice = utils_tf.get_graph(output_op, igraph)
-                weights = target_slice.edges * real_weight + (1 - target_slice.edges) * fake_weight
-                local_loss = tf.compat.v1.losses.log_loss(
-                    target_slice.edges,
-                    output_slice.edges,
-                    weights=weights
-                )
-                tf.print(tf.shape(local_loss))
-                loss_ops.append(local_loss)
-
-        return tf.stack(loss_ops)
-
     def create_loss_ops(target_op, output_ops):
         weights = target_op.edges * real_weight + (1 - target_op.edges) * fake_weight
-        # row_index = tf.range(tf.math.reduce_sum(target_op.n_edge))
-        # n_valid_edges = target_op.n_edge[0]
-        # mask = tf.cast(row_index < n_valid_edges, tf.float32)
-        # mask = tf.expand_dims(mask, axis=1)
-        # weights = weights * mask
         loss_ops = [
             tf.compat.v1.losses.log_loss(target_op.edges, output_op.edges, weights=weights)
             for output_op in output_ops
         ]
         return tf.stack(loss_ops)
 
+    print(dist_training_dataset.element_spec)
 
-    # def train_step(inputs_tr, targets_tr):
+    @tf.function(input_signature=[dist_training_dataset.element_spec])
+    def train_step(inputs_tr, targets_tr):
+        print("Tracing train_step")
+        print(inputs_tr)
 
-    #     # @functools.partial(tf.function, input_signature=input_signature)        
-    #     def update_step(inputs_tr, targets_tr):
-    #         print("Tracing update_step")
-    #         with tf.GradientTape() as tape:
-    #             outputs_tr = model(inputs_tr, num_processing_steps_tr)
-    #             loss_ops_tr = create_loss_ops(targets_tr, outputs_tr)
-    #             loss_op_tr = tf.math.reduce_sum(loss_ops_tr) / tf.constant(num_processing_steps_tr, dtype=tf.float32)
+        def update_step(inputs_tr, targets_tr):
+            #inputs_tr, targets_tr = inputs
+            print("Tracing update_step")
+            #print("before contatenate:", inputs_tr.nodes.shape)
+            #inputs_tr = graph.concat_batch_dim(inputs_tr)
+            #targets_tr = graph.concat_batch_dim(targets_tr)
+            #print("after concatenate:", inputs_tr.nodes.shape)
 
-    #         gradients = tape.gradient(loss_op_tr, model.trainable_variables)
-    #         # aggregate the gradients from the full batch.
-    #         # this is not there for mirror strategy
-    #         replica_ctx = tf.distribute.get_replica_context()
-    #         gradients = replica_ctx.all_reduce("mean", gradients)
+            with tf.GradientTape() as tape:
+                outputs_tr = model(inputs_tr, num_processing_steps_tr)
+                loss_ops_tr = create_loss_ops(targets_tr, outputs_tr)
+                loss_op_tr = tf.math.reduce_sum(loss_ops_tr) / tf.constant(num_processing_steps_tr, dtype=tf.float32)
 
-    #         optimizer.apply(gradients, model.trainable_variables)
-    #         return loss_op_tr
+            gradients = tape.gradient(loss_op_tr, model.trainable_variables)
+            # aggregate the gradients from the full batch.
+            # this is not there for mirror strategy
+            replica_ctx = tf.distribute.get_replica_context()
+            gradients = replica_ctx.all_reduce("mean", gradients)
 
-    #     compiled_update_step = tf.function(update_step, input_signature=input_signature)
-    #     per_example_losses = strategy.experimental_run_v2(compiled_update_step, args=(inputs_tr,targets_tr))
-    #     mean_loss = strategy.reduce("sum", per_example_losses, axis=None)
-    #     return mean_loss
-    @functools.partial(tf.function, input_signature=input_signature)
-    def update_step(inputs_tr, targets_tr):
-        print("Tracing update_step")
-        with tf.GradientTape() as tape:
-            outputs_tr = model(inputs_tr, num_processing_steps_tr)
-            loss_ops_tr = create_loss_ops(targets_tr, outputs_tr)
-            loss_op_tr = tf.math.reduce_sum(loss_ops_tr) / tf.constant(num_processing_steps_tr, dtype=tf.float32)
+            optimizer.apply(gradients, model.trainable_variables)
+            return loss_op_tr
 
-        gradients = tape.gradient(loss_op_tr, model.trainable_variables)
-        # # aggregate the gradients from the full batch.
-        # # this is not there for mirror strategy
-        # replica_ctx = tf.distribute.get_replica_context()
-        # gradients = replica_ctx.all_reduce("mean", gradients)
-
-        optimizer.apply(gradients, model.trainable_variables)
-        return loss_op_tr
+        per_example_losses = strategy.run(update_step, args=(inputs_tr,targets_tr))
+        mean_loss = strategy.reduce("sum", per_example_losses, axis=None)
+        return mean_loss
+        return tf.constant(0.0)
 
     def train_epoch(dataset):
-        total_loss = 0.
-        num_batches = 0
-        for inputs in dataset:
-            # print("Step {}".format(num_batches))
-            inputs_tr, targets_tr = inputs
-            # inputs_tr = graph.concat_batch_dim(inputs_tr)
-            # targets_tr = graph.concat_batch_dim(targets_tr)
-            # print(target_tr)
-            total_loss += update_step(inputs_tr, targets_tr).numpy()
+        with strategy.scope():
+            total_loss = 0.
+            num_batches = 0
+            for inputs in dataset:
+                input_tr, target_tr = inputs
+                total_loss += train_step(input_tr, target_tr)
+                num_batches += 1
+            print("total batches:", num_batches)
+            return total_loss/num_batches
 
-            num_batches += 1
-        return total_loss/num_batches
+    with strategy.scope():
+        for inputs in dist_training_dataset:
+            input_tr, target_tr = inputs
+            print(train_step(input_tr, target_tr))
 
-    checkpoint = tf.train.Checkpoint(optimizer=optimizer, model=model)
-    ckpt_manager = tf.train.CheckpointManager(checkpoint, directory=output_dir, max_to_keep=5)
-    # if os.path.exists(os.path.join(output_dir, ckpt_name)):
-    print("Loading latest checkpoint")
-    status = checkpoint.restore(ckpt_manager.latest_checkpoint)
-
-    now = time.time()
-    for epoch in range(n_epochs):
-        print("Training epoch", epoch, "...", end=' ')
-        training_dataset = training_dataset.shuffle(global_batch_size*2, reshuffle_each_iteration=True)
-        # distributed dataset
-        # dist_training_dataset = strategy.experimental_distribute_dataset(training_dataset)
-        loss = train_epoch(training_dataset)
-        this_epoch = time.time()
-        print("{:.2f} mins, Loss := {}".format((this_epoch-now)/60., loss/global_batch_size))
-        now = this_epoch
-        ckpt_manager.save()
+#    checkpoint = tf.train.Checkpoint(optimizer=optimizer, model=model)
+#    ckpt_manager = tf.train.CheckpointManager(checkpoint, directory=output_dir, max_to_keep=5)
+#    print("Loading latest checkpoint")
+#    status = checkpoint.restore(ckpt_manager.latest_checkpoint)
+#
+#    now = time.time()
+#    for epoch in range(n_epochs):
+#        print("Training epoch", epoch, "...", end=' ')
+#        training_dataset = training_dataset.shuffle(global_batch_size*2, reshuffle_each_iteration=True)
+#
+#        # distributed dataset
+#        dist_training_dataset = strategy.experimental_distribute_dataset(training_dataset)
+#        loss = train_epoch(dist_training_dataset)
+#        this_epoch = time.time()
+#        print("Epoch {}: {:.2f} mins, Loss := {}".format(epoch, (this_epoch-now)/60., loss/global_batch_size))
+#        now = this_epoch
+#        ckpt_manager.save()

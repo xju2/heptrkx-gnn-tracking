@@ -1,0 +1,53 @@
+#!/usr/bin/env python
+import time
+
+import numpy as np
+import networkx as nx
+
+from heptrkx.postprocess import wrangler
+from heptrkx.postprocess import analysis
+from heptrkx.dataset import event as master
+from heptrkx.utils import np_to_nx
+
+from trackml.score import score_event
+
+if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser(description="construct tracks from doublet graph")
+    add_arg = parser.add_argument
+    add_arg("filename", help='npz file contains edge info and hit info')
+    add_arg("evtid", help='event id', type=int)
+    add_arg("--input-dir", help='dataset input directory', default='/global/homes/x/xju/m3443/data/trackml-kaggle/train_all')
+
+    args = parser.parse_args()
+    evtid = args.evtid
+
+    array = np.load(args.filename)
+    event = master.Event(args.input_dir)
+    evet.read(evtid)
+#    used_hits = array['I']
+#    hits = event.hits[event.hits.hit_id.isin(used_hits)]
+
+    G = np_to_nx(array, event.hits)
+    n_nodes = len(list(G.nodes()))
+    n_edges = len(list(G.edges()))
+    print("n_nodes: ", n_nodes)
+    print("n_edges: ", n_edges)
+
+    now = time.time()
+    all_tracks = wrangler.get_tracks(G, feature_name='weight', with_fit=False)
+    t_track = time.time() - now
+    print("total time: {} min".format(t_track/60))
+    print("total tracks: {}".format(len(all_tracks)))
+
+    df = analysis.graphs_to_df(all_tracks)
+
+    # read original data for truth info
+    input_dir = '/global/homes/x/xju/m3443/data/trackml-kaggle/train_all'
+    evtid = 9852
+    event = master.Event(input_dir)
+    event.read(evtid)
+    used_hits = array['I']
+    hits = event.hits[event.hits.isin(used_hits.tolist())]
+    ml_score = score_event(hits, df)
+    print("score: ", ml_score)

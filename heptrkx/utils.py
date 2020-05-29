@@ -12,6 +12,8 @@ import os
 import networkx as nx
 import sklearn.metrics
 
+from graph_nets import utils_np
+
 import matplotlib.pyplot as plt
 
 def evtids_at_disk(evt_dir):
@@ -111,7 +113,6 @@ def plot_log(info, name, axs=None):
     return axs
 
 
-
 def is_df_there(file_name):
     res = False
     if os.path.exists(file_name):
@@ -152,3 +153,51 @@ def compute_matrics(target, output, thresh=0.5):
     test_pred, test_target = eval_output(target, output)
     y_pred, y_true = (test_pred > thresh), (test_target > thresh)
     return sklearn.metrics.precision_score(y_true, y_pred), sklearn.metrics.recall_score(y_true, y_pred)
+
+
+def np_to_nx(array, hits):
+    G = nx.Graph()
+
+    node_features = ['r', 'phi', 'z']
+
+    used_hits = array['I']
+    df = pd.DataFrame(used_hits, columns=['hit_id'])
+    df = df.merge(hits[['hit_id']+node_features], on='hit_id')
+    node_info = [
+        (i, dict(pos=np.array(row[1:]), hit_id=row[0])) for i,row in df.iterrows()
+    ]
+    G.add_nodes_from(node_info)
+
+    receivers = array['receivers']
+    senders = array['senders']
+    score = array['score']
+    truth = array['truth']
+    edge_info = [
+        (i, j, dict(weight=k, solution=l)) for i,j,k,l in zip(senders, receivers, score, truth)
+    ]
+    G.add_edges_from(edge_info)
+    return G
+
+
+def count_total_params(reader, count_exclude_pattern=""):
+  """Count total number of variables."""
+  var_to_shape_map = reader.get_variable_to_shape_map()
+
+  # Filter out tensors that we don't want to count
+  if count_exclude_pattern:
+    regex_pattern = re.compile(count_exclude_pattern)
+    new_var_to_shape_map = {}
+    exclude_num_tensors = 0
+    exclude_num_params = 0
+    for v in var_to_shape_map:
+      if regex_pattern.search(v):
+        exclude_num_tensors += 1
+        exclude_num_params += np.prod(var_to_shape_map[v])
+      else:
+        new_var_to_shape_map[v] = var_to_shape_map[v]
+    var_to_shape_map = new_var_to_shape_map
+    print("# Excluding %d tensors (%d params) that match %s when counting." % (
+        exclude_num_tensors, exclude_num_params, count_exclude_pattern))
+
+  var_sizes = [np.prod(var_to_shape_map[v]) for v in var_to_shape_map]
+  return np.sum(var_sizes, dtype=int)

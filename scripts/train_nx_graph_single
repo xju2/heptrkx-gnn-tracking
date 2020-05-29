@@ -135,6 +135,8 @@ if __name__ == "__main__":
     else:
         real_weight = fake_weight = 1.0
 
+    feature_scales = [1000., 1000., 1000.]
+
     def create_loss_ops(target_op, output_ops):
         weights = target_op.edges * real_weight + (1 - target_op.edges) * fake_weight
         loss_ops = [
@@ -187,6 +189,7 @@ if __name__ == "__main__":
         for inputs in training_dataset:
 
             inputs_tr, targets_tr = inputs
+            inputs_tr.replace(nodes=inputs_tr.nodes/feature_scales)
             total_loss += update_step(inputs_tr, targets_tr)[1].numpy()
             num_batches += 1
 
@@ -204,6 +207,7 @@ if __name__ == "__main__":
         targets_te_list = []
         for inputs in testing_dataset.take(10).as_numpy_iterator():
             inputs_te, targets_te = inputs
+            inputs_te.replace(nodes=inputs_te.nodes/feature_scales)
             outputs_te, loss_te = update_step(inputs_te, targets_te)
             outputs_te_list.append(outputs_te[-1])
             targets_te_list.append(targets_te)

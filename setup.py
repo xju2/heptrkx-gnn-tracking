@@ -23,7 +23,7 @@ setup(
         "graph_nets>=1.1",
         'gast',
         "future",
-        "networkx",
+        "networkx>=2.4",
         "numpy",
         "scipy",
         "pandas",
@@ -45,6 +45,8 @@ setup(
     ],
     scripts=[
         'scripts/event_summary',
+        # preparation
+        'scripts/create_tfrec_doublets',
         # select doublets
         'scripts/create_hit_files',
         'scripts/create_predoublets',
@@ -73,8 +75,9 @@ setup(
         'scripts/evaluate_edge_classifier',
         # track candidates
         'scripts/tracks_from_triplet_graph',
-        'scripts/create_tfrec_doublets',
+        'scripts/tracks_from_doublet_graph',
         # utils
         'scripts/list_evtids',
+        'scripts/view_checkpoints',
     ],
 )

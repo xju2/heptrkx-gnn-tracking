@@ -11,7 +11,7 @@ import networkx as nx
 def find_hit_id(G, idx):
     res = -1
     for node in G.nodes():
-        if G.node[node]['hit_id'] == idx:
+        if G.nodes[node]['hit_id'] == idx:
             res = node
             break
     return res
@@ -42,7 +42,7 @@ def outgoing_nodes_hitsgraph(G, node_id):
 def graphs_to_df(nx_graphs):
     results = []
     for itrk, track in enumerate(nx_graphs):
-        results += [(track.node[x]['hit_id'], itrk) for x in track.nodes()]
+        results += [(track.nodes[x]['hit_id'], itrk) for x in track.nodes()]
 
     df = pd.DataFrame(results, columns=['hit_id', 'track_id'])
     # new_df = new_df.drop_duplicates(subset='hit_id')
@@ -230,8 +230,8 @@ def trk_eff_purity(true_tracks, predict_tracks):
 
 
 def eff_vs_pt(true_predicts, true_tracks):
-    sel_pt  = [track.node[list(track.nodes())[0]]['info'][0,0] for track in true_predicts]
-    true_pt = [track.node[list(track.nodes())[0]]['info'][0,0] for track in true_tracks]
+    sel_pt  = [track.nodes[list(track.nodes())[0]]['info'][0,0] for track in true_predicts]
+    true_pt = [track.nodes[list(track.nodes())[0]]['info'][0,0] for track in true_tracks]
     return sel_pt, true_pt
 
 

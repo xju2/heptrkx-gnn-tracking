@@ -42,7 +42,8 @@ class NodeBlock(_base.AbstractModule):
         received_edges_features = self._received_edges_aggregator(graph)
         sent_edges_features = self._sent_edges_aggregator(graph)
 
-        # aggreate across replicas
+        # aggreate all edge info across replicas info to the node in question
+        # the aggreated information then used to tune the node network
         replica_ctx = tf.distribute.get_replica_context()
         received_edges_features = replica_ctx.all_reduce("sum", received_edges_features)
         sent_edges_features = replica_ctx.all_reduce("sum", sent_edges_features)

@@ -1,11 +1,10 @@
 
 # from heptrkx.postprocess import trackfitter
 from more_itertools import pairwise
+from functools import partial
 
 import networkx as nx
 import numpy as np
-
-from functools import partial
 
 
 def find_next_hits(G, pp, used_hits, th=0.1, th_re=0.8, feature_name='solution'):
@@ -15,7 +14,7 @@ def find_next_hits(G, pp, used_hits, th=0.1, th_re=0.8, feature_name='solution')
     if len(nbrs) < 1:
         return None
 
-    weights = [G.edges[(pp, i)][feature_name][0] for i in nbrs]
+    weights = [G.edges[(pp, i)][feature_name] for i in nbrs]
 
     if max(weights) < th:
         return None

@@ -177,7 +177,7 @@ if __name__ == "__main__":
     def train_step(inputs_tr, targets_tr):
         print("Tracing train_step")
         print(inputs_tr)
-        
+
         def update_step(inputs_tr, targets_tr):
             print("Tracing update_step")
             print("before contatenate:", inputs_tr.n_node.shape)

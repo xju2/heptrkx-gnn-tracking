@@ -9,6 +9,7 @@ import random
 import numpy as np
 import pandas as pd
 import tensorflow as tf
+
 from graph_nets import utils_tf
 from graph_nets import graphs
 
@@ -17,7 +18,8 @@ max_graph_dict = {
     "eta2-phi12": [3500, 56500],
     'eta2-phi1': [37000, 680000],
     # 'eta1-phi1': [74000, 1430000] # mine doublets
-    'eta1-phi1': [96500, 566000]
+    # 'eta1-phi1': [96500, 566000] # daniel with duplicated nodes
+    'eta1-phi1': [68700, 565900] # daniel without duplicated nodes
 }
 
 def get_max_graph_size(n_eta, n_phi):
@@ -491,32 +493,43 @@ class DoubletGraphGenerator:
         read_time = time.time() - now
         print("DoubletGraphGenerator added {} events, Total {} graphs, in {:.1f} mins".format(n_evts, len(self.graphs), read_time/60.))
 
-    def add_daniels_doublets(self, base_filename, evtid, n_sections=8):
+    def add_daniels_doublets(self, base_filename, evtid, all_hits, n_sections=8):
         # base /project/projectdirs/m3443/usr/dtmurnane/doublets/high_fullsplit/event{}_{}
         node_features = ['r', 'phi', 'z']
-        all_graphs = []
+
+        # NOTE: this uses default [r, phi, z], it yields bad GNN results. <xju>
+        solutions = []
+        doublets = []
+        hit_ids = []
         for isec in range(n_sections):
+            id_filename = base_filename.format(evtid, isec)+"_ID.npz"
+            id_array = np.load(id_filename)
+            hit_id = id_array['I']
+            hit_ids.append(hit_id)
+
             file_name = base_filename.format(evtid, isec)+".npz"
             array = np.load(file_name)
-            # hitid_filename = base_filename.format(evtid, isec)+"_ID.npz"
-            # array2 = np.load(hitid_filename)
+            solutions.append(array['y'])
+            edge = array['e']
+            new_edge = np.apply_along_axis(lambda x: hit_id[x], 1, edge)
+            doublets.append(new_edge)
+        hit_ids = np.unique(np.concatenate(hit_ids))
+        doublets = np.concatenate(doublets, axis=1)
+        solutions = np.concatenate(solutions)
+        hits = all_hits[all_hits.hit_id.isin(hit_ids)][list(set(['hit_id', 'eta', 'phi']+self.node_features))]
 
-            hits = pd.DataFrame(array['X'], columns=node_features)
-            hits = hits.assign(hit_id=np.arange(hits.shape[0]), eta=0)
-
-            doublets = pd.DataFrame.from_dict({
-                "hit_id_in": array['e'][0], 
-                "hit_id_out": array['e'][1],
-                'solution': array['y']
-            })
-            this_graph = make_graph_ntuples(
-                hits, doublets, self.n_eta, self.n_phi,
-                node_features=node_features,
-                edge_features=None,
-                with_pad=False,
-                verbose=self.verbose
-            )
-            all_graphs += this_graph
+        doublets = pd.DataFrame.from_dict({
+            "hit_id_in": doublets[0], 
+            "hit_id_out": doublets[1],
+            'solution': solutions,
+        })
+        all_graphs = make_graph_ntuples(
+            hits, doublets, self.n_eta, self.n_phi,
+            node_features=self.node_features,
+            edge_features=None,
+            with_pad=False,
+            verbose=self.verbose
+        )
         
         input_graphs = utils_tf.concat([x[0] for x in all_graphs], axis=0)
         target_graphs = utils_tf.concat([x[1] for x in all_graphs], axis=0)
@@ -606,8 +619,9 @@ class DoubletGraphGenerator:
 
         print("In total {} graphs, {} graphs per event".format(self.tot_data, n_graphs_per_evt))
         print("In total {} events, write to {} files".format(n_evts, n_files))
-        if not os.path.exists(os.path.dirname(filename)):
-            os.makedirs(os.path.dirname(filename))
+        out_dir = os.path.dirname(filename)
+        if out_dir and not os.path.exists(out_dir):
+            os.makedirs(out_dir)
 
         igraph = -1
         ifile = -1
