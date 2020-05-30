@@ -253,6 +253,21 @@ def test_daniel_graph():
     graph_gen.add_daniels_doublets(base_filename, evtid)
     print(graph_gen.graphs[0][0])
 
+def test_split():
+    input_tfdata = "/global/cscratch1/sd/xju/heptrkx/codalab/Daniel_Doublets_RemoveDuplicatedHits/embedded_edges_correct_0.tfrec"
+    file_names = tf.io.gfile.glob(input_tfdata)
+    print(file_names)
+    n_devices = 8
+    raw_dataset = tf.data.TFRecordDataset(file_names)
+    training_dataset = raw_dataset.map(graph.parse_tfrec_function)
+    for data in training_dataset.take(1).as_numpy_iterator():
+        input_tr, target_tr = data
+        splitted_graphs = graph.splitting(input_tr, n_devices, verbose=True)
+        n_total_edges = sum([tf.math.reduce_sum(x.n_edge) for x in splitted_graphs])
+        n_total_receivers = sum([x.receivers.shape[0] for x in splitted_graphs])
+        print("total edges summed from splitted graphs:", n_total_edges.numpy())
+        print("total receivers:", n_total_receivers)
+
 if __name__ == "__main__":
     # test_graph()
     # test_dataset()
@@ -263,4 +278,5 @@ if __name__ == "__main__":
     # test_concat()
     # test_gs_tf()
     # test_edge_distributed()
-    test_daniel_graph()
+    # test_daniel_graph()
+    test_split()

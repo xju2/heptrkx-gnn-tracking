@@ -79,6 +79,35 @@ def padding(g, max_nodes, max_edges, do_concat=True):
     else:
         return padding_graph
 
+def splitting(g_input, n_devices, verbose=False):
+    """
+    split the graph so that edges are distributed
+    to all devices, of which the number is specified by n_devices.
+    """
+    def reduce_edges(gg, n_edges_fixed, edge_slice):
+        edges = gg.edges[edge_slice]
+        return gg.replace(n_edge=tf.convert_to_tensor(np.array([edges.shape[0]]), tf.int32), 
+            edges=edges,
+            receivers=gg.receivers[edge_slice],
+            senders=gg.senders[edge_slice])
+
+    n_edges = tf.math.reduce_sum(g_input.n_edge)
+    n_nodes = tf.math.reduce_sum(g_input.n_node)
+    splitted_graphs = []
+    n_edges_fixed = n_edges // n_devices
+    if verbose:
+        print("Total {:,} Edges in input graph, splitted into {:,} devices".format(n_edges, n_devices))
+        print("Resulting each device contains {:,} edges".format(n_edges_fixed))
+
+    for idevice in range(n_devices):
+        if idevice < n_devices - 1:
+            edge_slice = slice(idevice*n_edges_fixed, (idevice+1)*n_edges_fixed)
+        else:
+            edge_slice = slice(idevice*n_edges_fixed, n_edges)
+        splitted_graphs.append(reduce_edges(g_input, n_edges_fixed, edge_slice))
+
+    return splitted_graphs
+
 
 def parse_tfrec_function(example_proto):
     features_description = dict(
@@ -426,7 +455,7 @@ class IndexMgr:
 
 class DoubletGraphGenerator:
     def __init__(self, n_eta, n_phi, node_features, edge_features, \
-        with_batch_dim=True, with_pad=False, verbose=False):
+        with_batch_dim=True, with_pad=False, split_edge=False, n_devices=None, verbose=False):
         self.n_eta = n_eta
         self.n_phi = n_phi
         self.node_features = node_features
@@ -443,6 +472,11 @@ class DoubletGraphGenerator:
         self.with_pad = with_pad
         self.tf_record_idx = 0
         self.n_evts = 0
+        if split_edge and not n_devices:
+            raise ValueError("split_edge set to True, please provide n_devices")
+        self.split_edge = split_edge
+        self.n_devices = n_devices
+
         print("DoubletGraphGenerator settings: \n\twith_batch_dim={},\n\twith_pad={},\n\tverbose={}".format(
             self.with_batch_dim, self.with_pad, self.verbose
         ))
@@ -537,8 +571,14 @@ class DoubletGraphGenerator:
             max_nodes, max_edges = get_max_graph_size(self.n_eta, self.n_phi)
             input_graphs = padding(input_graphs, max_nodes, max_edges)
             target_graphs = padding(target_graphs, max_nodes, max_edges)
-        # print(input_graphs)
-        all_graphs = [(input_graphs, target_graphs)]
+        
+        if self.split_edge:
+            splitted_inputs = splitting(input_graphs, self.n_devices)
+            splitted_targets = splitting(target_graphs, self.n_devices)
+            all_graphs = [(x, y) for x, y in zip(splitted_inputs, splitted_targets)]
+        else:
+            all_graphs = [(input_graphs, target_graphs)]
+
         self.n_graphs_per_evt = len(all_graphs)
         self.graphs += all_graphs
         self.evt_list.append(str(evtid))
