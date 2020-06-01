@@ -12,6 +12,12 @@ doublet_training:
     features: ['dphi', 'dz', 'dr', 'phi_slope', 'z0', 'deta', 'deta1', 'dphi1']
     cuts: [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]
 
+graph_definition:
+    node_features: ['x', 'y', 'z']
+    edge_features: ['deta', 'dphi']
+    n_eta: 1
+    n_phi: 1
+    
 # full hit features
 # cluster: ['leta', 'lphi', 'lx', 'ly', 'lz', 'geta', 'gphi']
 # position: [x, y, z, |z|,'y' thet]
@@ -32,4 +38,4 @@ gnn_training:
         learning_rate: 0.0005
         real_weight: 2.
         fake_weight: 1.
-        epochs: 10
+        epochs: 20

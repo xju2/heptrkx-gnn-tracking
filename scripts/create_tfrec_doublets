@@ -29,7 +29,7 @@ if __name__ == "__main__":
     n_evts_per_record = args.evts_per_record
 
     all_config = load_yaml(args.config)
-    config = all_config['gnn_training']
+    config = all_config['graph_definition']
     print("Node features: ", config['node_features'])
     print("Edge features: ", config['edge_features'])
     print("Eta bins: {}, Phi bins: {}".format(config['n_eta'], config['n_phi']))
