@@ -14,42 +14,30 @@ doublet_training:
 
 # full hit features
 # cluster: ['leta', 'lphi', 'lx', 'ly', 'lz', 'geta', 'gphi']
-# position: [x, y, z, |z|, phi, theta, eta, r, r3, layer]
+# position: [x, y, z, |z|,'y' thet]
 # full edge features
 # ['dr', 'dz', 'cottheta', 'dphi', 'zorg', 'phi_slope', 'deta', 'deta1', 'dphi1']
 gnn_training:
-    hit_files:
-        - /global/cscratch1/sd/xju/heptrkx/codalab/inputs/hitfiles/evt21001_test.h5
-        - /global/cscratch1/sd/xju/heptrkx/codalab/inputs/hitfiles/evt22011-10events.h5
-        # - /global/cscratch1/sd/xju/heptrkx/codalab/inputs/hitfiles/evt22021-100events.h5
-    doublet_files:
-        - /global/cscratch1/sd/xju/heptrkx/codalab/inputs/trimed_doublets/doublets-evt21001_test.h5
-        - /global/cscratch1/sd/xju/heptrkx/codalab/inputs/trimed_doublets/doublets-evt22011-10events.h5
-        # - /global/cscratch1/sd/xju/heptrkx/codalab/inputs/trimed_doublets/doublets-evt22021-100events.h5
     n_eta: 1
     n_phi: 1
     tfrec_name: '*.tfrec'
-    tfrec_dir_cloud: 'gs://gnn-v1/one_evt_2regions_split_edges'
-    tfrec_dir_local: /global/cfs/cdirs/m3443/usr/xju/heptrkx/codalab/tfdata_doublets/one_evt_2regions_split_edges
-    # node_features: ['x', 'y', 'z', 'geta', 'gphi', 'eta', 'phi', 'r', 'r3']
-    # edge_features: ['deta', 'dphi', 'dr', 'dz', 'phi_slope', 'deta1', 'dphi1', 'z0']
-    node_features: ['r', 'phi', 'z', 'geta', 'eta']
-    edge_features: ['deta', 'dphi', 'phi_slope', 'deta1', 'z0']
-    # node_features: ['x', 'y', 'z']
-    # edge_features: ['deta', 'dphi']
+    tfrec_dir_cloud: 'gs://gnn-v1/notavaiable'
+    tfrec_dir_local: /global/homes/x/xju/work/heptrkx/codalab/Daniel_Doublets_RemoveDuplicatedHits_xyz_padding_splitted
+    node_features: ['x', 'y', 'z']
+    edge_features: ['deta', 'dphi']
     output_dir: /global/cfs/projectdirs/atlas/xju/tracking/PairsFromNN/GNNEdgeClassifier
     tpu_output_dir: "gs://gnn-v1/model"
-    model_name: default 
+    model_name: vary2 
     prod_name: Distributed_Edges_Test
     log_name: big.log
     input_type: 'data_dict'
     parameters:
         time_lapse:  60 # how often save checkpoint in seconds
-        batch_size: 8
+        batch_size: 2
         iterations: 200000
         iter_per_job: 200000
         n_iters: 8
-        learning_rate: 0.001
-        real_weight: 10.0
+        learning_rate: 0.0005
+        real_weight: 2.
         fake_weight: 1.
         epochs: 10

@@ -25,7 +25,7 @@ from graph_nets import utils_np
 import sonnet as snt
 
 from heptrkx.dataset import graph
-from heptrkx.nx_graph import get_model
+from heptrkx.nx_graph import distribute_model
 from heptrkx.utils import load_yaml
 
 # ckpt_name = 'checkpoint_{:05d}.ckpt'
@@ -114,29 +114,13 @@ if __name__ == "__main__":
 
     with strategy.scope():
         optimizer = snt.optimizers.Adam(learning_rate)
-        model = get_model(config['model_name'])
+        model = distribute_model.SegmentClassifier()
+
     # prepare graphs
     print("Node features: ", config['node_features'])
     print("Edge features: ", config['edge_features'])
-    # doublet_graphs = graph.DoubletGraphGenerator(
-    #     config['n_eta'], config['n_phi'],
-    #     config['node_features'], config['edge_features'], 
-    #     with_batch_dim=with_batch_dim,
-    #     with_pad=with_pad
-    #     )
-    # for hit_file, doublet_file in zip(config['hit_files'], config['doublet_files']):
-    #     doublet_graphs.add_file(hit_file, doublet_file)
 
     n_epochs = config_tr['epochs']
-    # buffer_size = global_batch_size*2
-    # training_dataset = doublet_graphs.create_dataset(is_training=True)
-    # training_dataset = training_dataset.repeat().shuffle(2048).batch(global_batch_size).prefetch(tf.data.experimental.AUTOTUNE)
-    # training_dataset = training_dataset.prefetch(tf.data.experimental.AUTOTUNE)
-    # training_dataset = training_dataset.repeat(n_epochs)
-    # training_dataset = training_dataset.shuffle(buffer_size)
-    # training_dataset = training_dataset.cache('./tf.dataset.cache.{}epochs'.format(n_epochs))
-    # training_dataset = training_dataset.cache()
-    # training_dataset = training_dataset.batch(global_batch_size)
 
     file_names = tf.io.gfile.glob(os.path.join(config['tfrec_dir_local'], config['tfrec_name']))
     print("Input file names: ", file_names)
@@ -144,12 +128,7 @@ if __name__ == "__main__":
     training_dataset = raw_dataset.map(graph.parse_tfrec_function)
 
     AUTO = tf.data.experimental.AUTOTUNE
-    # training_dataset = training_dataset.repeat().shuffle(2048).batch(global_batch_size).prefetch(AUTO)
     training_dataset = training_dataset.batch(global_batch_size).prefetch(AUTO)
-
-
-    # testing_dataset = doublet_graphs.create_dataset(is_training=False)
-
 
     # training loss
     if config_tr['real_weight']:
@@ -158,25 +137,6 @@ if __name__ == "__main__":
     else:
         real_weight = fake_weight = 1.0
 
-    def __create_loss_ops(target_op, output_ops):
-        loss_ops = []
-        for output_op in output_ops:
-            num_graphs = utils_tf.get_num_graphs(output_op)
-            if with_pad:
-                num_graphs -= 1
-            for igraph in range(num_graphs):
-                target_slice = utils_tf.get_graph(target_op, igraph)
-                output_slice = utils_tf.get_graph(output_op, igraph)
-                weights = target_slice.edges * real_weight + (1 - target_slice.edges) * fake_weight
-                local_loss = tf.compat.v1.losses.log_loss(
-                    target_slice.edges,
-                    output_slice.edges,
-                    weights=weights
-                )
-                tf.print(tf.shape(local_loss))
-                loss_ops.append(local_loss)
-
-        return tf.stack(loss_ops)
 
     def create_loss_ops(target_op, output_ops):
         weights = target_op.edges * real_weight + (1 - target_op.edges) * fake_weight
@@ -213,7 +173,7 @@ if __name__ == "__main__":
             optimizer.apply(gradients, model.trainable_variables)
             return loss_op_tr
 
-        per_example_losses = strategy.experimental_run_v2(update_step, args=(inputs_tr,targets_tr))
+        per_example_losses = strategy.run(update_step, args=(inputs_tr,targets_tr))
         mean_loss = strategy.reduce("sum", per_example_losses, axis=None)
         return mean_loss
 
@@ -231,7 +191,7 @@ if __name__ == "__main__":
     checkpoint = tf.train.Checkpoint(optimizer=optimizer, model=model)
     ckpt_manager = tf.train.CheckpointManager(checkpoint, directory=output_dir, max_to_keep=5)
     # if os.path.exists(os.path.join(output_dir, ckpt_name)):
-    print("Loading latest checkpoint")
+    print("Loading latest checkpoint from:", output_dir)
     status = checkpoint.restore(ckpt_manager.latest_checkpoint)
 
     now = time.time()
@@ -242,6 +202,6 @@ if __name__ == "__main__":
         dist_training_dataset = strategy.experimental_distribute_dataset(training_dataset)
         loss = train_epoch(dist_training_dataset)
         this_epoch = time.time()
-        print("{:.2f} mins, Loss := {}".format((this_epoch-now)/60., loss/global_batch_size))
+        print("Training {} epoch, {:.2f} mins, Loss := {:.4f}".format(epoch, (this_epoch-now)/60., loss/global_batch_size))
         now = this_epoch
         ckpt_manager.save()

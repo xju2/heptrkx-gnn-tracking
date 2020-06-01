@@ -18,8 +18,8 @@ max_graph_dict = {
     "eta2-phi12": [3500, 56500],
     'eta2-phi1': [37000, 680000],
     # 'eta1-phi1': [74000, 1430000] # mine doublets
-    # 'eta1-phi1': [96500, 566000] # daniel with duplicated nodes
-    'eta1-phi1': [68700, 565900] # daniel without duplicated nodes
+    # 'eta1-phi1': [96500, 566000] # embeded with duplicated nodes
+    'eta1-phi1': [68700, 565900] # embeded without duplicated nodes
 }
 
 def get_max_graph_size(n_eta, n_phi):
@@ -477,8 +477,13 @@ class DoubletGraphGenerator:
         self.split_edge = split_edge
         self.n_devices = n_devices
 
-        print("DoubletGraphGenerator settings: \n\twith_batch_dim={},\n\twith_pad={},\n\tverbose={}".format(
-            self.with_batch_dim, self.with_pad, self.verbose
+        print("DoubletGraphGenerator settings: \
+            \n\twith_batch_dim={},\
+            \n\twith_pad={},\
+            \n\tsplit_edge={},\
+            \n\tn_devices={},\
+            \n\tverbose={}".format(
+            self.with_batch_dim, self.with_pad, self.split_edge, self.n_devices, self.verbose
         ))
         if self.with_pad:
             print("all graphs are padded to {} nodes and {} edges".format(*get_max_graph_size(self.n_eta, self.n_phi)))
