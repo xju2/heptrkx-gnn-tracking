@@ -227,7 +227,7 @@ dependencies:
     - google-auth==1.11.2
     - google-auth-oauthlib==0.4.1
     - google-pasta==0.1.8
-    - graph-nets==1.1.1.dev0
+    - graph-nets==1.1.0
     - grpcio==1.27.2
     - h5py==2.10.0
     - idna==2.8
