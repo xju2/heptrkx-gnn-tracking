@@ -15,6 +15,7 @@ from graph_nets import utils_tf
 
 from heptrkx.dataset import graph
 from heptrkx.nx_graph import get_model
+from heptrkx.nx_graph import distribute_model
 from heptrkx.utils import load_yaml
 from heptrkx.utils_plot import plot_metrics
 from heptrkx import utils
@@ -35,6 +36,7 @@ if __name__ == "__main__":
     add_arg('--nevts', help='number of events', default=1, type=int)
     add_arg('--inspect', help='inspect intermediate results', action='store_true')
     add_arg("--input-dir", help='dataset input directory', default='/global/homes/x/xju/m3443/data/trackml-kaggle/train_all')
+    add_arg("--edge-distributed", help='edge distributed model', action='store_true')
     args = parser.parse_args()
 
     filenames = tf.io.gfile.glob(args.input_data)
@@ -43,6 +45,8 @@ if __name__ == "__main__":
     print("Input file names:", filenames)
     print("In total", len(filenames), "files")
     print("Process", nevts, "events")
+    if not "gs://" in args.outdir:
+        os.makedirs(args.outdir, exist_ok=True)
 
     # load data
     raw_dataset = tf.data.TFRecordDataset(filenames)
@@ -65,7 +69,10 @@ if __name__ == "__main__":
     num_processing_steps_tr = config_tr['n_iters']      ## level of message-passing
     learning_rate = config_tr['learning_rate']
     optimizer = snt.optimizers.Adam(learning_rate)
-    model = get_model(config['model_name'])
+    if args.edge_distributed:
+        model = distribute_model.SegmentClassifier()
+    else:
+        model = get_model(config['model_name'])
 
     # where to find the model
     prod_name = config['prod_name']
@@ -77,14 +84,13 @@ if __name__ == "__main__":
     ckpt_manager = tf.train.CheckpointManager(checkpoint, directory=output_dir, max_to_keep=5)
     if os.path.exists(os.path.join(output_dir, ckpt_name)):
         print("Find model:", output_dir)
-        print("Loading latest checkpoint")
+        print("Loading latest checkpoint from:", output_dir)
         status = checkpoint.restore(ckpt_manager.latest_checkpoint)
-        # print("Total trainable parameters: {}".format(len(model.trainable_variables)))
     else:
         raise ValueError("cannot find model at:", output_dir)
 
     # NOTE: prepare to get ID info for the doublets, all hard-coded. <xju>
-    evt_filename = '/global/cscratch1/sd/xju/heptrkx/codalab/daniel_doublets.pkl'
+    evt_filename = '/global/homes/x/xju/atlas/heptrkx/codalab/embeded_doublets.pkl'
     with open(evt_filename, 'rb') as f:
         pickler = pickle.Unpickler(f)
         all_evtids = pickler.load()

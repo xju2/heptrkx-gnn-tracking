@@ -17,7 +17,7 @@ graph_definition:
     edge_features: ['deta', 'dphi']
     n_eta: 1
     n_phi: 1
-    
+
 # full hit features
 # cluster: ['leta', 'lphi', 'lx', 'ly', 'lz', 'geta', 'gphi']
 # position: [x, y, z, |z|,'y' thet]

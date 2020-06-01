@@ -179,6 +179,7 @@ def plot_metrics(odd, tdd, odd_th=0.5, tdd_th=0.5, outname='roc_graph_nets.eps',
     ax1.set_ylabel('True positive rate', fontsize=fontsize)
     ax1.set_title('ROC curve, AUC = %.4f' % auc, fontsize=fontsize)
     ax1.tick_params(width=2, grid_alpha=0.5, labelsize=minor_size)
+    print("AUC: %.4f" % auc)
 
     p, r, t = sklearn.metrics.precision_recall_curve(y_true, odd)
     ax2.plot(t, p[:-1], label='purity', lw=2)
