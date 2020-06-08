@@ -90,7 +90,7 @@ if __name__ == "__main__":
     physical_tpus = tf.config.experimental.list_physical_devices("TPU")
     print("{} CPUs, {} GPUs and {} TPUs".format(
         len(physical_cpus), len(physical_gpus), len(physical_tpus)))
-    n_gpus = len(physical_gpus)
+    n_devices = n_gpus = len(physical_gpus)
     with_batch_dim = False
     with_pad = True
     if args.tpu is not None:
@@ -99,7 +99,7 @@ if __name__ == "__main__":
         else:
             resolver = tf.distribute.cluster_resolver.TPUClusterResolver(tpu=args.tpu)
         workers = resolver.cluster_spec().as_dict()['worker']
-        n_tpus = len(workers)
+        n_devices = n_tpus = len(workers)
         print('Running on {} TPUs '.format(n_tpus), resolver.cluster_spec().as_dict()['worker'])
         tf.config.experimental_connect_to_cluster(resolver)
         tf.tpu.experimental.initialize_tpu_system(resolver)
@@ -116,6 +116,8 @@ if __name__ == "__main__":
         device = "1GPU"
     else:
         strategy = tf.distribute.OneDeviceStrategy("/device:CPU:0")
+
+    assert n_devices==global_batch_size, "Number of devices (GPUs or TPUs) must be the same as the number of batches"
 
     with strategy.scope():
         optimizer = snt.optimizers.Adam(learning_rate)

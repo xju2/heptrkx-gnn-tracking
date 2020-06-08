@@ -17,9 +17,9 @@ class EdgeBlock(_base.AbstractModule):
 
         # aggreate across replicas
 
-        # replica_ctx = tf.distribute.get_replica_context()
-        # agg_receiver_nodes_features = replica_ctx.all_reduce("sum", agg_receiver_nodes_features)
-        # agg_sender_nodes_features = replica_ctx.all_reduce("sum", agg_sender_nodes_features)
+        replica_ctx = tf.distribute.get_replica_context()
+        agg_receiver_nodes_features = replica_ctx.all_reduce("sum", agg_receiver_nodes_features)
+        agg_sender_nodes_features = replica_ctx.all_reduce("sum", agg_sender_nodes_features)
 
         edges_to_collect = [graph.edges, agg_receiver_nodes_features, agg_sender_nodes_features]
         collected_edges = tf.concat(edges_to_collect, axis=-1)
@@ -46,9 +46,9 @@ class NodeBlock(_base.AbstractModule):
         # aggreate all edge info across replicas info to the node in question
         # the aggreated information then used to tune the node network
 
-        # replica_ctx = tf.distribute.get_replica_context()
-        # received_edges_features = replica_ctx.all_reduce("sum", received_edges_features)
-        # sent_edges_features = replica_ctx.all_reduce("sum", sent_edges_features)
+        replica_ctx = tf.distribute.get_replica_context()
+        received_edges_features = replica_ctx.all_reduce("sum", received_edges_features)
+        sent_edges_features = replica_ctx.all_reduce("sum", sent_edges_features)
 
         nodes_to_collect = [graph.nodes, received_edges_features, sent_edges_features]
 

@@ -73,6 +73,7 @@ setup(
         'scripts/train_nx_graph_tpu',
         # GNN evaluation
         'scripts/evaluate_edge_classifier',
+        'scripts/evaluate_distributed_edge_classifier',
         # track candidates
         'scripts/tracks_from_triplet_graph',
         'scripts/tracks_from_doublet_graph',
