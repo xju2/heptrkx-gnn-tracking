@@ -36,7 +36,7 @@ if __name__ == "__main__":
     add_arg('--nevts', help='number of events', default=1, type=int)
     add_arg('--inspect', help='inspect intermediate results', action='store_true')
     add_arg("--input-dir", help='dataset input directory', default='/global/homes/x/xju/m3443/data/trackml-kaggle/train_all')
-    add_arg("--edge-distributed", help='edge distributed model', action='store_true')
+
     args = parser.parse_args()
 
     filenames = tf.io.gfile.glob(args.input_data)
@@ -61,18 +61,26 @@ if __name__ == "__main__":
         graph.specs_from_graphs_tuple(targets, with_batch_dim)
     )
 
-    # load model
+    # load configuration
     all_config = load_yaml(args.config)
     config = all_config['gnn_training']
     config_tr = config['parameters']
 
-    num_processing_steps_tr = config_tr['n_iters']      ## level of message-passing
+    # define distribute strategy and load model
+    global_batch_size = n_graphs   = config_tr['batch_size']
+    n_gpus = tf.config.experimental.list_physical_devices("GPU")
+    print("Useing SNT Replicator with {} GPUs".format(n_gpus))
+    assert n_gpus == global_batch_size, \
+        "batch size {} does not equall to GPUs {}".format(global_batch_size, n_gpus)
+    strategy = snt.distribute.Replicator(['/device:GPU:{}'.format(i) for i in range(n_gpus)], \
+        tf.distribute.ReductionToOneDevice("GPU:0"))
+
+
+    num_processing_steps_tr = config_tr['n_iters']
     learning_rate = config_tr['learning_rate']
-    optimizer = snt.optimizers.Adam(learning_rate)
-    if args.edge_distributed:
+    with strategy.scope():
+        optimizer = snt.optimizers.Adam(learning_rate)
         model = distribute_model.SegmentClassifier()
-    else:
-        model = get_model(config['model_name'])
 
     # where to find the model
     prod_name = config['prod_name']
@@ -90,7 +98,7 @@ if __name__ == "__main__":
         raise ValueError("cannot find model at:", output_dir)
 
     # NOTE: prepare to get ID info for the doublets, all hard-coded. <xju>
-    evt_filename = '/global/homes/x/xju/atlas/heptrkx/codalab/embeded_doublets.pkl'
+    evt_filename = '/global/cfs/cdirs/atlas/xju/heptrkx/codalab/embeded_doublets_distributed_edges_to_2devices.pkl'
     with open(evt_filename, 'rb') as f:
         pickler = pickle.Unpickler(f)
         all_evtids = pickler.load()
@@ -111,7 +119,7 @@ if __name__ == "__main__":
     if args.inspect:
         event = master.Event(args.input_dir)
 
-    for inputs in dataset.take(nevts).as_numpy_iterator():
+    for inputs in dataset.take(nevts*global_batch_size).as_numpy_iterator():
         inputs_te, targets_te = inputs
         outputs_te = model(inputs_te, num_processing_steps_tr)
         outputs_te_list.append(outputs_te[-1])
