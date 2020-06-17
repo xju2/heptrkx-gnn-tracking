@@ -6,6 +6,7 @@ Its input is TFRecord
 
 import tensorflow as tf
 print(tf.__version__)
+tf.debugging.set_log_device_placement(True)
 
 import os
 import sys
@@ -67,8 +68,10 @@ if __name__ == "__main__":
     elif n_gpus > 1:
         print("Useing SNT Replicator with {} GPUs".format(n_gpus))
         strategy = snt.distribute.Replicator(['/device:GPU:{}'.format(i) for i in range(n_gpus)],\
-            tf.distribute.ReductionToOneDevice("GPU:0"))
+            tf.distribute.ReductionToOneDevice("CPU:0"))
         device = "{}GPUs".format(n_gpus)
+        for dd in physical_gpus:
+            tf.config.experimental.set_memory_growth(dd, True)
     elif n_gpus > 0:
         strategy = tf.distribute.OneDeviceStrategy("/device:GPU:0")
         device = "1GPU"
@@ -89,6 +92,7 @@ if __name__ == "__main__":
         output_dir = os.path.join(config['output_dir'], prod_name)
         os.makedirs(output_dir, exist_ok=True)
     print("[{}] save models at {}".format(prog_name, output_dir))
+
     num_processing_steps_tr = config_tr['n_iters']      ## level of message-passing
     n_epochs = config_tr['epochs']
     print("{} epochs with batch size {}".format(n_epochs, global_batch_size))
@@ -108,7 +112,7 @@ if __name__ == "__main__":
     n_train = int(0.9*n_files)
     if n_train < 1: n_train = 1
 
-    print("Input file names: ", file_names)
+    # print("Input file names: ", file_names)
     print("{} input files".format(n_files))
     print("{} training files".format(n_train))
     raw_dataset = tf.data.TFRecordDataset(file_names)
@@ -118,7 +122,6 @@ if __name__ == "__main__":
     options = tf.data.Options()
     options.experimental_distribute.auto_shard_policy = tf.data.experimental.AutoShardPolicy.DATA
     training_dataset = training_dataset.with_options(options)
-    # training_dataset = training_dataset.repeat().shuffle(2048).batch(global_batch_size).prefetch(AUTO)
     training_dataset = training_dataset.batch(global_batch_size, drop_remainder=True).prefetch(AUTO)
 
     learning_rate = config_tr['learning_rate']
@@ -127,7 +130,7 @@ if __name__ == "__main__":
         # model = SegmentClassifier()
         model = get_model(config['model_name'])
 
-    # output_dir = 'gs://gnn-v1/model'
+
     checkpoint = tf.train.Checkpoint(optimizer=optimizer, model=model)
     ckpt_manager = tf.train.CheckpointManager(checkpoint, directory=output_dir, max_to_keep=5)
     print("Loading latest checkpoint from:", output_dir)
@@ -202,7 +205,6 @@ if __name__ == "__main__":
         per_example_losses = strategy.run(update_step, args=(inputs_tr,targets_tr))
         mean_loss = strategy.reduce("sum", per_example_losses, axis=None)
         return mean_loss
-        return tf.constant(0.0)
 
     def train_epoch(dataset):
         total_loss = 0.
@@ -215,6 +217,9 @@ if __name__ == "__main__":
         return total_loss/num_batches
 
     now = time.time()
+    out_log = "Begin @ " + time.strftime('%d %b %Y %H:%M:%S', time.localtime()) + "\n"
+    out_log += "Epoch, Time [mins], Loss\n"
+
     for epoch in range(n_epochs):
         print("start epoch {} on {}".format(epoch, device))
         training_dataset = training_dataset.shuffle(global_batch_size*2, reshuffle_each_iteration=True)
@@ -222,6 +227,12 @@ if __name__ == "__main__":
         loss = train_epoch(dist_training_dataset)
         # loss = train_epoch(training_dataset)
         this_epoch = time.time()
-        print("Training {} epoch, {:.2f} mins, Loss := {:.4f}".format(epoch, (this_epoch-now)/60., loss/global_batch_size))
+        print("Training {} epoch, {:.2f} mins, Loss := {:.4f}".format(
+            epoch, (this_epoch-now)/60., loss/global_batch_size))
+        out_log += "{}, {:.2f}, {:.6f}".format(epoch, (this_epoch-now)/60., loss/global_batch_size) + "\n"
         now = this_epoch
         ckpt_manager.save()
+
+    out_log = "End @ " + time.strftime('%d %b %Y %H:%M:%S', time.localtime()) + "\n"
+    with open(os.path.join(output_dir, "training_log.txt"), 'w') as f:
+        f.write(out_log)

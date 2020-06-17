@@ -35,8 +35,10 @@ if __name__ == "__main__":
     add_arg('--model-dir', help='model directory', default=None)
     add_arg('--nevts', help='number of events', default=1, type=int)
     add_arg('--inspect', help='inspect intermediate results', action='store_true')
-    add_arg("--input-dir", help='dataset input directory', default='/global/homes/x/xju/m3443/data/trackml-kaggle/train_all')
+    add_arg("--input-dir", help='dataset input directory', \
+        default='/global/homes/x/xju/m3443/data/trackml-kaggle/train_all')
     add_arg("--edge-distributed", help='edge distributed model', action='store_true')
+    add_arg("--remove-padding", help="remove pad graph from evaluation", action='store_true')
     args = parser.parse_args()
 
     filenames = tf.io.gfile.glob(args.input_data)
@@ -114,8 +116,18 @@ if __name__ == "__main__":
     for inputs in dataset.take(nevts).as_numpy_iterator():
         inputs_te, targets_te = inputs
         outputs_te = model(inputs_te, num_processing_steps_tr)
-        outputs_te_list.append(outputs_te[-1])
-        targets_te_list.append(targets_te)
+        
+        if len(targets_te.n_edge) > 1 and args.remove_padding:
+            pad_idx = targets_te.n_edge[0]
+            output_graph = outputs_te[-1].replace(edges=outputs_te[-1].edges[:pad_idx, ])
+            target_graph = targets_te.replace(edges=targets_te.edges[:pad_idx, ])
+        else:
+            output_graph = outputs_te[-1]
+            target_graph = targets_te
+
+        outputs_te_list.append(output_graph)
+        targets_te_list.append(target_graph)
+
         evtid = evtids[ievt]
 
         # each event has 8 sections
