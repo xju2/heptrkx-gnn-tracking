@@ -216,9 +216,13 @@ if __name__ == "__main__":
         print("total batches:", num_batches)
         return total_loss/num_batches
 
+    out_str  = "Start training " + time.strftime('%d %b %Y %H:%M:%S', time.localtime())
+    out_str += '\n'
+    out_str += "Epoch, Time [mins], Loss\n"
+    log_name = os.path.join("training_log.txt")
+    with open(log_name, 'a') as f:
+        f.write(out_str)
     now = time.time()
-    out_log = "Begin @ " + time.strftime('%d %b %Y %H:%M:%S', time.localtime()) + "\n"
-    out_log += "Epoch, Time [mins], Loss\n"
 
     for epoch in range(n_epochs):
         print("start epoch {} on {}".format(epoch, device))
@@ -227,12 +231,16 @@ if __name__ == "__main__":
         loss = train_epoch(dist_training_dataset)
         # loss = train_epoch(training_dataset)
         this_epoch = time.time()
+        
         print("Training {} epoch, {:.2f} mins, Loss := {:.4f}".format(
             epoch, (this_epoch-now)/60., loss/global_batch_size))
-        out_log += "{}, {:.2f}, {:.6f}".format(epoch, (this_epoch-now)/60., loss/global_batch_size) + "\n"
+        out_str = "{}, {:.2f}, {:.4f}\n".format(epoch, (this_epoch-now)/60., loss/global_batch_size)
+        with open(log_name, 'a') as f:
+            f.write(out_str)
+
         now = this_epoch
         ckpt_manager.save()
 
     out_log = "End @ " + time.strftime('%d %b %Y %H:%M:%S', time.localtime()) + "\n"
-    with open(os.path.join(output_dir, "training_log.txt"), 'w') as f:
+    with open(log_name, 'a') as f:
         f.write(out_log)
