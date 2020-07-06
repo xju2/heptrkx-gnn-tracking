@@ -22,6 +22,8 @@ import pandas as pd
 import numpy as np
 import collections
 import matplotlib.pyplot as plt
+#plt.rc('text', usetex=True)
+#plt.rc('font', family='serif')
 from more_itertools import pairwise
 
 from heptrkx.dataset import event as master
@@ -65,7 +67,7 @@ if __name__ == "__main__":
         print("select hits in following layers\n", layers)
     else:
         layers = None
-    
+
     df_seed = triplet.read_triplets(seed_candidates)
     evt_list = np.unique(df_seed.evtid)
     tot_evts = evt_list.shape[0]
@@ -137,8 +139,8 @@ if __name__ == "__main__":
             tot_true_seeds/tot_evts, 100*tot_true_seeds/tot_seeds,
             tot_true_seeds/tot_matched_particles,
             ))
-    print("Purity: {:.1f} +/- {:.2f}%".format(*ratio_error(tot_true_seeds, tot_seeds, True)))
-    print("Efficiency: {:.1f} +/- {:.2f}%".format(*ratio_error(tot_matched_particles, tot_particles, True)))
+    print("Purity: {:.2f} +/- {:.3f}%".format(*ratio_error(tot_true_seeds, tot_seeds, True)))
+    print("Efficiency: {:.2f} +/- {:.3f}%".format(*ratio_error(tot_matched_particles, tot_particles, True)))
 
 
     tot_pt = df_tot.pt.values
@@ -171,12 +173,13 @@ if __name__ == "__main__":
     line_configs = {'lw': 2}
     lstype = '-o'
     plt.plot(xvals, ratio, lstype, **line_configs)
-    for i,j in zip(xvals, ratio):
-        plt.text(i, j*1.05, "{:.2f}".format(j))
+    #for i,j in zip(xvals, ratio):
+    #    plt.text(i, j*1.05, "{:.2f}".format(j))
 
     plt.xlabel("pT [GeV]")
-    plt.ylabel("Efficiency")
-    plt.ylim(0, 1.01)
+    plt.ylabel("Seeding efficiency")
+    plt.ylim(0.80, 0.95)
+    plt.grid(axis='y')
     plt.savefig(output+"_eff_pT.png", bbox_inches='tight', dpi=300)
     plt.savefig(output+"_eff_pT.pdf", bbox_inches='tight', dpi=300)
     plt.clf()
@@ -202,12 +205,14 @@ if __name__ == "__main__":
     line_configs = {'lw': 2}
     lstype = '-o'
     plt.plot(xvals, ratio, lstype, **line_configs)
-    for i,j in zip(xvals, ratio):
-        plt.text(i, j*1.05, "{:.2f}".format(j))
+    #for i,j in zip(xvals, ratio):
+    #    plt.text(i, j*1.05, "{:.2f}".format(j))
 
-    plt.xlabel("Eta")
-    plt.ylabel("Efficiency")
-    plt.ylim(0, 1.01)
+    plt.xlabel(r'$\eta$')
+    plt.ylabel("Seeding Efficiency")
+    plt.ylim(0.4, 1.00)
+    plt.xlim(-3, 3)
+    plt.grid(axis='y')
     plt.savefig(output+"_eff_eta.png", bbox_inches='tight', dpi=300)
     plt.savefig(output+"_eff_eta.pdf", bbox_inches='tight', dpi=300)
     plt.clf()
