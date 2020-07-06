@@ -6,7 +6,7 @@ Its input is TFRecord
 
 import tensorflow as tf
 print(tf.__version__)
-tf.debugging.set_log_device_placement(True)
+# tf.debugging.set_log_device_placement(True)
 
 import os
 import sys

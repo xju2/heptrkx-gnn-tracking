@@ -49,14 +49,15 @@ def padding(g, max_nodes, max_edges, do_concat=True):
     n_edges_pad = max_edges - n_edges
 
     if n_nodes_pad < 0:
-        raise ValueError("Max Edges: {}, but {} edges in graph".format(max_nodes, n_nodes))
+        raise ValueError("Max Nodes: {}, but {} nodes in graph".format(max_nodes, n_nodes))
 
     if n_edges_pad < 0:
         raise ValueError("Max Edges: {}, but {} edges in graph".format(max_edges, n_edges))
 
     # padding edges all pointing to the last node
     # TODO: make the graphs more general <xju>
-    edges_idx = tf.constant([max_nodes-1] * n_edges_pad, dtype=np.int32)
+    edges_idx = tf.constant([0] * n_edges_pad, dtype=np.int32)
+    # print(edges_idx)
     zeros = np.array([0.0], dtype=f_dtype)
     n_node_features = g.nodes.shape[-1]
     n_edge_features = g.edges.shape[-1]
@@ -534,7 +535,7 @@ class DoubletGraphGenerator:
 
     def add_daniels_doublets(self, base_filename, evtid, all_hits, n_sections=8):
         # base /project/projectdirs/m3443/usr/dtmurnane/doublets/high_fullsplit/event{}_{}
-        node_features = ['r', 'phi', 'z']
+        # node_features = ['r', 'phi', 'z']
 
         # NOTE: this uses default [r, phi, z], it yields bad GNN results. <xju>
         solutions = []

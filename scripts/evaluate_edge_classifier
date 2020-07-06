@@ -86,8 +86,8 @@ if __name__ == "__main__":
     ckpt_manager = tf.train.CheckpointManager(checkpoint, directory=output_dir, max_to_keep=5)
     if os.path.exists(os.path.join(output_dir, ckpt_name)):
         print("Find model:", output_dir)
-        print("Loading latest checkpoint from:", output_dir)
         status = checkpoint.restore(ckpt_manager.latest_checkpoint)
+        print("Loaded latest checkpoint from:", output_dir)
     else:
         raise ValueError("cannot find model at:", output_dir)
 
@@ -115,6 +115,9 @@ if __name__ == "__main__":
 
     for inputs in dataset.take(nevts).as_numpy_iterator():
         inputs_te, targets_te = inputs
+        # print(inputs_te.nodes.shape)
+        # print(inputs_te.receivers)
+        # print(inputs_te.n_node)
         outputs_te = model(inputs_te, num_processing_steps_tr)
         
         if len(targets_te.n_edge) > 1 and args.remove_padding:
