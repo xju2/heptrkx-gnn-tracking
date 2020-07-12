@@ -21,14 +21,14 @@ gnn_training:
     n_eta: 1
     n_phi: 1
     tfrec_name: '*_*.tfrec'
-    tfrec_dir_cloud: 'gs://gnn-v1/Daniel_Doublets_RemoveDuplicatedHits_xyz_padding'
-    tfrec_dir_local: /global/cscratch1/sd/xju/heptrkx/codalab/Daniel_Doublets_RemoveDuplicatedHits_xyz
+    tfrec_dir_cloud: 'gs://gnn-v1/Embeded_doublets_padding'
+    tfrec_dir_local: /global/cscratch1/sd/xju/heptrkx/kaggle/Embeded_doublets_padding
     node_features: ['x', 'y', 'z']
     edge_features: ['deta', 'dphi']
     output_dir: /global/cfs/projectdirs/atlas/xju/tracking/PairsFromNN/GNNEdgeClassifier
-    tpu_output_dir: "gs://gnn-v1/model"
+    tpu_output_dir: "gs://gnn-v1/trained_data_distributed"
     model_name: vary2
-    prod_name: Embeded_full_vary2
+    prod_name: Embeded_full_vary2_TPUv2_32
     log_name: big.log
     input_type: 'data_dict'
     parameters:
@@ -37,7 +37,7 @@ gnn_training:
         iterations: 200000
         iter_per_job: 200000
         n_iters: 8
-        learning_rate: 0.0001
+        learning_rate: 0.0005
         real_weight: 2.
         fake_weight: 1.
-        epochs: 5
+        epochs: 40

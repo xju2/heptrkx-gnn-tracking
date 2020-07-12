@@ -18,6 +18,7 @@ setup(
     keywords=["graph networks", "track formation", "tracking", "machine learning"],
     url="https://github.com/xju2/hep-gnn-tracking",
     packages=find_packages(),
+    include_package_data=True,
     install_requires=[
         "tensorflow >= 2.1",
         "graph_nets>=1.1",

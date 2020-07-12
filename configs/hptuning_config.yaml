@@ -42,6 +42,7 @@ gnn_training:
         enableTrialEarlyStopping: True
         params:
             - parameterName: hidden1
+
 trainingInput:
     scaleTier: CUSTOM
     masterType: n1-highcpu-16
