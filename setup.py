@@ -38,6 +38,9 @@ setup(
         'more-itertools',
         # 'h5py',
     ],
+    package_data = {
+        "heptrkx": ["config/*.yaml"]
+    },
     extras_require={
     },
     setup_requires=['trackml'],

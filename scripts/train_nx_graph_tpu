@@ -41,8 +41,14 @@ if __name__ == "__main__":
     add_arg('--zone', help='gcloud zone for tpu', default='us-central1-b')
     args = parser.parse_args()
 
-    print(args.config)
-    all_config = load_yaml(args.config)
+    if not os.path.exists(args.config):
+        import pkg_resources
+        in_config_file = pkg_resources.resource_filename("heptrkx", os.path.join("configs", args.config))
+    else:
+        in_config_file = args.config
+    
+    print("reading configration file:", in_config_file)
+    all_config = load_yaml(in_config_file)
     config = all_config['gnn_training']
     config_tr = config['parameters']
     use_tpu = args.tpu is not None
