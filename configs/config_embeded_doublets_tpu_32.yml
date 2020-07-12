@@ -1,0 +1,43 @@
+layers: [7, 8, 9, 10, 24, 25, 26, 27, 40, 41]
+track_ml:
+    dir:      /global/cfs/projectdirs/m3443/usr/xju/heptrkx/codalab/inputs/train_all
+    detector: /global/cfs/projectdirs/m3443/usr/xju/heptrkx/codalab/inputs/detector.csv
+
+doublet_training:
+    batch_size: 512
+    epochs: 50
+    eff_cut: 0.95
+    model_output_dir: /global/cfs/projectdirs/atlas/xju/tracking/PairsFromNN/model10evtsTF2
+    model: fully_connected_classifier
+    features: ['dphi', 'dz', 'dr', 'phi_slope', 'z0', 'deta', 'deta1', 'dphi1']
+    cuts: [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]
+
+# full hit features
+# cluster: ['leta', 'lphi', 'lx', 'ly', 'lz', 'geta', 'gphi']
+# position: [x, y, z, |z|, phi, theta, eta, r, r3, layer]
+# full edge features
+# ['dr', 'dz', 'cottheta', 'dphi', 'zorg', 'phi_slope', 'deta', 'deta1', 'dphi1']
+gnn_training:
+    n_eta: 1
+    n_phi: 1
+    tfrec_name: '*_*.tfrec'
+    tfrec_dir_cloud: 'gs://gnn-v1/Daniel_Doublets_RemoveDuplicatedHits_xyz_padding'
+    tfrec_dir_local: /global/cscratch1/sd/xju/heptrkx/codalab/Daniel_Doublets_RemoveDuplicatedHits_xyz
+    node_features: ['x', 'y', 'z']
+    edge_features: ['deta', 'dphi']
+    output_dir: /global/cfs/projectdirs/atlas/xju/tracking/PairsFromNN/GNNEdgeClassifier
+    tpu_output_dir: "gs://gnn-v1/model"
+    model_name: vary2
+    prod_name: Embeded_full_vary2
+    log_name: big.log
+    input_type: 'data_dict'
+    parameters:
+        time_lapse:  600 # how often save checkpoint in seconds
+        batch_size: 32
+        iterations: 200000
+        iter_per_job: 200000
+        n_iters: 8
+        learning_rate: 0.0001
+        real_weight: 2.
+        fake_weight: 1.
+        epochs: 5
