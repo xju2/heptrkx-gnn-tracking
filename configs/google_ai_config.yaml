@@ -1,0 +1,13 @@
+trainingInput:
+    scaleTier: CUSTOM
+    masterType: n1-highcpu-16
+    masterConfig:
+        imageUri: gcr.io/myproject
+    workerType: cloud_tpu
+    workerCount: 1 
+    workerConfig:
+        imageUri: gcr.io/myproject
+        tpuTfVersion: 2.2
+        acceleratorConfig:
+            type: TPU_V2
+            count: 32
