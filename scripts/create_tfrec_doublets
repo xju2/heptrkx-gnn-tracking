@@ -1,0 +1,73 @@
+#!/usr/bin/env python
+
+import argparse
+import os
+
+from heptrkx.utils import load_yaml
+from heptrkx.dataset import graph
+from heptrkx.dataset import event as master
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='create TFREcord for doublet training in cloud TPU')
+    add_arg = parser. add_argument
+    add_arg('config', help='configuration file')
+    add_arg('outname', help='output file name')
+    add_arg("--no-padding", help='do not pad the input graph', action='store_true')
+    add_arg('--evts-per-record', default=10, type=int, help='number of events per output file')
+    add_arg('--from-hitsgraph', help='from hits graph', action='store_true')
+    add_arg('--histgraph-dir', help='histgraph directories',
+            default='/project/projectdirs/m3443/usr/dtmurnane/doublets/high_fullsplit')
+    add_arg("--nevts", help='number of events to process', default=9000, type=int)
+    add_arg('--input-dir', default='/global/homes/x/xju/m3443/data/trackml-kaggle/train_all', help='input track ml data')
+    add_arg("--split-edge", help='split the edges', action='store_true')
+    add_arg('--num-devices',  help='number of devices', type=int, default=None)
+    args = parser.parse_args()
+
+    outname = args.outname
+    with_pad = not args.no_padding
+    n_evts_per_record = args.evts_per_record
+
+    all_config = load_yaml(args.config)
+    config = all_config['graph_definition']
+    print("Node features: ", config['node_features'])
+    print("Edge features: ", config['edge_features'])
+    print("Eta bins: {}, Phi bins: {}".format(config['n_eta'], config['n_phi']))
+    print("Output Name {}".format(outname))
+    print("{} events per record".format(n_evts_per_record))
+    doublet_graphs = graph.DoubletGraphGenerator(
+        config['n_eta'], config['n_phi'],
+        config['node_features'], config['edge_features'], 
+        with_batch_dim=False,
+        with_pad=with_pad,
+        split_edge=args.split_edge,
+        n_devices=args.num_devices
+    )
+    if args.from_hitsgraph:
+        nevts = args.nevts
+        event = master.Event(args.input_dir)
+        print("reading {} events".format(nevts))
+        base_filename = os.path.join(args.histgraph_dir, "event{}_{}")
+        nevts_added = 0
+        for ievt in range(nevts):
+            evtid = 1000 + ievt
+            file_name = base_filename.format(evtid, 0) + ".npz"
+            if not os.path.exists(file_name):
+                print("NOT HERE", file_name)
+                continue
+            else:
+                pass
+                # print("reading {}".format(file_name))
+            event.read(evtid)
+            doublet_graphs.add_daniels_doublets(base_filename, evtid, event.hits)
+            nevts_added += 1
+            if nevts_added % n_evts_per_record == 0:
+                doublet_graphs.write_tfrecord(outname, n_evts_per_record)
+                doublet_graphs.graphs = []
+                doublet_graphs.n_evts = 0
+        if nevts_added % n_evts_per_record != 0:
+            doublet_graphs.write_tfrecord(outname, n_evts_per_record)
+    else:
+        for hit_file, doublet_file in zip(config['hit_files'], config['doublet_files']):
+            doublet_graphs.add_file(hit_file, doublet_file)
+        doublet_graphs.write_tfrecord(outname, n_evts_per_record)

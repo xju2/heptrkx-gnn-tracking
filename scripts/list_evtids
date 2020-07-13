@@ -1,0 +1,46 @@
+#!/usr/bin/env python
+import glob
+import os
+import pickle
+
+def check_dir(filedir, evts_per_record, n_graphs_per_event):
+    base_filename = os.path.join(filedir, 'event{}_{}')
+    evtids = []
+    nevts = 9000
+    print("Evts per record:", evts_per_record)
+    print("N graphs per event:", n_graphs_per_event)
+    # evts_per_record = 100
+    # n_graphs_per_event = 2
+
+    evts_per_file = []
+    nevts_added = 0
+    for ievt in range(nevts):
+        evtid = 1000 + ievt
+        file_name = base_filename.format(evtid, 0) + ".npz"
+        if not os.path.exists(file_name):
+            continue
+        nevts_added += 1
+        evts_per_file += [evtid]*n_graphs_per_event
+        if nevts_added % evts_per_record == 0:
+            evtids.append(evts_per_file)
+            evts_per_file = []
+            nevts_added = 0
+    return evtids
+
+if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser(description="Write out event id")
+    add_arg = parser.add_argument
+    # /project/projectdirs/m3443/usr/dtmurnane/doublets/high_fullsplit 
+    # /global/cscratch1/sd/xju/heptrkx/codalab/daniel_doublets.pkl
+    add_arg("file_dir", help="directories")
+    add_arg("outname", help='output file')
+    add_arg("--evts-per-record", type=int, default=100)
+    add_arg("--ngraphs-per-event", type=int, default=1)
+    args = parser.parse_args()
+
+    evtids = check_dir(args.file_dir, args.evts_per_record, args.ngraphs_per_event)
+    print(len(evtids))
+    with open(args.outname, 'wb') as f:
+        pickler = pickle.Pickler(f)
+        pickler.dump(evtids)

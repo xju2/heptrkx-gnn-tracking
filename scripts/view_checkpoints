@@ -1,0 +1,16 @@
+from tensorflow.python.training import py_checkpoint_reader
+import os
+import numpy as np
+import re
+
+from heptrkx.utils import count_total_params
+
+if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser(description="count number of parameters in a checkpoint")
+    add_arg = parser.add_argument
+    add_arg("filename", help="checkpoint file name")
+    args = parser.parse_args()
+
+    reader = py_checkpoint_reader.NewCheckpointReader(args.filename)
+    print(count_total_params(reader, count_exclude_pattern="optimizer"))

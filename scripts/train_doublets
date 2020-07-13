@@ -14,14 +14,14 @@ if __name__ == "__main__":
     import time
 
     from bisect import bisect
-    import tensorflow as tf
     from tensorflow import keras
 
     from sklearn.preprocessing import StandardScaler
     from sklearn.metrics import precision_recall_curve
 
     from heptrkx.nx_graph import shadow_model
-    from heptrkx.utils import load_yaml, layer_pairs
+    from heptrkx.dataset.event import layer_pairs
+    from heptrkx.utils import load_yaml
     from heptrkx.nx_graph.utils_plot import plot_metrics
 
 
@@ -50,30 +50,24 @@ if __name__ == "__main__":
         os.makedirs(output_dir)
 
     ## save checkpoints
-
-    checkpoint_path = os.path.join(output_dir, "modelpair{:03d}.ckpt".format(pair_idx))
-    checkpoint_dir = os.path.dirname(checkpoint_path)
+    checkpoint_path = os.path.join(output_dir, "weights.hdf5")
+    print("Trainde Model will be saved to {}".format(checkpoint_path))
 
     pair_info = layer_pairs[pair_idx]
-
     outname = os.path.join(output_dir, 'info{:03d}-{}-{}.txt'.format(pair_idx, *pair_info))
-
     if os.path.exists(checkpoint_path) \
        and not args.resume_train \
        and os.path.exists(outname):
         print("model is trained and evaluated")
-        print(checkpoint_path)
         exit()
 
+    model = getattr(shadow_model, model_name)() 
+    model.compile(optimizer='adam',
+            loss='binary_crossentropy',
+            metrics=['accuracy'])
     if os.path.exists(checkpoint_path) and (args.resume_train or args.in_eval):
         print("Resume previous training")
-        model = keras.models.load_model(checkpoint_path)
-    else:
-        # same model for everyone
-        model = getattr(shadow_model, model_name)() 
-        model.compile(optimizer='adam',
-                loss='binary_crossentropy',
-                metrics=['accuracy'])        
+        model.load_weights(checkpoint_path)
 
     print("Model is compiled. Start to read training data")
     truth_var = 'solution'
@@ -87,7 +81,7 @@ if __name__ == "__main__":
         t3 = time.time()
         print("Time to read background data: {:.0f} seconds".format(t2-t1))
         print("Time to convert format: {:.0f} seconds".format(t3-t2))
-    print("ready for training")
+
 
     all_inputs  = df_input[features].values
     all_targets = df_input[[truth_var]].values
@@ -113,24 +107,16 @@ if __name__ == "__main__":
     x_test = all_inputs_normed[n_training+n_validating:, :]
     y_test = all_targets[n_training+n_validating:, :]
 
+    perf_metric = 'val_accuracy'
     if not args.in_eval:
-        early_stop = tf.keras.callbacks.EarlyStopping(monitor='val_acc', min_delta=0.0001)
-        # cp_callback = tf.keras.callbacks.ModelCheckpoint(checkpoint_path,
-        #                                                  save_weights_only=True,
-        #                                                  save_best_only=True,
-        #                                                  monitor='val_acc',
-        #                                                  verbose=1)
-
-        # history = model.fit(inputs, targets,
-        #                     epochs=epochs, batch_size=batch_size,
-        #                     validation_data=(x_val, y_val),
-        #                     callbacks = [cp_callback, early_stop],
-        #                     class_weight={0: 1, 1: n_fake/n_true},
-        #                     verbose=1)
+        early_stop = keras.callbacks.EarlyStopping(monitor=perf_metric, min_delta=0.0001)
+        check_pt = keras.callbacks.ModelCheckpoint(checkpoint_path, 
+                                                monitor=perf_metric, 
+                                                save_best_only=True,)
         history = model.fit(inputs, targets,
                         epochs=epochs, batch_size=batch_size,
                         validation_data=(x_val, y_val),
-                        callbacks = [early_stop],
+                        callbacks = [early_stop, check_pt],
                         class_weight={0: 1, 1: n_fake/n_true},
                         verbose=1)
 
@@ -147,7 +133,6 @@ if __name__ == "__main__":
     # find a threshold
     y_true = y_test > 0.5
     purity, efficiency, thresholds = precision_recall_curve(y_true, prediction)
-    #print(len(purity), len(efficiency), len(thresholds))
 
     eff_cut = train_cfg['eff_cut']
     ti = bisect(list(reversed(efficiency.tolist())), eff_cut)
@@ -161,4 +146,4 @@ if __name__ == "__main__":
         f.write(out)
 
     # save the model
-    keras.models.save_model(model, checkpoint_path, overwrite=True)
+    # keras.models.save_model(model, checkpoint_path, overwrite=True)

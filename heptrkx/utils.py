@@ -9,6 +9,11 @@ import pandas as pd
 import yaml
 import os
 
+import networkx as nx
+import sklearn.metrics
+
+from graph_nets import utils_np
+
 import matplotlib.pyplot as plt
 
 def evtids_at_disk(evt_dir):
@@ -20,7 +25,8 @@ def evtids_at_disk(evt_dir):
 
 
 def load_yaml(file_name):
-    assert(os.path.exists(file_name))
+    if not os.path.exists(file_name):
+        raise NameError("{} not there".format(file_name))
     with open(file_name) as f:
         return yaml.load(f, Loader=yaml.FullLoader)
 
@@ -40,38 +46,6 @@ def list_from_str(input_str):
             except ValueError:
                 pass
     return out
-
-
-layer_pairs = [
-    (7, 8), (8, 9), (9, 10), (10, 24), (24, 25), (25, 26), (26, 27), (27, 40), (40, 41),
-    (7, 6), (6, 5), (5, 4), (4, 3), (3, 2), (2, 1), (1, 0),
-    (8, 6), (9, 6),
-    (7, 11), (11, 12), (12, 13), (13, 14), (14, 15), (15, 16), (16, 17),
-    (8, 11), (9, 11),
-    (24, 23), (23, 22), (22, 21), (21, 19), (19, 18),
-    (24, 28), (28, 29), (29, 30), (30, 31), (31, 32), (32, 33),
-    (25, 23), (26, 23), (25, 28), (26, 28),
-    (27, 39), (40, 39), (27, 42), (40, 42),
-    (39, 38), (38, 37), (37, 36), (36, 35), (35, 34),
-    (42, 43), (43, 44), (44, 45), (45, 46), (46, 47),
-    (19, 34), (20, 35), (21, 36), (22, 37), (23, 38),
-    (28, 43), (29, 44), (30, 45), (31, 46), (32, 47),
-    (0, 18), (0, 19), (1, 20), (1, 21), (2, 21), (2, 22), (3, 22), (4, 23),
-    (17, 33), (17, 32), (17, 31), (16, 31), (16, 30), (15, 30), (15, 29), (14, 29), (14, 28), (13, 29), (13, 28),
-    (11, 24), (12, 24), (6, 24), (5, 24), (4, 24)
-]
-
-layer_pairs_dict = dict([(ii, layer_pair)
-                         for ii, layer_pair in enumerate(layer_pairs)])
-pairs_layer_dict = dict([(layer_pair, ii)
-                         for ii, layer_pair in enumerate(layer_pairs)])
-
-
-def select_pair_layers(layers):
-    return [ii for ii, layer_pair in enumerate(layer_pairs)
-            if layer_pair[0] in layers and layer_pair[1] in layers
-           ]
-
 
 import time
 
@@ -138,14 +112,6 @@ def plot_log(info, name, axs=None):
 
     return axs
 
-def select_hits(event, no_noise, eta_cut=1.2):
-    if no_noise:
-        hits = event.hits[event.hits.particle_id != 0]
-    else:
-        hits = event.hits
-
-    hits = hits[np.abs(hits.eta) < eta_cut]
-    return hits
 
 def is_df_there(file_name):
     res = False
@@ -157,3 +123,81 @@ def is_df_there(file_name):
         else:
             res = True
     return res
+
+def is_diff_networkx(g1, g2):
+    m1 = nx.to_numpy_matrix(g1)
+    m2 = nx.to_numpy_matrix(g2)
+    return m1 == m2
+
+
+def eval_output(target, output):
+    """
+    target, output are graph-tuple from TF-GNN,
+    each of them contains N=batch-size graphs
+    """
+    tdds = utils_np.graphs_tuple_to_data_dicts(target)
+    odds = utils_np.graphs_tuple_to_data_dicts(output)
+
+    test_target = []
+    test_pred = []
+    for td, od in zip(tdds, odds):
+        test_target.append(np.squeeze(td['edges']))
+        test_pred.append(np.squeeze(od['edges']))
+
+    test_target = np.concatenate(test_target, axis=0)
+    test_pred   = np.concatenate(test_pred,   axis=0)
+    return test_pred, test_target
+
+
+def compute_matrics(target, output, thresh=0.5):
+    test_pred, test_target = eval_output(target, output)
+    y_pred, y_true = (test_pred > thresh), (test_target > thresh)
+    return sklearn.metrics.precision_score(y_true, y_pred), sklearn.metrics.recall_score(y_true, y_pred)
+
+
+def np_to_nx(array, hits):
+    G = nx.Graph()
+
+    node_features = ['r', 'phi', 'z']
+
+    used_hits = array['I']
+    df = pd.DataFrame(used_hits, columns=['hit_id'])
+    df = df.merge(hits[['hit_id']+node_features], on='hit_id')
+    node_info = [
+        (i, dict(pos=np.array(row[1:]), hit_id=row[0])) for i,row in df.iterrows()
+    ]
+    G.add_nodes_from(node_info)
+
+    receivers = array['receivers']
+    senders = array['senders']
+    score = array['score']
+    truth = array['truth']
+    edge_info = [
+        (i, j, dict(weight=k, solution=l)) for i,j,k,l in zip(senders, receivers, score, truth)
+    ]
+    G.add_edges_from(edge_info)
+    return G
+
+
+def count_total_params(reader, count_exclude_pattern=""):
+  """Count total number of variables."""
+  var_to_shape_map = reader.get_variable_to_shape_map()
+
+  # Filter out tensors that we don't want to count
+  if count_exclude_pattern:
+    regex_pattern = re.compile(count_exclude_pattern)
+    new_var_to_shape_map = {}
+    exclude_num_tensors = 0
+    exclude_num_params = 0
+    for v in var_to_shape_map:
+      if regex_pattern.search(v):
+        exclude_num_tensors += 1
+        exclude_num_params += np.prod(var_to_shape_map[v])
+      else:
+        new_var_to_shape_map[v] = var_to_shape_map[v]
+    var_to_shape_map = new_var_to_shape_map
+    print("# Excluding %d tensors (%d params) that match %s when counting." % (
+        exclude_num_tensors, exclude_num_params, count_exclude_pattern))
+
+  var_sizes = [np.prod(var_to_shape_map[v]) for v in var_to_shape_map]
+  return np.sum(var_sizes, dtype=int)

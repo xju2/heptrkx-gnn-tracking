@@ -1,7 +1,7 @@
 """
 Modules for plotting
 """
-from .. import pairwise
+from more_itertools import pairwise
 import numpy as np
 import matplotlib.pyplot as plt
 

@@ -9,8 +9,7 @@ import os
 import numpy as np
 import pandas as pd
 
-from heptrkx import master
-from heptrkx.preprocess import utils_mldata
+from heptrkx.dataset import event as master
 from heptrkx.utils import is_df_there
 
 
@@ -21,13 +20,12 @@ if __name__ == "__main__":
     add_arg('--outdir', help='output directory', default='.')
     add_arg('--input-dir', 
             default='/global/cscratch1/sd/xju/heptrkx/codalab/inputs/train_all',
-            #default='/global/cfs/projectdirs/m3443/usr/xju/heptrkx/codalab/inputs/train_all',
             help='input trackML data')
     add_arg('--det-conf', help="detector configuration",
             default='/global/cfs/projectdirs/m3443/usr/xju/heptrkx/codalab/inputs/detector.csv')
     add_arg('--start-evt-id', default=21001, type=int)
     add_arg('--mpi', action='store_true', help='use MPI')
-    add_arg('--layers', default="7, 8, 9, 10, 24, 25, 26, 27, 40, 41", help='layers of interest')
+    add_arg('--layers', nargs='?', default="7, 8, 9, 10, 24, 25, 26, 27, 40, 41", help='layers of interest', const="-1")
 
     args = parser.parse_args()
 
@@ -45,7 +43,6 @@ if __name__ == "__main__":
             comm = MPI.COMM_WORLD
             size = comm.Get_size()
             rank = comm.Get_rank()
-            print("World size:", size, ", rank:", rank)
         except ImportError:
             rank = 0
             size = 1
@@ -57,6 +54,8 @@ if __name__ == "__main__":
         evtids = list(range(nevts))
         # check if the file is there and remove those
         evtids = [x.tolist() for x in np.array_split(evtids, size)]
+        if not os.path.exists(outdir):
+            os.makedirs(outdir)
     else:
         evtids = None
     
@@ -71,23 +70,21 @@ if __name__ == "__main__":
     else:
         outname = os.path.join(outdir, 'evt{}-{}events-{:03}.h5'.format(start_evt_id, nevts, rank))
 
-    if os.path.exists(outname):
+    if is_df_there(outname):
         print("{} is there".format(outname))
         exit(0)
+    print(rank, "has", len(evtids), "jobs")
 
-    store = pd.HDFStore(outname)
-    event = master.Event(input_dir)
-    module_getter = utils_mldata.module_info(det_conf)
+    with pd.HDFStore(outname, 'w') as store:
+        event = master.Event(input_dir)
+        module_getter = master.module_info(det_conf)
 
-    for idx in evtids:
-        evtid = start_evt_id + idx
-        if event.read(evtid):
-            hits = event.hits
-            hits = hits[hits.layer.isin(layers)]
-            local_angles = utils_mldata.cell_angles(hits, module_getter, event.cells)
-            hits = hits.merge(local_angles, on='hit_id')
-            # evt id, such as 21001, is not a valid python identifier
-            # use evt+id
-            store['evt{}'.format(evtid)] = hits
-    
-    store.close()
+        for idx in evtids:
+            evtid = start_evt_id + idx
+            if event.read(evtid):
+                if layers[0] >= 0:
+                    event.filter_hits(layers)
+                event.cluster_info(det_conf)
+                store['evt{}'.format(evtid)] = event.hits
+                
+    print(rank, "finished")

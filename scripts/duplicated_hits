@@ -15,38 +15,40 @@ from functools import partial
 import numpy as np
 import matplotlib.pyplot as plt
 
-from heptrkx.studies import fraction_of_duplicated_hits
-from heptrkx.utils import evtids_at_disk, load_yaml
+from heptrkx.dataset import event as master
+from heptrkx.utils import load_yaml
 
 
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='plot number of duplicated hits for each track.')
     add_arg = parser.add_argument
-    add_arg('config', type=str, help='data configuration, configs/data.yaml')
-    add_arg('--workers', type=int, help='workers', default=1)
-    add_arg('--outname', help='output plot name', default='duplicated_hits.pdf')
+    add_arg('outname', help='output plot name')
+    add_arg('--layers', default="7, 8, 9, 10, 24, 25, 26, 27, 40, 41", help='layers of interest')
+    add_arg('--evts', type=int, help='number of events', default=10)
+    add_arg('--start-evt-id', default=21001, type=int)
+    add_arg('--input-dir', 
+        default='/global/cscratch1/sd/xju/heptrkx/codalab/inputs/train_all',
+        help='input trackML data')
+    add_arg("--works", default=1, type=int, help='number of workers')
 
     args = parser.parse_args()
-    config_dir = args.config
-    n_workers = args.workers
     outname = args.outname
+    event = master.Event(args.input_dir)
+    layers = [int(x) for x in args.layers.split(',')]
 
-    config = load_yaml(config_dir)
-    evt_dir = config['track_ml']['dir']
-    evtids = evtids_at_disk(evt_dir)
-    n_events = len(evtids)
-    print("Total events: {}".format(n_events))
+    num_duplicated_hits = []
+    for ievt in range(args.evts):
+        evtid = args.start_evt_id + ievt
+        event.read(evtid)
+        event.filter_hits(layers)
+        event.remove_noise_hits()
+        num_duplicated_hits.append(event.count_duplicated_hits())
 
-    with mp.Pool(processes=n_workers) as pool:
-        pp_func = partial(fraction_of_duplicated_hits, config_name=config_dir)
-        fraction_list = pool.map(pp_func, evtids)
-
-        diff = np.concatenate(fraction_list, axis=None)
-        nbins = 11
-        arr = plt.hist(diff, bins=nbins, range=(-0.5, 10.5), density=True)
-        for i in range(nbins):
-            plt.text(arr[1][i], arr[0][i], str(arr[0][i]))
-
-        plt.xlabel("number of duplicated hits")
-        plt.savefig(outname)
+    diff = np.concatenate(num_duplicated_hits)
+    nbins = 11
+    arr = plt.hist(diff, bins=nbins, range=(-0.5, 10.5), density=True)
+    for i in range(nbins):
+        plt.text(arr[1][i], arr[0][i], "{:.3f}".format(arr[0][i]))
+    plt.xlabel("number of duplicated hits")
+    plt.savefig(outname+".pdf")
