@@ -92,8 +92,7 @@ def train_and_evaluate(args):
 
     # logging.info("Input file names: ", file_names)
     logging.info("{} training files and {} evaluation files".format(len(train_files), len(eval_files)))
-    logging.info("{} training files".format(n_train))
-    raw_dataset = tf.data.TFRecordDataset(file_names)
+    raw_dataset = tf.data.TFRecordDataset(train_files)
     training_dataset = raw_dataset.map(graph.parse_tfrec_function)
 
     AUTO = tf.data.experimental.AUTOTUNE
@@ -110,7 +109,7 @@ def train_and_evaluate(args):
 
     checkpoint = tf.train.Checkpoint(optimizer=optimizer, model=model)
     ckpt_manager = tf.train.CheckpointManager(checkpoint, directory=output_dir, max_to_keep=5)
-    logging.info("Loading latest checkpoint from:", output_dir)
+    logging.info("Loading latest checkpoint from: {}".format(output_dir))
     status = checkpoint.restore(ckpt_manager.latest_checkpoint)
 
     # training loss
@@ -157,10 +156,10 @@ def train_and_evaluate(args):
 
         def update_step(inputs_tr, targets_tr):
             logging.info("Tracing update_step")
-            logging.info("before contatenate:", inputs_tr.n_node.shape)
+            print("before contatenate:", inputs_tr.n_node.shape)
             inputs_tr = graph.concat_batch_dim(inputs_tr)
             targets_tr = graph.concat_batch_dim(targets_tr)
-            logging.info("after concatenate:", inputs_tr.n_node.shape)
+            print("after concatenate:", inputs_tr.n_node.shape)
 
             with tf.GradientTape() as tape:
                 outputs_tr = model(inputs_tr, num_processing_steps_tr)
@@ -187,10 +186,10 @@ def train_and_evaluate(args):
             input_tr, target_tr = inputs
             total_loss += train_step(input_tr, target_tr)
             num_batches += 1
-        logging.info("total batches:", num_batches)
+        logging.info("total batches: {}".format(num_batches))
         return total_loss/num_batches
 
-    this_time =  time.strftime('%d %b %Y %H:%M:%S', time.localtime())
+    # this_time =  time.strftime('%d %b %Y %H:%M:%S', time.localtime())
     out_str  = "Start training " + time.strftime('%d %b %Y %H:%M:%S', time.localtime())
     out_str += '\n'
     out_str += "Epoch, Time [mins], Loss\n"
@@ -229,8 +228,8 @@ if __name__ == "__main__":
     add_arg("--train-files", help='path to training data', required=True)
     add_arg("--eval-files", help='path to evaluation data', required=True)
     add_arg("--job-dir", help='location to write checkpoints and export models', required=True)
-    add_arg("--train-batch-size", help='batch size for training', default=2, type=int)
-    add_arg("--eval-batch-size", help='batch size for evaluation', default=2, type=int)
+    add_arg("--train-batch-size", help='batch size for training', default=1, type=int)
+    add_arg("--eval-batch-size", help='batch size for evaluation', default=1, type=int)
     add_arg("--num-iters", help="number of message passing steps", default=8, type=int)
     add_arg("--learning-rate", help='learing rate', default=0.0005, type=float)
     add_arg("--num-epochs", help='number of epochs', default=1, type=int)
@@ -245,11 +244,12 @@ if __name__ == "__main__":
     add_arg('--tpu', help='use tpu', default=None)
     add_arg("--tpu-cores", help='number of cores in TPU', default=8, type=int)
     add_arg('--zone', help='gcloud zone for tpu', default='us-central1-b')
-    add_arg("-v", "--verbose", )
+    add_arg("-v", "--verbose", help='verbosity', choices=['DEBUG', 'ERROR', 'FATAL', 'INFO', 'WARN'],\
+        default="INFO")
     args, _ = parser.parse_known_args()
 
     # Set python level verbosity
-    logging.set_verbosity(args.verbosity)
+    logging.set_verbosity(args.verbose)
     # Suppress C++ level warnings.
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
