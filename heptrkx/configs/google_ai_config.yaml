@@ -4,7 +4,7 @@ trainingInput:
     workerType: cloud_tpu
     workerCount: 1 
     workerConfig:
-        tpuTfVersion: "2.1"
+        tpuTfVersion: "2.2"
         acceleratorConfig:
             type: TPU_V2
             count: 8
