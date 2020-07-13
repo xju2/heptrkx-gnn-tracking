@@ -36,6 +36,8 @@ from heptrkx.utils import load_yaml
 prog_name = os.path.basename(sys.argv[0])
 
 def train_and_evaluate(args):
+    for key,value in vars(args).items():
+        print("{} --> {}".format(key, value))
     use_tpu = args.tpu is not None
 
     device = 'CPU'
@@ -85,7 +87,7 @@ def train_and_evaluate(args):
     logging.info("{} processing steps in the model".format(num_processing_steps_tr))
     # prepare graphs
     logging.info("{} Eta bins and {} Phi bins".format(args.num_eta_bins, args.num_phi_bins))
-    max_nodes, max_edges = graph.get_max_graph_size(args.num_eta_bins, args.num_phi_bins)
+    _, max_edges = graph.get_max_graph_size(args.num_eta_bins, args.num_phi_bins)
 
     train_files = tf.io.gfile.glob(args.train_files)
     eval_files = tf.io.gfile.glob(args.eval_files)
