@@ -249,7 +249,7 @@ if __name__ == "__main__":
     args, _ = parser.parse_known_args()
 
     # Set python level verbosity
-    tf.logging.set_verbosity(args.verbosity)
+    logging.set_verbosity(args.verbosity)
     # Suppress C++ level warnings.
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
