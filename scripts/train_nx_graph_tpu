@@ -224,7 +224,8 @@ if __name__ == "__main__":
 
     for epoch in range(n_epochs):
         print("start epoch {} on {}".format(epoch, device))
-        training_dataset = training_dataset.shuffle(global_batch_size*2, reshuffle_each_iteration=True)
+        if not use_tpu:
+            training_dataset = training_dataset.shuffle(global_batch_size*2, reshuffle_each_iteration=True)
         dist_training_dataset = strategy.experimental_distribute_dataset(training_dataset)
         loss = train_epoch(dist_training_dataset)
         # loss = train_epoch(training_dataset)
