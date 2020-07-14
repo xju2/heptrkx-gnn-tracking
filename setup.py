@@ -13,11 +13,13 @@ setup(
     version="1.0.0",
     description="Library for building tracks with Graph Nural Networks.",
     long_description=description,
-    author="HEPTrkx",
+    author="Xiangyang Ju",
+    author_email="xiangyang.ju@gmail.com",
     license="Apache License, Version 2.0",
     keywords=["graph networks", "track formation", "tracking", "machine learning"],
     url="https://github.com/xju2/hep-gnn-tracking",
     packages=find_packages(),
+    include_package_data=True,
     install_requires=[
         "tensorflow >= 2.1",
         "graph_nets>=1.1",
@@ -37,6 +39,9 @@ setup(
         'more-itertools',
         # 'h5py',
     ],
+    package_data = {
+        "heptrkx": ["config/*.yaml"]
+    },
     extras_require={
     },
     setup_requires=['trackml'],
