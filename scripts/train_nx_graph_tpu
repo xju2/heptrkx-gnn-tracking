@@ -3,11 +3,6 @@
 Training GNN in TPU/GPU/CPU with fixed graph size
 Its input is TFRecord
 """
-
-import tensorflow as tf
-print(tf.__version__)
-# tf.debugging.set_log_device_placement(True)
-
 import os
 import sys
 import argparse
@@ -16,6 +11,18 @@ import re
 import time
 import random
 import functools
+# os.environ['TF_AUTO_MIXED_PRECISION_GRAPH_REWRITE_IGNORE_PERFORMANCE'] = '1'
+
+import tensorflow as tf
+print(tf.__version__)
+# tf.debugging.set_log_device_placement(True)
+# config_proto = tf.compat.v1.ConfigProto()
+
+# tf.config.optimizer.set_jit(True)
+# tf.config.optimizer.set_experimental_options({
+#     # "auto_mixed_precision": True,
+# })
+
 
 import numpy as np
 import sklearn.metrics
@@ -160,7 +167,8 @@ if __name__ == "__main__":
         return loss
 
     def create_loss_ops(target_op, output_ops):
-        weights = target_op.edges * real_weight + (1 - target_op.edges) * fake_weight
+        t_edges = tf.squeeze(target_op.edges)
+        weights = t_edges * real_weight + (1 - t_edges) * fake_weight
         row_index = tf.range(tf.constant(max_edges))
         n_valid_edges = target_op.n_edge[0]
         
@@ -170,11 +178,11 @@ if __name__ == "__main__":
         # # weights = tf.where(cond, weights, zeros)
 
         mask = tf.cast(row_index < n_valid_edges, tf.float32)
-        mask = tf.expand_dims(mask, axis=1)
+        # mask = tf.expand_dims(mask, axis=1)
         weights = weights * mask
 
         loss_ops = [
-            tf.compat.v1.losses.log_loss(target_op.edges, output_op.edges, weights=weights)
+            tf.compat.v1.losses.log_loss(t_edges, tf.squeeze(output_op.edges), weights=weights)
                 for output_op in output_ops
         ]
 
@@ -228,11 +236,12 @@ if __name__ == "__main__":
         f.write(out_str)
     now = time.time()
 
+    dist_training_dataset = strategy.experimental_distribute_dataset(training_dataset)
     for epoch in range(n_epochs):
         print("start epoch {} on {}".format(epoch, device))
-        if not use_tpu:
-            training_dataset = training_dataset.shuffle(global_batch_size*2, reshuffle_each_iteration=True)
-        dist_training_dataset = strategy.experimental_distribute_dataset(training_dataset)
+        # if not use_tpu:
+        #     training_dataset = training_dataset.shuffle(global_batch_size*2, reshuffle_each_iteration=True)
+
         loss = train_epoch(dist_training_dataset)
         # loss = train_epoch(training_dataset)
         this_epoch = time.time()

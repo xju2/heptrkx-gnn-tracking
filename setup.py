@@ -85,5 +85,8 @@ setup(
         # utils
         'scripts/list_evtids',
         'scripts/view_checkpoints',
+        # doublet studies
+        'scripts/select_pairs',
+        "scripts/eff_purity_comparison",
     ],
 )

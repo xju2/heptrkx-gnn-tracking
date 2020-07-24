@@ -19,7 +19,8 @@ max_graph_dict = {
     'eta2-phi1': [37000, 680000],
     # 'eta1-phi1': [74000, 1430000] # mine doublets
     # 'eta1-phi1': [96500, 566000] # embeded with duplicated nodes
-    'eta1-phi1': [68700, 565900] # embeded without duplicated nodes
+    # 'eta1-phi1': [68700, 565900] # embeded without duplicated nodes
+    'eta1-phi1': [58112, 417664]    # embeded keep 99% of graphs
 }
 
 def get_max_graph_size(n_eta, n_phi):
@@ -575,8 +576,12 @@ class DoubletGraphGenerator:
         target_graphs = utils_tf.concat([x[1] for x in all_graphs], axis=0)
         if self.with_pad:
             max_nodes, max_edges = get_max_graph_size(self.n_eta, self.n_phi)
-            input_graphs = padding(input_graphs, max_nodes, max_edges)
-            target_graphs = padding(target_graphs, max_nodes, max_edges)
+            try:
+                input_graphs = padding(input_graphs, max_nodes, max_edges)
+                target_graphs = padding(target_graphs, max_nodes, max_edges)
+            except ValueError:
+                print("Discarding the graph with size greater than the maximum")
+                return
         
         if self.split_edge:
             splitted_inputs = splitting(input_graphs, self.n_devices)
