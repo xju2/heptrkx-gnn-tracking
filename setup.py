@@ -76,6 +76,8 @@ setup(
         'scripts/train_nx_graph_distributed',
         'scripts/train_distributed',
         'scripts/train_nx_graph_tpu',
+        # Distributed training
+        'scripts/hvd_distributed',
         # GNN evaluation
         'scripts/evaluate_edge_classifier',
         'scripts/evaluate_distributed_edge_classifier',
