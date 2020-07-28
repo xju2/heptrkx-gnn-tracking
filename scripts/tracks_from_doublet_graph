@@ -24,7 +24,7 @@ if __name__ == "__main__":
 
     array = np.load(args.filename)
     event = master.Event(args.input_dir)
-    evet.read(evtid)
+    event.read(evtid)
 #    used_hits = array['I']
 #    hits = event.hits[event.hits.hit_id.isin(used_hits)]
 
