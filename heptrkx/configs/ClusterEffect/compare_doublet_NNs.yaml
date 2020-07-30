@@ -1,0 +1,4 @@
+base_dir: /global/project/projectdirs/atlas/xju/tracking/ClusterEffect/evaluation
+All: all_old_features
+Cluster: cluster_old_features
+Location: location_old_features

@@ -139,6 +139,5 @@ class SegmentClassifier(snt.Module):
     for _ in range(num_processing_steps):
         core_input = utils_tf.concat([latent0, latent], axis=1)
         latent = self._core(core_input)
-
         output_ops.append(self._output_transform(latent))
     return output_ops

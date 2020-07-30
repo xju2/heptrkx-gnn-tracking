@@ -52,38 +52,21 @@ setup(
         'scripts/event_summary',
         # preparation
         'scripts/create_tfrec_doublets',
-        # select doublets
-        'scripts/create_hit_files',
-        'scripts/create_predoublets',
-        'scripts/create_predoublets_mpi',
-        'scripts/train_doublets',
-        'scripts/check_nnbased_doublet_sel',
-        'scripts/merge_h5',
-        'scripts/merge_predoublets',
-        'scripts/select_doublet_nn',
         # evaluate triplets/seeds
         'scripts/create_seed_inputs',
         'scripts/seeding_perf',
         # event studies
         'scripts/duplicated_hits',
-        # random
-        'scripts/peek_models',
-        'scripts/view_training_log',
-        'scripts/trim_doublets',
         # GNN training
-        'scripts/train_nx_graph',
         'scripts/train_nx_graph_single',
         'scripts/train_nx_graph_distributed',
-        'scripts/train_distributed',
-        'scripts/train_nx_graph_tpu',
         # GNN evaluation
         'scripts/evaluate_edge_classifier',
-        'scripts/evaluate_distributed_edge_classifier',
         # track candidates
-        'scripts/tracks_from_triplet_graph',
         'scripts/tracks_from_doublet_graph',
         # utils
         'scripts/list_evtids',
         'scripts/view_checkpoints',
+        'scripts/view_training_log',
     ],
 )

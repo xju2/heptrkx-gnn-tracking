@@ -1,4 +1,24 @@
 #!/usr/bin/env python
+"""
+When the events were converted to the TFRecord format, 
+the info of event id and hit id is lost. 
+
+To recover the event id information, 
+a separate file created by the script `list_evtids`
+was used to look up the event ids presented in the TFRecord file.
+The path to this file can be provided with the option
+--evt-filename
+
+To recover the hit id, the program requires to read the original
+doublet inputs, where the hit id was saved in a separate file with
+its name indicating the event id.
+The path to original doublet can be provided with the option
+--input-doublets
+
+To have the final score, we need access to the truth information.
+So one has to provide the input-dir where the original tracking ml data 
+is score with the option --input-dir.
+"""
 
 import os
 
@@ -39,6 +59,10 @@ if __name__ == "__main__":
         default='/global/homes/x/xju/m3443/data/trackml-kaggle/train_all')
     add_arg("--edge-distributed", help='edge distributed model', action='store_true')
     add_arg("--remove-padding", help="remove pad graph from evaluation", action='store_true')
+    add_arg("--evt-filename", help='a file containing event ids, created by list-evtids',
+        default='/global/cfs/cdirs/m3443/usr/xju/heptrkx/codalab/embeded_doublets.pkl')
+    add_arg("--input-doublets", help="original doublet files",
+        default='/project/projectdirs/m3443/usr/dtmurnane/doublets/high_fullsplit')
     args = parser.parse_args()
 
     filenames = tf.io.gfile.glob(args.input_data)
@@ -92,7 +116,8 @@ if __name__ == "__main__":
         raise ValueError("cannot find model at:", output_dir)
 
     # NOTE: prepare to get ID info for the doublets, all hard-coded. <xju>
-    evt_filename = '/global/homes/x/xju/atlas/heptrkx/codalab/embeded_doublets.pkl'
+    # evt_filename = '/global/homes/x/xju/atlas/heptrkx/codalab/embeded_doublets.pkl'
+    evt_filename = args.evt_filename
     with open(evt_filename, 'rb') as f:
         pickler = pickle.Unpickler(f)
         all_evtids = pickler.load()
@@ -102,7 +127,8 @@ if __name__ == "__main__":
         print("available event IDs:", all_evtids)
         exit(1)
 
-    origin_doublets_input = '/project/projectdirs/m3443/usr/dtmurnane/doublets/high_fullsplit'
+    # origin_doublets_input = '/project/projectdirs/m3443/usr/dtmurnane/doublets/high_fullsplit'
+    origin_doublets_input = args.input_doublets
     id_basename = os.path.join(origin_doublets_input, 'event{}_{}_ID.npz')
     nsections = 8
 

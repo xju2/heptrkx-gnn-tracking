@@ -10,7 +10,7 @@ doublet_training:
     eff_cut: 0.98
     model_output_dir: /global/project/projectdirs/atlas/xju/tracking/ClusterEffect/model_outputs/doublet_NN_onlyPos_old_features
     model: fully_connected_classifier
-    features: ['dphi', 'dz']
+    features: ['dphi', 'dz', 'dr', 'phi_slope', 'z0', 'deta']
     bkg_from_evtid: 21000
 
 doublets_for_graph:
