@@ -1,9 +1,9 @@
 #!/bin/bash
 #SBATCH -J hvd
 #SBATCH -C gpu
-#SBATCH -G 16
-#SBATCH -N 2
-#SBATCH -t 00:05:00
+#SBATCH -G 2
+#SBATCH -N 1
+#SBATCH -t 00:10:00
 #SBATCH -A m1759
 
 
@@ -30,4 +30,9 @@ echo $server
 #
 #srun --ntasks-per-node 8 -l python scripts/hvd_distributed
 
-srun -l python scripts/hvd_distributed
+srun -l python scripts/hvd_distributed \
+	--train-files "/global/cscratch1/sd/xju/heptrkx/kaggle/ReducedGraphSize/Embeded_doublets_padding/embeded_doublets_1*.tfrec" \
+	--eval-files "/global/cscratch1/sd/xju/heptrkx/kaggle/ReducedGraphSize/Embeded_doublets_padding/embeded_doublets_2*.tfrec" \
+	--job-dir "/global/cscratch1/sd/xju/heptrkx/kaggle/HVD/Test1" \
+	--train-batch-size 1 \
+	--eval-batch-size 1 

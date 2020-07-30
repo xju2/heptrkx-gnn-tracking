@@ -61,9 +61,11 @@ def train_and_evaluate(args):
     logging.info("{} Eta bins and {} Phi bins".format(args.num_eta_bins, args.num_phi_bins))
     max_nodes, max_edges = graph.get_max_graph_size(args.num_eta_bins, args.num_phi_bins)
 
-    print("I am in hvd rank: {}".format(hvd.rank()))
-    train_files = tf.io.gfile.glob(args.train_files.format(hvd.rank()))
-    eval_files = tf.io.gfile.glob(args.eval_files.format(hvd.rank()))
+    logging.info("I am in hvd rank: {} of  total {} ranks".format(hvd.rank(), hvd.size()))
+    # train_files = tf.io.gfile.glob(args.train_files.format(hvd.rank()))
+    # eval_files = tf.io.gfile.glob(args.eval_files.format(hvd.rank()))
+    train_files = tf.io.gfile.glob(args.train_files)
+    eval_files = tf.io.gfile.glob(args.eval_files)
 
 
     # logging.info("Input file names: ", file_names)
@@ -81,17 +83,18 @@ def train_and_evaluate(args):
     inputs, targets = next(training_dataset.take(1).as_numpy_iterator())
     input_signature = (
         graph.specs_from_graphs_tuple(inputs, with_batch_dim),
-        graph.specs_from_graphs_tuple(targets, with_batch_dim)
+        graph.specs_from_graphs_tuple(targets, with_batch_dim),
+        tf.TensorSpec(shape=(1,), dtype=tf.bool)
     )
 
     learning_rate = args.learning_rate
-    optimizer = snt.optimizers.Adam(learning_rate)
-    # optimizer = tf.optimizers.Adam(learning_rate)
+    # optimizer = snt.optimizers.Adam(learning_rate)
+    optimizer = tf.optimizers.Adam(learning_rate)
     model = get_model(args.model_name)
 
     checkpoint = tf.train.Checkpoint(optimizer=optimizer, model=model)
     ckpt_manager = tf.train.CheckpointManager(checkpoint, directory=output_dir, max_to_keep=5)
-    logging.info("Loading latest checkpoint from:", output_dir)
+    logging.info("Loading latest checkpoint from: {}".format(output_dir))
     status = checkpoint.restore(ckpt_manager.latest_checkpoint)
 
     # training loss
@@ -107,6 +110,10 @@ def train_and_evaluate(args):
         mask = tf.expand_dims(mask, axis=1)
         weights = weights * mask
 
+        # def loss_in_fcn(idx):
+        #     return tf.compat.v1.losses.log_loss(target_op.edges, output_ops[idx].edges, weights=weights)
+
+        # loss_ops = tf.map_fn(loss_in_fcn, tf.range(num_processing_steps_tr))
         loss_ops = [
             tf.compat.v1.losses.log_loss(target_op.edges, output_op.edges, weights=weights)
                 for output_op in output_ops
@@ -114,10 +121,15 @@ def train_and_evaluate(args):
 
         return tf.stack(loss_ops)
 
-    @functools.partial(tf.function, input_signature=input_signature)
+    # @functools.partial(tf.function, input_signature=input_signature)
+    @tf.function(experimental_compile=True)
     def train_step(inputs_tr, targets_tr, first_batch):
         print("Tracing update_step")
+        print("inputs nodes", inputs_tr.nodes.shape)
+        print("inputs edges", inputs_tr.edges.shape)
+        print("input n_node", inputs_tr.n_node.shape)
         with tf.GradientTape() as tape:
+            # outputs_tr = model(inputs_tr, tf.constant(num_processing_steps_tr, dtype=tf.int32))
             outputs_tr = model(inputs_tr, num_processing_steps_tr)
             loss_ops_tr = create_loss_ops(targets_tr, outputs_tr)
             loss_op_tr = tf.math.reduce_sum(loss_ops_tr) / tf.constant(num_processing_steps_tr, dtype=tf.float32)
@@ -125,7 +137,7 @@ def train_and_evaluate(args):
         # Horovod: add Horovod Distributed GradientTape.
         tape = hvd.DistributedGradientTape(tape)
         gradients = tape.gradient(loss_op_tr, model.trainable_variables)
-        optimizer.apply(gradients, model.trainable_variables)
+        optimizer.apply_gradients(zip(gradients, model.trainable_variables))
 
         # Horovod: broadcast initial variable states from rank 0 to all other processes.
         # This is necessary to ensure consistent initialization of all workers when
@@ -145,9 +157,11 @@ def train_and_evaluate(args):
         num_batches = 0
         for batch, inputs in enumerate(dataset.take(100 // hvd.size())):
             input_tr, target_tr = inputs
-            total_loss += train_step(input_tr, target_tr, batch==0)
+
+            total_loss += train_step(input_tr, target_tr, batch == 0)
+
             num_batches += 1
-        logging.info("total batches:", num_batches)
+        logging.info("total batches: {}".format(num_batches))
         return total_loss/num_batches
 
     # this_time =  time.strftime('%d %b %Y %H:%M:%S', time.localtime())
@@ -203,11 +217,12 @@ if __name__ == "__main__":
     add_arg('--tpu', help='use tpu', default=None)
     add_arg("--tpu-cores", help='number of cores in TPU', default=8, type=int)
     add_arg('--zone', help='gcloud zone for tpu', default='us-central1-b')
-    add_arg("-v", "--verbose", )
+    add_arg("-v", "--verbose", help='verbosity', choices=['DEBUG', 'ERROR', 'FATAL', 'INFO', 'WARN'],\
+        default="INFO")
     args, _ = parser.parse_known_args()
 
     # Set python level verbosity
-    tf.logging.set_verbosity(args.verbosity)
+    logging.set_verbosity(args.verbose)
     # Suppress C++ level warnings.
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
