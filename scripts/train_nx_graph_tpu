@@ -188,7 +188,8 @@ if __name__ == "__main__":
 
         return tf.stack(loss_ops)
 
-    @tf.function(autograph=False)
+    # @tf.function(autograph=False, experimental_compile=True)
+    @tf.function(experimental_compile=True)
     def train_step(inputs_tr, targets_tr):
         print("Tracing train_step")
         print(inputs_tr)
