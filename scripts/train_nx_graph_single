@@ -184,7 +184,7 @@ if __name__ == "__main__":
     n_epochs = config_tr['epochs']
 
     logdir = os.path.join(output_dir, "logdir")
-    os.makedirs(logdir)
+    os.makedirs(logdir, exist_ok=True)
     summary_writer = tf.summary.create_file_writer(logdir=logdir)
 
     for epoch in range(n_epochs):
@@ -213,9 +213,9 @@ if __name__ == "__main__":
                 ckpt_manager.save()
                 last_log_time = time.time()
 
-        with summary_writer.as_default():
-            tf.summary.scalar("epoch_loss_avg", epoch_loss_avg.result())
-            tf.summary.scalar("epoch_accuracy", epoch_accuracy.result())
+        # with summary_writer.as_default():
+        #     tf.summary.scalar("epoch_loss_avg", epoch_loss_avg.result())
+        #     tf.summary.scalar("epoch_accuracy", epoch_accuracy.result())
 
         loss_tr = total_loss/num_batches
 

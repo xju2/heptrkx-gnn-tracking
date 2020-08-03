@@ -64,6 +64,7 @@ if __name__ == "__main__":
     global_batch_size = n_graphs   = config_tr['batch_size']   # need optimization
     physical_gpus = tf.config.experimental.list_physical_devices("GPU")
     n_gpus = len(physical_gpus)
+    print("Found {} GPUs".format(n_gpus))
     n_tpus = 0
     n_cores_per_tpu = 8
     if use_tpu:
@@ -188,7 +189,8 @@ if __name__ == "__main__":
 
         return tf.stack(loss_ops)
 
-    # @tf.function(autograph=False, experimental_compile=True)
+    # @tf.function(autograph=False)
+    # @tf.function(experimental_compile=True) # enable XLA compilation, may speedup the training!
     @tf.function(experimental_compile=True)
     def train_step(inputs_tr, targets_tr):
         print("Tracing train_step")
