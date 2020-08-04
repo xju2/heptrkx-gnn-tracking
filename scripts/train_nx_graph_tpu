@@ -127,7 +127,7 @@ if __name__ == "__main__":
     # print("Input file names: ", file_names)
     print("{} input files".format(n_files))
     print("{} training files".format(n_train))
-    raw_dataset = tf.data.TFRecordDataset(file_names)
+    raw_dataset = tf.data.TFRecordDataset(file_names[:n_train])
     training_dataset = raw_dataset.map(graph.parse_tfrec_function)
 
     AUTO = tf.data.experimental.AUTOTUNE
