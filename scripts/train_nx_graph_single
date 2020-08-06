@@ -58,10 +58,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Train nx-graph with configurations')
     add_arg = parser.add_argument
     add_arg('config', help='configuration file')
-
-    add_arg('--from-hitsgraph', help='from hits graph', action='store_true')
-    add_arg('--hitsgraph-dir', help='histgraph directories',
-        default='/project/projectdirs/m3443/usr/dtmurnane/doublets/high_fullsplit')
     args = parser.parse_args()
 
     all_config = load_yaml(args.config)
@@ -74,12 +70,6 @@ if __name__ == "__main__":
     print("[{}] save models at {}".format(prog_name, output_dir))
     os.makedirs(output_dir, exist_ok=True)
 
-    # files = glob.glob(output_dir+"/*.ckpt.meta")
-    # last_iteration = 0 if len(files) < 1 else max([
-    #     int(re.search('checkpoint_([0-9]*).ckpt.meta', os.path.basename(x)).group(1))
-    #     for x in files
-    # ])
-    # print("[{}] last iteration: {}".format(prog_name, last_iteration))
 
     config_tr = config['parameters']
     log_every_seconds       = config_tr['time_lapse']
@@ -183,9 +173,36 @@ if __name__ == "__main__":
     last_iteration = 0
     n_epochs = config_tr['epochs']
 
-    # logdir = os.path.join(output_dir, "logdir")
-    # os.makedirs(logdir, exist_ok=True)
-    # summary_writer = tf.summary.create_file_writer(logdir=logdir)
+    ##===== profiling =====
+    do_profiling = config_tr.get("do_profiling", False)
+    if do_profiling:
+        time_stamp = time.strftime('%Y%m%d-%H%M%S', time.localtime())
+        data_iterator = training_dataset.as_numpy_iterator()
+
+        # computational graphs
+        func_log_dir = os.path.join(output_dir, "logs/{}/funcs".format(time_stamp))
+        func_writer = tf.summary.create_file_writer(func_log_dir)
+        profiling_steps = config_tr.get("profiling_steps", 10)
+        profile_logdir = os.path.join(output_dir, "logs/{}/profiling".format(time_stamp))
+
+        tf.summary.trace_on(graph=True, profiler=True)
+        for step in range(1):
+            inputs_tr, targets_tr = next(data_iterator)
+            total_loss = update_step(inputs_tr, targets_tr)[1].numpy()
+        with func_writer.as_default():
+            tf.summary.trace_export(name='GNN', step=0, profiler_outdir=func_log_dir)
+
+        tf.profiler.experimental.start(profile_logdir)
+        for step in range(profiling_steps):
+            with tf.profiler.experimental.Trace("train", step_num=step, _r=1):
+                inputs_tr, targets_tr = next(data_iterator)
+                total_loss = update_step(inputs_tr, targets_tr)[1].numpy()
+        tf.profiler.experimental.stop()
+
+        do_profiling_only = config_tr.get("do_profiling_only", False)
+        if do_profiling_only:
+            exit(0)        
+
 
     for epoch in range(n_epochs):
 
