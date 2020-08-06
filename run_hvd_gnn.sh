@@ -4,6 +4,7 @@
 #SBATCH -N 2
 #SBATCH --ntasks-per-node 8
 #SBATCH --gpus-per-task 1
+#SBATCH --cpus-per-task 10
 #SBATCH --exclusive
 #SBATCH -t 04:00:00
 #SBATCH -A m1759
