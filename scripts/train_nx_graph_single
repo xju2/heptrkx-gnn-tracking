@@ -60,9 +60,15 @@ if __name__ == "__main__":
     add_arg('config', help='configuration file')
     args = parser.parse_args()
 
-    all_config = load_yaml(args.config)
-    config = all_config['gnn_training']
+    if not os.path.exists(args.config):
+        import pkg_resources
+        in_config_file = pkg_resources.resource_filename("heptrkx", os.path.join("configs", args.config))
+    else:
+        in_config_file = args.config
 
+    print("reading configration file:", in_config_file)
+    all_config = load_yaml(in_config_file)
+    config = all_config['gnn_training']
 
     # add ops to save and restore all the variables
     prod_name = config['prod_name']
