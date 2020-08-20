@@ -13,4 +13,5 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     reader = py_checkpoint_reader.NewCheckpointReader(args.filename)
-    print(count_total_params(reader, count_exclude_pattern="optimizer"))
+    print("Trainable variables {:,}".format(
+        count_total_params(reader, count_exclude_pattern="optimizer")))
