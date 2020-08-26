@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python
 """
 Training GNN in HPC using Horovod
