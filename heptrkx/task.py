@@ -87,13 +87,18 @@ def train_and_evaluate(args):
     logging.info("{} Eta bins and {} Phi bins".format(args.num_eta_bins, args.num_phi_bins))
     max_nodes, max_edges = graph.get_max_graph_size(args.num_eta_bins, args.num_phi_bins)
 
-    train_files = tf.io.gfile.glob(args.train_files)
-    eval_files = tf.io.gfile.glob(args.eval_files)
+    # train_files = tf.io.gfile.glob(args.train_files)
+    # eval_files = tf.io.gfile.glob(args.eval_files)
+    file_names = tf.io.gfile.glob(args.input_files)
+    n_files = len(file_names)
+    n_train = int(0.9*n_files)
+    if n_train < 1: n_train = 1
 
     # logging.info("Input file names: ", file_names)
-    logging.info("{} training files and {} evaluation files".format(len(train_files), len(eval_files)))
+    logging.info("{} input files".format(n_files))
+    # logging.info("{} training files and {} evaluation files".format(len(train_files), len(eval_files)))
     logging.info("{} training files".format(n_train))
-    raw_dataset = tf.data.TFRecordDataset(file_names)
+    raw_dataset = tf.data.TFRecordDataset(file_names[:n_train])
     training_dataset = raw_dataset.map(graph.parse_tfrec_function)
 
     AUTO = tf.data.experimental.AUTOTUNE
@@ -110,7 +115,7 @@ def train_and_evaluate(args):
 
     checkpoint = tf.train.Checkpoint(optimizer=optimizer, model=model)
     ckpt_manager = tf.train.CheckpointManager(checkpoint, directory=output_dir, max_to_keep=5)
-    logging.info("Loading latest checkpoint from:", output_dir)
+    logging.info("Loading latest checkpoint from: {}".format(output_dir))
     status = checkpoint.restore(ckpt_manager.latest_checkpoint)
 
     # training loss
@@ -153,14 +158,14 @@ def train_and_evaluate(args):
     @tf.function(autograph=False)
     def train_step(inputs_tr, targets_tr):
         logging.info("Tracing train_step")
-        logging.info(inputs_tr)
+        # logging.info(inputs_tr)
 
         def update_step(inputs_tr, targets_tr):
-            logging.info("Tracing update_step")
-            logging.info("before contatenate:", inputs_tr.n_node.shape)
+            # logging.info("Tracing update_step")
+            # logging.info("before contatenate:", inputs_tr.n_node.shape)
             inputs_tr = graph.concat_batch_dim(inputs_tr)
             targets_tr = graph.concat_batch_dim(targets_tr)
-            logging.info("after concatenate:", inputs_tr.n_node.shape)
+            # logging.info("after concatenate:", inputs_tr.n_node.shape)
 
             with tf.GradientTape() as tape:
                 outputs_tr = model(inputs_tr, num_processing_steps_tr)
@@ -185,9 +190,10 @@ def train_and_evaluate(args):
         num_batches = 0
         for inputs in dataset:
             input_tr, target_tr = inputs
+
             total_loss += train_step(input_tr, target_tr)
             num_batches += 1
-        logging.info("total batches:", num_batches)
+        logging.info("total batches: {}".format(num_batches))
         return total_loss/num_batches
 
     this_time =  time.strftime('%d %b %Y %H:%M:%S', time.localtime())
@@ -200,10 +206,11 @@ def train_and_evaluate(args):
     now = time.time()
     # writer = tf.summary.create_file_writer(os.path.join(output_dir, this_time))
 
+    dist_training_dataset = strategy.experimental_distribute_dataset(training_dataset)
     for epoch in range(n_epochs):
         logging.info("start epoch {} on {}".format(epoch, device))
-        training_dataset = training_dataset.shuffle(global_batch_size*2, reshuffle_each_iteration=True)
-        dist_training_dataset = strategy.experimental_distribute_dataset(training_dataset)
+        # training_dataset = training_dataset.shuffle(global_batch_size*2, reshuffle_each_iteration=True)
+        
         loss = train_epoch(dist_training_dataset)
         # loss = train_epoch(training_dataset)
         this_epoch = time.time()
@@ -226,8 +233,9 @@ def train_and_evaluate(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Train nx-graph with configurations')
     add_arg = parser.add_argument
-    add_arg("--train-files", help='path to training data', required=True)
-    add_arg("--eval-files", help='path to evaluation data', required=True)
+    add_arg('--input-files', help='data for training and evaluation', required=True)
+    # add_arg("--train-files", help='path to training data', required=True)
+    # add_arg("--eval-files", help='path to evaluation data', required=True)
     add_arg("--job-dir", help='location to write checkpoints and export models', required=True)
     add_arg("--train-batch-size", help='batch size for training', default=2, type=int)
     add_arg("--eval-batch-size", help='batch size for evaluation', default=2, type=int)
@@ -245,12 +253,13 @@ if __name__ == "__main__":
     add_arg('--tpu', help='use tpu', default=None)
     add_arg("--tpu-cores", help='number of cores in TPU', default=8, type=int)
     add_arg('--zone', help='gcloud zone for tpu', default='us-central1-b')
-    add_arg("-v", "--verbose", )
+    add_arg("-v", "--verbose", help='verbosity', choices=['DEBUG', 'ERROR', 'FATAL', 'INFO', 'WARN'],\
+        default="INFO")
     args, _ = parser.parse_known_args()
 
     # Set python level verbosity
-    tf.logging.set_verbosity(args.verbosity)
+    logging.set_verbosity(args.verbose)
     # Suppress C++ level warnings.
-    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+    # os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
     train_and_evaluate(args)

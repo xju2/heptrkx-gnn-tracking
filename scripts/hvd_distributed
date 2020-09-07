@@ -181,7 +181,6 @@ def train_and_evaluate(args):
             input_tr, target_tr = inputs
 
             total_loss += train_step(input_tr, target_tr, batch==0)
-
             num_batches += 1
         logging.info("total batches: {}".format(num_batches))
         return total_loss/num_batches
