@@ -28,8 +28,6 @@ from graph_nets import utils_np
 import sonnet as snt
 
 from heptrkx.dataset import graph
-# from heptrkx.nx_graph.distribute_model import SegmentClassifier
-# from heptrkx.nx_graph.model import SegmentClassifier
 from heptrkx.nx_graph import get_model
 from heptrkx.utils import load_yaml
 
@@ -116,7 +114,7 @@ def train_and_evaluate(args):
     checkpoint = tf.train.Checkpoint(optimizer=optimizer, model=model)
     ckpt_manager = tf.train.CheckpointManager(checkpoint, directory=output_dir, max_to_keep=5)
     logging.info("Loading latest checkpoint from: {}".format(output_dir))
-    status = checkpoint.restore(ckpt_manager.latest_checkpoint)
+    _ = checkpoint.restore(ckpt_manager.latest_checkpoint)
 
     # training loss
     real_weight = args.real_edge_weight
@@ -135,7 +133,8 @@ def train_and_evaluate(args):
         return loss
 
     def create_loss_ops(target_op, output_ops):
-        weights = target_op.edges * real_weight + (1 - target_op.edges) * fake_weight
+        t_edges = tf.squeeze(target_op.edges)
+        weights = t_edges * real_weight + (1 - t_edges) * fake_weight
         row_index = tf.range(tf.constant(max_edges))
         n_valid_edges = target_op.n_edge[0]
         
@@ -145,11 +144,11 @@ def train_and_evaluate(args):
         # # weights = tf.where(cond, weights, zeros)
 
         mask = tf.cast(row_index < n_valid_edges, tf.float32)
-        mask = tf.expand_dims(mask, axis=1)
+        # mask = tf.expand_dims(mask, axis=1)
         weights = weights * mask
 
         loss_ops = [
-            tf.compat.v1.losses.log_loss(target_op.edges, output_op.edges, weights=weights)
+            tf.compat.v1.losses.log_loss(t_edges, tf.squeeze(output_op.edges), weights=weights)
                 for output_op in output_ops
         ]
 
@@ -157,8 +156,8 @@ def train_and_evaluate(args):
 
     @tf.function(autograph=False)
     def train_step(inputs_tr, targets_tr):
-        logging.info("Tracing train_step")
-        # logging.info(inputs_tr)
+        print("Tracing train_step")
+        print(inputs_tr)
 
         def update_step(inputs_tr, targets_tr):
             # logging.info("Tracing update_step")
@@ -201,8 +200,9 @@ def train_and_evaluate(args):
     out_str += '\n'
     out_str += "Epoch, Time [mins], Loss\n"
     log_name = os.path.join(output_dir, "training_log.txt")
-    with open(log_name, 'a') as f:
-        f.write(out_str)
+    print(out_str)
+    # with open(log_name, 'a') as f:
+    #     f.write(out_str)
     now = time.time()
     # writer = tf.summary.create_file_writer(os.path.join(output_dir, this_time))
 
@@ -218,8 +218,8 @@ def train_and_evaluate(args):
         logging.info("Training {} epoch, {:.2f} mins, Loss := {:.4f}".format(
             epoch, (this_epoch-now)/60., loss/global_batch_size))
         out_str = "{}, {:.2f}, {:.4f}\n".format(epoch, (this_epoch-now)/60., loss/global_batch_size)
-        with open(log_name, 'a') as f:
-            f.write(out_str)
+        # with open(log_name, 'a') as f:
+        #     f.write(out_str)
         # with writer.as_default():
         #     tf.sumary.scalar("")
 
@@ -227,8 +227,9 @@ def train_and_evaluate(args):
         ckpt_manager.save()
 
     out_log = "End @ " + time.strftime('%d %b %Y %H:%M:%S', time.localtime()) + "\n"
-    with open(log_name, 'a') as f:
-        f.write(out_log)
+    print(out_log)
+    # with open(log_name, 'a') as f:
+    #     f.write(out_log)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Train nx-graph with configurations')
