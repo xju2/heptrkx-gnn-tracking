@@ -14,6 +14,9 @@ for gpu in gpus:
 if gpus:
     tf.config.experimental.set_visible_devices(gpus[hvd.local_rank()], 'GPU')
 
+print("I am local rank", hvd.local_rank())
+print("I am rank", hvd.rank())
+
 (mnist_images, mnist_labels), _ = \
     tf.keras.datasets.mnist.load_data(path='mnist-%d.npz' % hvd.rank())
 

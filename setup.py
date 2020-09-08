@@ -21,7 +21,7 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     install_requires=[
-        "tensorflow >= 2.1",
+        #"tensorflow >= 2.2",
         "graph_nets>=1.1",
         'gast',
         "future",
